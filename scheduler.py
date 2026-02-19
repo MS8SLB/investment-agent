@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-Weekly portfolio review scheduler.
+Portfolio review scheduler.
 
-Runs the AI investment agent on a recurring schedule (default: every Monday at 09:00).
+Runs the AI investment agent on a recurring schedule.
 
 Usage:
-    python scheduler.py            # Start the weekly scheduler (runs forever)
+    python scheduler.py            # Start the scheduler (runs forever)
     python scheduler.py --now      # Run one review immediately, then start the schedule
     python scheduler.py --once     # Run one review immediately and exit
 
 Configuration via .env:
-    SCHEDULE_DAY   = monday        (mon/tue/wed/thu/fri/sat/sun, default: monday)
-    SCHEDULE_TIME  = 09:00         (HH:MM 24h, default: 09:00)
+    SCHEDULE_MONTHLY      = false  (true = monthly, false = weekly)
+    SCHEDULE_DAY_OF_MONTH = 1      (day 1–28, used when SCHEDULE_MONTHLY=true)
+    SCHEDULE_DAY          = monday (mon/tue/…/sun, used when SCHEDULE_MONTHLY=false)
+    SCHEDULE_TIME         = 09:00  (HH:MM 24h, default: 09:00)
 """
 
 import os
@@ -63,10 +65,10 @@ DAY_MAP = {
 }
 
 
-def run_weekly_review() -> None:
+def _run_review() -> None:
     """Execute one full portfolio review session and log the outcome."""
     started_at = datetime.now()
-    log.info("=== Weekly portfolio review starting ===")
+    log.info("=== Portfolio review starting ===")
 
     try:
         # Lazy import so scheduler can start without blocking on imports
@@ -90,6 +92,10 @@ def run_weekly_review() -> None:
         log.exception(f"Review failed: {exc}")
 
 
+# Backwards-compatible alias
+run_weekly_review = _run_review
+
+
 def _check_api_key() -> bool:
     if not os.environ.get("ANTHROPIC_API_KEY"):
         console.print(
@@ -111,7 +117,7 @@ def _schedule_weekly() -> None:
         )
         sys.exit(1)
 
-    day_schedule.at(time_str).do(run_weekly_review)
+    day_schedule.at(time_str).do(_run_review)
 
     next_run = schedule.next_run()
     console.print(
@@ -124,6 +130,32 @@ def _schedule_weekly() -> None:
     log.info(f"Scheduler started — runs every {day_str} at {time_str}, next: {next_run}")
 
 
+def _schedule_monthly() -> None:
+    day_of_month = int(os.environ.get("SCHEDULE_DAY_OF_MONTH", "1"))
+    time_str = os.environ.get("SCHEDULE_TIME", "09:00").strip()
+
+    if not 1 <= day_of_month <= 28:
+        console.print(
+            f"[red]Error:[/red] SCHEDULE_DAY_OF_MONTH must be 1–28 (got {day_of_month})"
+        )
+        sys.exit(1)
+
+    def _monthly_gate() -> None:
+        """Fire the review only on the configured day of the month."""
+        if datetime.now().day == day_of_month:
+            _run_review()
+
+    schedule.every().day.at(time_str).do(_monthly_gate)
+
+    console.print(
+        f"\n[bold green]Scheduler started.[/bold green]\n"
+        f"  Runs on day [bold]{day_of_month}[/bold] of every month at [bold]{time_str}[/bold]\n"
+        f"  Log file: [dim]{LOG_FILE}[/dim]\n"
+        f"  Press Ctrl+C to stop.\n"
+    )
+    log.info(f"Scheduler started — runs on day {day_of_month} of every month at {time_str}")
+
+
 def main() -> None:
     if not _check_api_key():
         sys.exit(1)
@@ -133,15 +165,20 @@ def main() -> None:
     if "--once" in args:
         # Run once immediately and exit
         console.print("[bold]Running one-off portfolio review...[/bold]")
-        run_weekly_review()
+        _run_review()
         return
 
-    _schedule_weekly()
+    monthly = os.environ.get("SCHEDULE_MONTHLY", "false").lower().strip() in ("true", "1", "yes")
+
+    if monthly:
+        _schedule_monthly()
+    else:
+        _schedule_weekly()
 
     if "--now" in args:
         # Run immediately, then continue on schedule
         console.print("[dim]Running immediate review before starting schedule...[/dim]")
-        run_weekly_review()
+        _run_review()
 
     # Main scheduler loop
     try:
