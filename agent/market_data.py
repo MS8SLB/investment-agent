@@ -227,36 +227,36 @@ def get_earnings_calendar(ticker: str) -> dict:
         result: dict = {"ticker": ticker.upper()}
 
         # ── Upcoming earnings date ────────────────────────────────────────────
+        result["next_earnings_date"]    = None
+        result["eps_estimate_avg"]      = None
+        result["eps_estimate_low"]      = None
+        result["eps_estimate_high"]     = None
+        result["revenue_estimate_avg"]  = None
+        result["revenue_estimate_low"]  = None
+        result["revenue_estimate_high"] = None
         try:
             cal = t.calendar
-            if cal is not None:
-                # yfinance >= 1.0 may return a dict keyed by date strings or a
-                # DataFrame; yfinance < 1.0 returns a plain dict with list values.
-                if isinstance(cal, dict) and cal:
-                    # Try the legacy key names first
-                    dates = cal.get("Earnings Date") or cal.get("earningsDate") or []
-                    if dates:
-                        first = dates[0]
-                        result["next_earnings_date"] = (
-                            str(first.date()) if hasattr(first, "date") else str(first)
-                        )
-                    else:
-                        result["next_earnings_date"] = None
+            if isinstance(cal, dict) and cal:
+                # yfinance < 1.0 and some 1.x versions return a plain dict
+                dates = cal.get("Earnings Date") or cal.get("earningsDate") or []
+                if dates:
+                    first = dates[0]
+                    result["next_earnings_date"] = (
+                        str(first.date()) if hasattr(first, "date") else str(first)
+                    )
 
-                    def _safe(key, alt=None):
-                        v = cal.get(key) or (cal.get(alt) if alt else None)
-                        return float(v) if v is not None else None
+                def _safe(key, alt=None):
+                    v = cal.get(key) or (cal.get(alt) if alt else None)
+                    return float(v) if v is not None else None
 
-                    result["eps_estimate_avg"]     = _safe("Earnings Average", "epsAverage")
-                    result["eps_estimate_low"]      = _safe("Earnings Low", "epsLow")
-                    result["eps_estimate_high"]     = _safe("Earnings High", "epsHigh")
-                    result["revenue_estimate_avg"]  = _safe("Revenue Average", "revenueAverage")
-                    result["revenue_estimate_low"]  = _safe("Revenue Low", "revenueLow")
-                    result["revenue_estimate_high"] = _safe("Revenue High", "revenueHigh")
-                else:
-                    result["next_earnings_date"] = None
+                result["eps_estimate_avg"]      = _safe("Earnings Average", "epsAverage")
+                result["eps_estimate_low"]       = _safe("Earnings Low", "epsLow")
+                result["eps_estimate_high"]      = _safe("Earnings High", "epsHigh")
+                result["revenue_estimate_avg"]   = _safe("Revenue Average", "revenueAverage")
+                result["revenue_estimate_low"]   = _safe("Revenue Low", "revenueLow")
+                result["revenue_estimate_high"]  = _safe("Revenue High", "revenueHigh")
         except Exception:
-            result["next_earnings_date"] = None
+            pass  # defaults already set above
 
         # ── Historical EPS beat/miss (last 4 quarters) ───────────────────────
         try:
