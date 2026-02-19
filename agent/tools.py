@@ -323,6 +323,52 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_stock_universe",
+        "description": (
+            "Fetch the full list of tickers for major US indices from Wikipedia. "
+            "Returns S&P 500 (large caps), S&P 400 (mid caps), and/or S&P 600 (small caps). "
+            "Use this to get a broad investment universe beyond just well-known names, "
+            "then pass subsets to screen_stocks to find the best candidates."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "string",
+                    "description": "Which universe to fetch: 'sp500' (~500 large caps), 'broad' (~2700 US-listed stocks), or 'all' (combined)",
+                    "enum": ["sp500", "broad", "all"],
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "screen_stocks",
+        "description": (
+            "Run a fast parallel fundamental screen across a list of tickers. "
+            "Fetches key metrics (P/E, revenue growth, profit margin, ROE, debt) for each ticker "
+            "and returns the top candidates ranked by a composite quality + value score. "
+            "Pass 50-100 tickers at a time (from get_stock_universe) for best results. "
+            "Use this to discover high-quality opportunities across the full market — "
+            "not just popular large caps."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of ticker symbols to screen (max 100 per call)",
+                },
+                "top_n": {
+                    "type": "integer",
+                    "description": "Number of top candidates to return (default 25)",
+                },
+            },
+            "required": ["tickers"],
+        },
+    },
+    {
         "name": "save_session_reflection",
         "description": (
             "Save a reflection at the end of your portfolio review session. "
@@ -399,6 +445,15 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_macro_environment":
         return market_data.get_macro_environment()
+
+    elif tool_name == "get_stock_universe":
+        index = tool_input.get("index", "all")
+        return market_data.get_stock_universe(index)
+
+    elif tool_name == "screen_stocks":
+        tickers = tool_input.get("tickers", [])
+        top_n = tool_input.get("top_n", 25)
+        return market_data.screen_stocks(tickers, top_n)
 
     elif tool_name == "get_benchmark_comparison":
         return _handle_benchmark_comparison()

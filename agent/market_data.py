@@ -4,6 +4,7 @@ Provides stock quotes, fundamentals, historical data, news, earnings, and analys
 """
 
 import yfinance as yf
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -512,3 +513,153 @@ def get_macro_environment() -> dict:
     result["key_signals"] = signals if signals else ["No major macro warning signals detected"]
 
     return result
+
+
+def get_stock_universe(index: str = "all") -> dict:
+    """
+    Return ticker lists for US stocks fetched from public GitHub datasets.
+    index options:
+      "sp500"  — ~500 S&P 500 large-cap constituents
+      "broad"  — ~2700 US-listed stocks (mid + small caps included)
+      "all"    — sp500 + broad combined and deduplicated
+    """
+    import urllib.request
+    import csv
+    import io
+
+    SP500_URL = (
+        "https://raw.githubusercontent.com/datasets/s-and-p-500-companies"
+        "/main/data/constituents.csv"
+    )
+    BROAD_URL = (
+        "https://raw.githubusercontent.com/shilewenuw/get_all_tickers"
+        "/master/get_all_tickers/tickers.csv"
+    )
+
+    def _fetch_sp500() -> list[str]:
+        with urllib.request.urlopen(SP500_URL, timeout=15) as r:
+            content = r.read().decode()
+        reader = csv.DictReader(io.StringIO(content))
+        return [
+            row["Symbol"].strip().replace(".", "-")
+            for row in reader
+            if row.get("Symbol", "").strip()
+        ]
+
+    def _fetch_broad() -> list[str]:
+        with urllib.request.urlopen(BROAD_URL, timeout=15) as r:
+            lines = r.read().decode().splitlines()
+        return [line.strip() for line in lines if line.strip()]
+
+    result: dict = {}
+
+    if index in ("sp500", "all"):
+        try:
+            result["sp500"] = _fetch_sp500()
+        except Exception as e:
+            result["sp500"] = {"error": str(e)}
+
+    if index in ("broad", "all"):
+        try:
+            result["broad"] = _fetch_broad()
+        except Exception as e:
+            result["broad"] = {"error": str(e)}
+
+    # Build combined deduplicated list
+    all_tickers: list[str] = []
+    seen: set[str] = set()
+    for key in ("sp500", "broad"):
+        v = result.get(key)
+        if isinstance(v, list):
+            for t in v:
+                if t not in seen:
+                    seen.add(t)
+                    all_tickers.append(t)
+
+    result["total_count"] = len(all_tickers)
+    result["all_tickers"] = all_tickers
+    result["note"] = (
+        "Pass subsets of all_tickers to screen_stocks (50-100 at a time) to find top candidates. "
+        "Tip: shuffle or slice by sector to cover the full universe across multiple screen_stocks calls."
+    )
+    return result
+
+
+def screen_stocks(tickers: list, top_n: int = 25) -> list:
+    """
+    Run a fast parallel fundamental screen across a list of tickers.
+    Returns the top_n candidates ranked by a composite quality + value score.
+    Cap input at 100 tickers per call for speed.
+    """
+    def _fetch(ticker: str) -> Optional[dict]:
+        try:
+            info = yf.Ticker(ticker).info
+            price = (
+                info.get("currentPrice")
+                or info.get("regularMarketPrice")
+                or info.get("previousClose")
+            )
+            if not price:
+                return None
+
+            pe = info.get("trailingPE")
+            forward_pe = info.get("forwardPE")
+            revenue_growth = info.get("revenueGrowth")
+            profit_margin = info.get("profitMargins")
+            roe = info.get("returnOnEquity")
+            debt_to_equity = info.get("debtToEquity")
+            market_cap = info.get("marketCap") or 0
+            volume = info.get("regularMarketVolume") or info.get("volume") or 0
+
+            # Composite score: quality + reasonable valuation + liquidity
+            score = 0.0
+            if revenue_growth and revenue_growth > 0.08:
+                score += 2
+            if revenue_growth and revenue_growth > 0.20:
+                score += 1  # bonus for high growth
+            if profit_margin and profit_margin > 0.10:
+                score += 2
+            if roe and roe > 0.15:
+                score += 2
+            if pe and 5 < pe < 25:
+                score += 2
+            elif pe and 25 <= pe < 40:
+                score += 1
+            if forward_pe and pe and forward_pe < pe:
+                score += 1  # earnings expected to grow
+            if debt_to_equity is not None and debt_to_equity < 1.0:
+                score += 1
+            if volume > 200_000:
+                score += 1  # basic liquidity
+
+            return {
+                "ticker": ticker,
+                "name": info.get("longName") or info.get("shortName", ticker),
+                "sector": info.get("sector", ""),
+                "industry": info.get("industry", ""),
+                "market_cap_b": round(market_cap / 1e9, 2) if market_cap else None,
+                "price": price,
+                "pe_ratio": round(pe, 1) if pe else None,
+                "forward_pe": round(forward_pe, 1) if forward_pe else None,
+                "revenue_growth_pct": round(revenue_growth * 100, 1) if revenue_growth else None,
+                "profit_margin_pct": round(profit_margin * 100, 1) if profit_margin else None,
+                "roe_pct": round(roe * 100, 1) if roe else None,
+                "debt_to_equity": round(debt_to_equity, 2) if debt_to_equity is not None else None,
+                "recommendation": info.get("recommendationKey", ""),
+                "score": score,
+            }
+        except Exception:
+            return None
+
+    batch = tickers[:100]
+    results: list[dict] = []
+
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        futures = {executor.submit(_fetch, t): t for t in batch}
+        for future in as_completed(futures):
+            res = future.result()
+            if res:
+                results.append(res)
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results[:top_n]

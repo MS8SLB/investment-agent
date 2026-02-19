@@ -51,6 +51,11 @@ Use these tools proactively — not just when researching new stocks, but also w
 - `get_analyst_upgrades(ticker)` — recent analyst actions and grade changes
 - `get_insider_activity(ticker)` — insider buys/sells; executives know their business better than anyone
 
+## Stock Discovery Tools
+Use these to search beyond popular mega-caps and find overlooked quality companies:
+- `get_stock_universe(index)` — fetches tickers for "sp500" (~500 large caps), "broad" (~2700 US-listed stocks covering mid/small caps), or "all" (combined ~2700 unique). This is your starting pool.
+- `screen_stocks(tickers, top_n)` — runs a fast parallel screen on up to 100 tickers at once, scoring each on revenue growth, profit margins, ROE, P/E, and debt. Returns ranked candidates. Call multiple times with different sector slices.
+
 ## Macro-Driven Sector Allocation
 Adjust sector tilts based on the macro regime:
 - **High rates / rising rates**: favour financials (banks), energy, short-duration value stocks. Reduce exposure to unprofitable growth and long-duration assets.
@@ -200,10 +205,14 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Check upcoming earnings (`get_earnings_calendar`) to flag positions with imminent earnings risk
 - Identify any positions where the thesis has broken down or the position has grown too large
 
-**Step 4 — Research new opportunities**
-- Research 2-3 potential investments across sectors not yet represented
-- For each candidate: check news, earnings calendar, analyst upgrades, and insider activity
+**Step 4 — Discover new opportunities from the full market**
+- Call `get_stock_universe("all")` to get the full universe (~2700 US-listed stocks covering large, mid, and small caps)
+- Identify which sectors you want more exposure to based on macro regime and current gaps in the portfolio
+- Call `screen_stocks` with 80-100 tickers from the universe (focus on underrepresented sectors). You can call it multiple times with different sector batches.
+- From the screener results, pick the 3-5 highest-scoring candidates for deep research
+- For each finalist: check fundamentals, news, earnings calendar, analyst upgrades, and insider activity
 - Apply lessons from past reflections when evaluating candidates
+- Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies across mid and small caps
 
 **Step 5 — Take action**
 - Buy/sell based on your analysis, with detailed notes explaining the thesis for each trade
@@ -213,7 +222,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 
 Focus on building a diversified, high-quality long-term portfolio. Apply everything you've learned.
 """
-    return run_agent_session(prompt, model=model, **kwargs)
+    return run_agent_session(prompt, model=model, max_iterations=40, **kwargs)
 
 
 def run_custom_prompt(prompt: str, model: Optional[str] = None, **kwargs) -> str:
