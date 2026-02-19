@@ -334,3 +334,93 @@ def get_insider_activity(ticker: str) -> dict:
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_macro_environment() -> dict:
+    """
+    Fetch key macroeconomic indicators: Treasury yields, yield curve,
+    dollar index, oil, and gold. Includes a brief text interpretation
+    to help the agent understand the current regime.
+    """
+    def _fetch(ticker: str) -> tuple[Optional[float], Optional[float]]:
+        """Returns (price, change_pct) or (None, None) on failure."""
+        try:
+            t = yf.Ticker(ticker)
+            info = t.info
+            price = info.get("regularMarketPrice") or info.get("previousClose")
+            prev = info.get("regularMarketPreviousClose") or info.get("previousClose")
+            change = ((price - prev) / prev * 100) if price and prev and prev != 0 else None
+            return price, (round(change, 2) if change is not None else None)
+        except Exception:
+            return None, None
+
+    result: dict = {}
+
+    # Treasury yields
+    y10, y10c = _fetch("^TNX")   # 10-year yield (in percent, e.g. 4.5 = 4.5%)
+    y2, y2c = _fetch("^IRX")     # 13-week T-bill as short-end proxy
+    result["rates"] = {
+        "ten_yr_treasury_yield_pct": y10,
+        "two_yr_treasury_yield_pct": y2,
+        "yield_curve_spread": round(y10 - y2, 3) if y10 and y2 else None,
+        "yield_curve_status": (
+            "inverted (recession signal)" if y10 and y2 and y10 < y2
+            else "normal" if y10 and y2
+            else "unknown"
+        ),
+    }
+
+    # Dollar index
+    dxy, dxyc = _fetch("DX-Y.NYB")
+    result["dollar"] = {
+        "dxy": dxy,
+        "dxy_change_pct": dxyc,
+        "note": "Strong dollar hurts multinational earnings and emerging markets",
+    }
+
+    # Commodities
+    oil, oilc = _fetch("CL=F")
+    gold, goldc = _fetch("GC=F")
+    result["commodities"] = {
+        "oil_wti_usd": oil,
+        "oil_change_pct": oilc,
+        "gold_usd": gold,
+        "gold_change_pct": goldc,
+    }
+
+    # VIX (market fear gauge)
+    vix, vixc = _fetch("^VIX")
+    if vix:
+        if vix < 15:
+            vix_regime = "low fear — complacency risk, markets pricing in low volatility"
+        elif vix < 25:
+            vix_regime = "moderate — normal market conditions"
+        elif vix < 35:
+            vix_regime = "elevated fear — increased uncertainty, consider position sizing carefully"
+        else:
+            vix_regime = "extreme fear — crisis conditions, potential opportunity for patient investors"
+    else:
+        vix_regime = "unknown"
+
+    result["sentiment"] = {
+        "vix": vix,
+        "vix_change_pct": vixc,
+        "vix_regime": vix_regime,
+    }
+
+    # Synthesised interpretation — specific signals worth noting
+    signals = []
+    if result["rates"]["yield_curve_status"].startswith("inverted"):
+        signals.append("yield curve is inverted — historically precedes recessions by 12-18 months")
+    if y10 and y10 > 4.5:
+        signals.append(f"10yr yield at {y10:.1f}% — high rates compress growth stock valuations, favour value/financials")
+    if dxy and dxy > 105:
+        signals.append(f"dollar index at {dxy:.1f} — strong dollar is a headwind for US multinationals")
+    if oil and oil > 90:
+        signals.append(f"oil at ${oil:.0f} — elevated energy costs pressure consumer spending and margins")
+    if vix and vix > 25:
+        signals.append(f"VIX at {vix:.1f} — consider tighter position sizing until volatility subsides")
+
+    result["key_signals"] = signals if signals else ["No major macro warning signals detected"]
+
+    return result

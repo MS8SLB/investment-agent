@@ -81,6 +81,18 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
                 session_type TEXT DEFAULT 'review'
             )
         """)
+        # Point-in-time portfolio value snapshots for benchmark comparison
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL,
+                portfolio_value REAL NOT NULL,
+                cash REAL NOT NULL,
+                invested_value REAL NOT NULL,
+                benchmark_price REAL,
+                session_type TEXT DEFAULT 'review'
+            )
+        """)
 
         # Migrate existing DBs: add realized_pnl column if missing
         try:
@@ -341,6 +353,37 @@ def save_reflection(
             (datetime.utcnow().isoformat(), reflection, portfolio_value, session_type),
         )
     conn.close()
+
+
+def save_portfolio_snapshot(
+    portfolio_value: float,
+    cash: float,
+    invested_value: float,
+    benchmark_price: Optional[float] = None,
+    session_type: str = "review",
+) -> None:
+    """Record a point-in-time portfolio value alongside the benchmark price."""
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            """INSERT INTO portfolio_snapshots
+               (ts, portfolio_value, cash, invested_value, benchmark_price, session_type)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (datetime.utcnow().isoformat(), portfolio_value, cash, invested_value, benchmark_price, session_type),
+        )
+    conn.close()
+
+
+def get_portfolio_snapshots(limit: int = 52) -> list[dict]:
+    """Return snapshots ordered oldest-first (suitable for charting and % change calcs)."""
+    conn = _get_connection()
+    rows = conn.execute(
+        """SELECT ts, portfolio_value, cash, invested_value, benchmark_price, session_type
+           FROM portfolio_snapshots ORDER BY ts ASC LIMIT ?""",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_reflections(limit: int = 5) -> list[dict]:

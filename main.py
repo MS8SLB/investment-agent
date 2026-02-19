@@ -4,10 +4,13 @@ AI Investment Portfolio Agent - CLI Entry Point
 
 Usage:
     python main.py                    # Interactive menu
-    python main.py review             # Run a full portfolio review
+    python main.py review             # Run a full AI portfolio review
     python main.py portfolio          # Show portfolio status
     python main.py history            # Show transaction history
     python main.py market             # Show market summary
+    python main.py benchmark          # Portfolio vs S&P 500 performance
+    python main.py reflections        # Show agent's past session reflections
+    python main.py theses             # Show investment theses for holdings
     python main.py ask "your prompt"  # Ask the agent anything
 """
 
@@ -69,6 +72,36 @@ def cmd_market() -> None:
     console.print("[dim]Fetching market data...[/dim]")
     summary = get_market_summary()
     print_market_summary(summary)
+
+
+def cmd_benchmark() -> None:
+    """Display portfolio performance vs S&P 500."""
+    from agent.tools import _handle_benchmark_comparison
+    from utils.display import print_header, print_benchmark
+
+    print_header("Portfolio vs Benchmark")
+    data = _handle_benchmark_comparison()
+    print_benchmark(data)
+
+
+def cmd_reflections() -> None:
+    """Display the agent's saved post-session reflections."""
+    from agent.portfolio import get_reflections
+    from utils.display import print_header, print_reflections
+
+    print_header("Agent Reflections")
+    reflections = get_reflections(limit=10)
+    print_reflections(reflections)
+
+
+def cmd_theses() -> None:
+    """Display investment theses for current holdings and closed positions."""
+    from agent.portfolio import get_investment_memory
+    from utils.display import print_header, print_theses
+
+    print_header("Investment Theses")
+    memory = get_investment_memory()
+    print_theses(memory)
 
 
 def cmd_review() -> None:
@@ -144,9 +177,12 @@ def cmd_interactive() -> None:
         console.print("  [3] Ask the agent something")
         console.print("  [4] View transaction history")
         console.print("  [5] View market summary")
+        console.print("  [6] Portfolio vs benchmark (S&P 500)")
+        console.print("  [7] View agent reflections")
+        console.print("  [8] View investment theses")
         console.print("  [q] Quit")
 
-        choice = Prompt.ask("\nChoice", choices=["1", "2", "3", "4", "5", "q"], default="1")
+        choice = Prompt.ask("\nChoice", choices=["1", "2", "3", "4", "5", "6", "7", "8", "q"], default="1")
 
         if choice == "1":
             cmd_portfolio()
@@ -160,6 +196,12 @@ def cmd_interactive() -> None:
             cmd_history()
         elif choice == "5":
             cmd_market()
+        elif choice == "6":
+            cmd_benchmark()
+        elif choice == "7":
+            cmd_reflections()
+        elif choice == "8":
+            cmd_theses()
         elif choice == "q":
             console.print("[dim]Goodbye![/dim]")
             break
@@ -180,6 +222,12 @@ def main() -> None:
         cmd_history()
     elif args[0] == "market":
         cmd_market()
+    elif args[0] == "benchmark":
+        cmd_benchmark()
+    elif args[0] == "reflections":
+        cmd_reflections()
+    elif args[0] == "theses":
+        cmd_theses()
     elif args[0] == "ask" and len(args) > 1:
         cmd_ask(" ".join(args[1:]))
     else:

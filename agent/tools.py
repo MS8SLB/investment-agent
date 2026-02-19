@@ -265,6 +265,34 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_macro_environment",
+        "description": (
+            "Get key macroeconomic indicators: 10-year and 2-year Treasury yields, yield curve status, "
+            "dollar index, oil, gold, and VIX. Includes synthesised signals so you can adjust "
+            "sector allocation accordingly (e.g. high rates → favour value over growth, "
+            "strong dollar → avoid multinationals, inverted curve → recession risk)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "get_benchmark_comparison",
+        "description": (
+            "Compare the portfolio's total return since inception against the S&P 500. "
+            "Shows alpha (outperformance or underperformance) and historical snapshots. "
+            "Call this during portfolio reviews to understand whether the strategy is "
+            "actually beating a simple index fund."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
         "name": "get_investment_memory",
         "description": (
             "Retrieve your past investment theses for current holdings and recently closed positions. "
@@ -369,6 +397,12 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_insider_activity":
         return market_data.get_insider_activity(tool_input["ticker"])
 
+    elif tool_name == "get_macro_environment":
+        return market_data.get_macro_environment()
+
+    elif tool_name == "get_benchmark_comparison":
+        return _handle_benchmark_comparison()
+
     elif tool_name == "get_investment_memory":
         return portfolio.get_investment_memory()
 
@@ -379,8 +413,14 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "save_session_reflection":
         status = _get_portfolio_status()
         portfolio_value = status.get("total_portfolio_value")
+        cash = status.get("cash")
+        invested = status.get("total_invested_value")
         portfolio.save_reflection(tool_input["reflection"], portfolio_value, "review")
-        return {"success": True, "message": "Reflection saved successfully."}
+        # Auto-snapshot for benchmark tracking
+        spy = market_data.get_stock_quote("^GSPC")
+        spy_price = spy.get("price") if "error" not in spy else None
+        portfolio.save_portfolio_snapshot(portfolio_value, cash, invested, spy_price, "review")
+        return {"success": True, "message": "Reflection and portfolio snapshot saved."}
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}
@@ -493,3 +533,57 @@ def _handle_sell(tool_input: dict) -> dict:
         if notes:
             portfolio.save_trade_thesis(result["transaction_id"], ticker, "SELL", notes)
     return result
+
+
+def _handle_benchmark_comparison() -> dict:
+    snapshots = portfolio.get_portfolio_snapshots()
+    if not snapshots:
+        return {
+            "note": (
+                "No snapshots yet. A snapshot is automatically saved at the end of each "
+                "review session when you call save_session_reflection."
+            )
+        }
+
+    first = snapshots[0]   # oldest
+    latest = snapshots[-1]  # most recent
+
+    portfolio_return = (
+        (latest["portfolio_value"] - first["portfolio_value"]) / first["portfolio_value"] * 100
+    )
+
+    spy = market_data.get_stock_quote("^GSPC")
+    current_spy = spy.get("price") if "error" not in spy else None
+    benchmark_return = None
+    alpha = None
+    is_beating = None
+
+    if current_spy and first.get("benchmark_price"):
+        benchmark_return = (current_spy - first["benchmark_price"]) / first["benchmark_price"] * 100
+        alpha = portfolio_return - benchmark_return
+        is_beating = alpha > 0
+
+    # Recent snapshots for context (last 5, newest first)
+    recent = [
+        {
+            "date": s["ts"][:10],
+            "portfolio_value": s["portfolio_value"],
+            "sp500_price": s.get("benchmark_price"),
+        }
+        for s in reversed(snapshots[-5:])
+    ]
+
+    return {
+        "start_date": first["ts"][:10],
+        "portfolio_start_value": round(first["portfolio_value"], 2),
+        "portfolio_current_value": round(latest["portfolio_value"], 2),
+        "portfolio_return_pct": round(portfolio_return, 2),
+        "benchmark": "S&P 500 (^GSPC)",
+        "benchmark_start_price": first.get("benchmark_price"),
+        "benchmark_current_price": current_spy,
+        "benchmark_return_pct": round(benchmark_return, 2) if benchmark_return is not None else None,
+        "alpha_pct": round(alpha, 2) if alpha is not None else None,
+        "is_beating_benchmark": is_beating,
+        "total_snapshots": len(snapshots),
+        "recent_history": recent,
+    }
