@@ -134,12 +134,22 @@ def run_agent_session(
     messages = [{"role": "user", "content": user_prompt}]
     final_text = ""
 
+    # Waits (seconds) between retry attempts for rate-limit errors.
+    # Token-per-minute limits reset every 60 s, so later waits are longer.
+    _RETRY_WAITS = [0, 15, 30, 60, 90]
+
     for iteration in range(max_iterations):
+        # Small pacing delay between iterations to spread token usage over time.
+        if iteration > 0:
+            time.sleep(3)
+
         # Retry with exponential backoff on rate limit errors
         response = None
-        for attempt, wait in enumerate([0, 2, 4, 8, 16]):
+        for attempt, wait in enumerate(_RETRY_WAITS):
             try:
                 if wait:
+                    if on_text:
+                        on_text(f"\n[Rate limit hit — waiting {wait}s before retry {attempt}/{len(_RETRY_WAITS)-1}...]\n")
                     time.sleep(wait)
                 response = client.messages.create(
                     model=model,
@@ -149,11 +159,9 @@ def run_agent_session(
                     messages=messages,
                 )
                 break
-            except anthropic.RateLimitError as e:
-                if attempt == 4:
+            except anthropic.RateLimitError:
+                if attempt == len(_RETRY_WAITS) - 1:
                     raise
-                if on_text:
-                    on_text(f"\n[Rate limit hit, retrying in {[2,4,8,16][attempt]}s...]\n")
         if response is None:
             break
 

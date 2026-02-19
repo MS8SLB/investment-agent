@@ -317,6 +317,20 @@ with st.sidebar:
         ],
     )
 
+    st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
+
+    MODEL_OPTIONS = {
+        "Haiku 4.5  (fast, high limits)": "claude-haiku-4-5-20251001",
+        "Sonnet 4.5 (balanced)": "claude-sonnet-4-5-20250929",
+        "Opus 4.6   (most capable)": "claude-opus-4-6",
+    }
+    selected_model_label = st.radio(
+        "AI MODEL",
+        list(MODEL_OPTIONS.keys()),
+        index=1,
+    )
+    selected_model = MODEL_OPTIONS[selected_model_label]
+
     st.markdown("""
     <div style="margin-top:32px;border-top:1px solid #1a1a1a;padding-top:12px;">
         <div style="color:#505050;font-size:9px;letter-spacing:1px;
@@ -711,6 +725,7 @@ elif "AI REVIEW" in page:
 
         try:
             run_portfolio_review(
+                model=selected_model,
                 on_text=on_text,
                 on_tool_call=on_tool_call,
                 on_tool_result=on_tool_result,
@@ -801,7 +816,7 @@ elif "ASK AGENT" in page:
         refresh()
 
         try:
-            run_custom_prompt(prompt.strip(), on_text=on_text, on_tool_call=on_tool_call)
+            run_custom_prompt(prompt.strip(), model=selected_model, on_text=on_text, on_tool_call=on_tool_call)
             lines.append("")
             lines.append('<span style="color:#00E676">✓ DONE</span>')
         except Exception as e:
