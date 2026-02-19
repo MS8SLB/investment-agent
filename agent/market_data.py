@@ -515,9 +515,12 @@ def get_macro_environment() -> dict:
     return result
 
 
-def get_stock_universe(index: str = "all") -> dict:
+def get_stock_universe(index: str = "all", sample_n: int = 200, random_seed: Optional[int] = None) -> dict:
     """
-    Return ticker lists for US stocks fetched from public GitHub datasets.
+    Return a random sample of tickers for US stocks fetched from public GitHub datasets.
+    Returns sample_n tickers (default 200) to keep response size manageable.
+    Call multiple times with different random_seed values to cover the full universe.
+
     index options:
       "sp500"  — ~500 S&P 500 large-cap constituents
       "broad"  — ~2700 US-listed stocks (mid + small caps included)
@@ -526,6 +529,7 @@ def get_stock_universe(index: str = "all") -> dict:
     import urllib.request
     import csv
     import io
+    import random
 
     SP500_URL = (
         "https://raw.githubusercontent.com/datasets/s-and-p-500-companies"
@@ -576,11 +580,20 @@ def get_stock_universe(index: str = "all") -> dict:
                     seen.add(t)
                     all_tickers.append(t)
 
-    result["total_count"] = len(all_tickers)
-    result["all_tickers"] = all_tickers
+    total_count = len(all_tickers)
+
+    # Return a random sample to keep tool result size manageable
+    rng = random.Random(random_seed)
+    sample = rng.sample(all_tickers, min(sample_n, total_count))
+
+    result["total_count"] = total_count
+    result["returned_count"] = len(sample)
+    result["tickers"] = sample
     result["note"] = (
-        "Pass subsets of all_tickers to screen_stocks (50-100 at a time) to find top candidates. "
-        "Tip: shuffle or slice by sector to cover the full universe across multiple screen_stocks calls."
+        f"Returning {len(sample)} randomly sampled tickers out of {total_count} total. "
+        "Pass these to screen_stocks (50-100 at a time). "
+        "Call get_stock_universe again with a different random_seed (e.g. 1, 2, 3...) "
+        "to get a different batch and cover more of the universe."
     )
     return result
 

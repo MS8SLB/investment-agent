@@ -325,19 +325,28 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_stock_universe",
         "description": (
-            "Fetch the full list of tickers for major US indices from Wikipedia. "
-            "Returns S&P 500 (large caps), S&P 400 (mid caps), and/or S&P 600 (small caps). "
-            "Use this to get a broad investment universe beyond just well-known names, "
-            "then pass subsets to screen_stocks to find the best candidates."
+            "Fetch a random sample of tickers from major US stock universes. "
+            "Returns 'sample_n' tickers (default 200) to keep response size manageable. "
+            "Call multiple times with different random_seed values (0, 1, 2, ...) to cover "
+            "different parts of the universe across multiple screen_stocks calls. "
+            "Use this to discover investment opportunities beyond well-known names."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "index": {
                     "type": "string",
-                    "description": "Which universe to fetch: 'sp500' (~500 large caps), 'broad' (~2700 US-listed stocks), or 'all' (combined)",
+                    "description": "Which universe to sample from: 'sp500' (~500 large caps), 'broad' (~2700 US-listed stocks), or 'all' (combined)",
                     "enum": ["sp500", "broad", "all"],
-                }
+                },
+                "sample_n": {
+                    "type": "integer",
+                    "description": "Number of tickers to return in this sample (default 200, max 300). Keep this reasonable to avoid large responses.",
+                },
+                "random_seed": {
+                    "type": "integer",
+                    "description": "Seed for random sampling. Use different values (0, 1, 2, 3...) across calls to get different batches from the full universe.",
+                },
             },
             "required": [],
         },
@@ -448,7 +457,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_stock_universe":
         index = tool_input.get("index", "all")
-        return market_data.get_stock_universe(index)
+        sample_n = min(tool_input.get("sample_n", 200), 300)
+        random_seed = tool_input.get("random_seed", None)
+        return market_data.get_stock_universe(index, sample_n=sample_n, random_seed=random_seed)
 
     elif tool_name == "screen_stocks":
         tickers = tool_input.get("tickers", [])
