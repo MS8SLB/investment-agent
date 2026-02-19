@@ -185,6 +185,86 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_stock_news",
+        "description": (
+            "Fetch recent news headlines for a stock from Yahoo Finance. "
+            "Use this to stay aware of earnings surprises, CEO changes, product launches, "
+            "lawsuits, regulatory actions, or any event that could affect the investment thesis."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of articles to return (default 8, max 15)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_earnings_calendar",
+        "description": (
+            "Get the next scheduled earnings date for a stock, consensus EPS and revenue estimates, "
+            "and the last 4 quarters of beat/miss history. "
+            "Use this before buying — earnings are the single biggest short-term risk for any position."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_analyst_upgrades",
+        "description": (
+            "Get recent analyst upgrades and downgrades for a stock: which firm acted, "
+            "whether it was an upgrade/downgrade/initiation, and the grade change. "
+            "A cluster of downgrades is a warning sign; upgrades can signal improving sentiment."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of recent analyst actions to return (default 10)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_insider_activity",
+        "description": (
+            "Get recent insider transactions (buys and sells by executives, directors, and major shareholders). "
+            "Significant insider buying — especially by the CEO or CFO — is one of the strongest "
+            "bullish signals available. Heavy insider selling can be a warning sign."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
         "name": "get_investment_memory",
         "description": (
             "Retrieve your past investment theses for current holdings and recently closed positions. "
@@ -274,6 +354,20 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_transaction_history":
         limit = tool_input.get("limit", 20)
         return portfolio.get_transactions(limit)
+
+    elif tool_name == "get_stock_news":
+        limit = min(tool_input.get("limit", 8), 15)
+        return market_data.get_stock_news(tool_input["ticker"], limit)
+
+    elif tool_name == "get_earnings_calendar":
+        return market_data.get_earnings_calendar(tool_input["ticker"])
+
+    elif tool_name == "get_analyst_upgrades":
+        limit = tool_input.get("limit", 10)
+        return market_data.get_analyst_upgrades(tool_input["ticker"], limit)
+
+    elif tool_name == "get_insider_activity":
+        return market_data.get_insider_activity(tool_input["ticker"])
 
     elif tool_name == "get_investment_memory":
         return portfolio.get_investment_memory()

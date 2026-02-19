@@ -28,13 +28,26 @@ When considering a buy:
 1. Check the current portfolio status to understand available cash and existing positions
 2. Research the stock's fundamentals (P/E, margins, ROE, growth)
 3. Check price history to understand valuation context
-4. Consider sector exposure — avoid over-concentrating in one sector
-5. Make the purchase if conviction is high
+4. Check `get_earnings_calendar` — know when earnings are due and whether the company has a beat/miss history. Be cautious buying immediately before an uncertain earnings date.
+5. Read `get_stock_news` — scan for any recent events that could break the investment thesis (fraud, recalls, executive departures, regulatory problems)
+6. Check `get_analyst_upgrades` — a cluster of recent downgrades is a warning signal
+7. Check `get_insider_activity` — meaningful insider buying (especially by CEO/CFO) is one of the strongest confirmation signals available
+8. Consider sector exposure — avoid over-concentrating in one sector
+9. Make the purchase if conviction is high across fundamentals, news, and insider signals
 
 When considering a sell:
 1. Fundamentals have deteriorated (not just price drop)
-2. Better opportunity exists and capital reallocation makes sense
-3. Position has grown too large (>20% of portfolio)
+2. News reveals a thesis-breaking event (fraud, lost moat, major regulatory setback)
+3. Heavy insider selling by multiple executives simultaneously
+4. Better opportunity exists and capital reallocation makes sense
+5. Position has grown too large (>20% of portfolio)
+
+## Market Intelligence Tools
+Use these tools proactively — not just when researching new stocks, but also when reviewing existing holdings:
+- `get_stock_news(ticker)` — recent headlines; look for thesis-confirming or thesis-breaking events
+- `get_earnings_calendar(ticker)` — next earnings date + EPS/revenue consensus + beat/miss record
+- `get_analyst_upgrades(ticker)` — recent analyst actions and grade changes
+- `get_insider_activity(ticker)` — insider buys/sells; executives know their business better than anyone
 
 ## Portfolio Rules
 - Maximum position size: 20% of total portfolio value
@@ -171,10 +184,13 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 
 **Step 3 — Evaluate existing positions**
 - For each holding, compare current fundamentals against the original buy thesis
+- Check recent news (`get_stock_news`) for any thesis-breaking events
+- Check upcoming earnings (`get_earnings_calendar`) to flag positions with imminent earnings risk
 - Identify any positions where the thesis has broken down or the position has grown too large
 
 **Step 4 — Research new opportunities**
 - Research 2-3 potential investments across sectors not yet represented
+- For each candidate: check news, earnings calendar, analyst upgrades, and insider activity
 - Apply lessons from past reflections when evaluating candidates
 
 **Step 5 — Take action**

@@ -1,6 +1,6 @@
 """
 Market data retrieval using yfinance.
-Provides stock quotes, fundamentals, and historical data.
+Provides stock quotes, fundamentals, historical data, news, earnings, and analyst data.
 """
 
 import yfinance as yf
@@ -167,3 +167,170 @@ def get_market_summary() -> dict:
         except Exception:
             summary[name] = {"price": None, "change_pct": None}
     return summary
+
+
+def get_stock_news(ticker: str, limit: int = 8) -> list[dict]:
+    """
+    Fetch recent news headlines for a stock from Yahoo Finance.
+    Returns title, publisher, publish date, and related tickers.
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+        raw = t.news or []
+        articles = []
+        for a in raw[:limit]:
+            ts = a.get("providerPublishTime")
+            published = (
+                datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
+                if ts else "unknown"
+            )
+            articles.append({
+                "title": a.get("title", ""),
+                "publisher": a.get("publisher", ""),
+                "published_at": published,
+                "related_tickers": a.get("relatedTickers", []),
+                "link": a.get("link", ""),
+            })
+        if not articles:
+            return [{"note": f"No recent news found for {ticker.upper()}"}]
+        return articles
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+def get_earnings_calendar(ticker: str) -> dict:
+    """
+    Return upcoming earnings date with consensus EPS/revenue estimates,
+    plus the last 4 quarters' beat/miss history.
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+        result: dict = {"ticker": ticker.upper()}
+
+        # Upcoming earnings
+        try:
+            cal = t.calendar
+            if isinstance(cal, dict) and cal:
+                dates = cal.get("Earnings Date", [])
+                result["next_earnings_date"] = (
+                    str(dates[0].date()) if dates else None
+                )
+                result["eps_estimate_avg"] = cal.get("Earnings Average")
+                result["eps_estimate_low"] = cal.get("Earnings Low")
+                result["eps_estimate_high"] = cal.get("Earnings High")
+                result["revenue_estimate_avg"] = cal.get("Revenue Average")
+                result["revenue_estimate_low"] = cal.get("Revenue Low")
+                result["revenue_estimate_high"] = cal.get("Revenue High")
+        except Exception:
+            result["next_earnings_date"] = None
+
+        # Historical earnings beat/miss (last 4 quarters)
+        try:
+            ed = t.earnings_dates
+            if ed is not None and not ed.empty:
+                # Keep only rows with reported EPS (past quarters)
+                past = ed.dropna(subset=["Reported EPS"]).head(4)
+                history = []
+                for date, row in past.iterrows():
+                    estimated = row.get("EPS Estimate")
+                    reported = row.get("Reported EPS")
+                    surprise = row.get("Surprise(%)")
+                    history.append({
+                        "date": str(date.date()),
+                        "eps_estimate": round(float(estimated), 4) if estimated is not None else None,
+                        "eps_reported": round(float(reported), 4) if reported is not None else None,
+                        "surprise_pct": round(float(surprise), 2) if surprise is not None else None,
+                        "beat": (reported > estimated) if (reported is not None and estimated is not None) else None,
+                    })
+                result["last_4_quarters"] = history
+        except Exception:
+            result["last_4_quarters"] = []
+
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_analyst_upgrades(ticker: str, limit: int = 10) -> list[dict]:
+    """
+    Return recent analyst upgrades and downgrades for a stock.
+    Includes firm name, action (upgrade/downgrade/init), and grade change.
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+        df = t.upgrades_downgrades
+        if df is None or df.empty:
+            return [{"note": f"No recent analyst actions found for {ticker.upper()}"}]
+
+        df = df.head(limit)
+        results = []
+        for date, row in df.iterrows():
+            results.append({
+                "date": str(date.date()) if hasattr(date, "date") else str(date),
+                "firm": row.get("Firm", ""),
+                "action": row.get("Action", ""),
+                "from_grade": row.get("FromGrade", ""),
+                "to_grade": row.get("ToGrade", ""),
+            })
+        return results
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+def get_insider_activity(ticker: str) -> dict:
+    """
+    Return recent insider transactions (buys/sells by executives and directors).
+    High insider buying is often a bullish signal; heavy selling can be a warning.
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+        df = t.insider_transactions
+        if df is None or df.empty:
+            return {
+                "ticker": ticker.upper(),
+                "transactions": [],
+                "note": "No recent insider transactions found.",
+            }
+
+        transactions = []
+        for _, row in df.head(15).iterrows():
+            # Column names differ slightly across yfinance versions
+            date_val = row.get("startDate") or row.get("Date") or row.get("date")
+            if hasattr(date_val, "date"):
+                date_val = str(date_val.date())
+            else:
+                date_val = str(date_val) if date_val is not None else None
+
+            shares = row.get("shares") or row.get("Shares")
+            value = row.get("value") or row.get("Value")
+            text = row.get("text") or row.get("Text") or row.get("Transaction", "")
+
+            transactions.append({
+                "date": date_val,
+                "insider": row.get("insider") or row.get("Insider", ""),
+                "position": row.get("position") or row.get("Position", ""),
+                "transaction": str(text)[:120],
+                "shares": int(shares) if shares is not None else None,
+                "value_usd": round(float(value)) if value is not None else None,
+            })
+
+        # Quick buy/sell summary
+        buy_count = sum(
+            1 for tx in transactions
+            if "purchase" in str(tx.get("transaction", "")).lower()
+            or "buy" in str(tx.get("transaction", "")).lower()
+        )
+        sell_count = sum(
+            1 for tx in transactions
+            if "sale" in str(tx.get("transaction", "")).lower()
+            or "sell" in str(tx.get("transaction", "")).lower()
+        )
+
+        return {
+            "ticker": ticker.upper(),
+            "recent_buy_transactions": buy_count,
+            "recent_sell_transactions": sell_count,
+            "transactions": transactions,
+        }
+    except Exception as e:
+        return {"error": str(e)}
