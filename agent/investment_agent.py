@@ -129,7 +129,7 @@ def run_agent_session(
         The final text response from the agent.
     """
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    model = model or os.environ.get("CLAUDE_MODEL", "claude-opus-4-6")
+    model = model or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
 
     messages = [{"role": "user", "content": user_prompt}]
     final_text = ""
