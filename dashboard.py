@@ -204,6 +204,17 @@ hr { border-color: var(--border) !important; }
 
 /* ─ Success/error ─ */
 [data-testid="stAlert"] { border-radius: 0 !important; font-family: 'IBM Plex Mono', monospace !important; }
+
+/* ─ Hide Streamlit chrome (toolbar, header, footer, keyboard badge) ─ */
+header[data-testid="stHeader"]          { display: none !important; }
+[data-testid="stToolbar"]               { display: none !important; }
+[data-testid="stToolbarActions"]        { display: none !important; }
+[data-testid="stStatusWidget"]          { display: none !important; }
+[data-testid="stDecoration"]            { display: none !important; }
+#MainMenu                               { display: none !important; }
+footer                                  { display: none !important; }
+button[title="Open keyboard shortcuts help"] { display: none !important; }
+button[kind="keyboardShortcutButton"]   { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -285,18 +296,17 @@ with st.sidebar:
     page = st.radio(
         "SECTION",
         [
-            "📊  PORTFOLIO",
-            "📈  PERFORMANCE",
-            "🔄  TRADES",
-            "🤖  AI REVIEW",
-            "💬  ASK AGENT",
-            "📝  REFLECTIONS",
+            "PORTFOLIO",
+            "PERFORMANCE",
+            "TRADES",
+            "AI REVIEW",
+            "ASK AGENT",
+            "REFLECTIONS",
         ],
     )
 
     st.markdown("""
-    <div style="position:absolute;bottom:20px;left:16px;right:16px;
-                border-top:1px solid #1a1a1a;padding-top:12px;">
+    <div style="margin-top:32px;border-top:1px solid #1a1a1a;padding-top:12px;">
         <div style="color:#505050;font-size:9px;letter-spacing:1px;
                     font-family:'IBM Plex Mono',monospace;">PAPER TRADING ONLY<br>NO REAL MONEY AT RISK</div>
     </div>
