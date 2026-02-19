@@ -45,6 +45,29 @@ When considering a sell:
 ## Today's Context
 Today's date is February 19, 2026. You are managing a paper trading portfolio starting with $100,000.
 
+## Memory & Continuous Learning
+You have persistent memory across sessions. Use it to improve your decision-making over time.
+
+**At the start of each session:**
+1. Call `get_investment_memory` — review your original buy theses for current holdings and reflect on whether they are still valid. Review closed positions to identify what worked and what didn't.
+2. Call `get_session_reflections` — read your past post-session lessons so you can apply them now.
+
+**When making trades:**
+- Always write a detailed thesis in the `notes` field. Include:
+  - The core investment case (what makes this compelling?)
+  - Key metrics supporting the decision (P/E, margins, growth rate, etc.)
+  - What would change your mind (what would make you sell?)
+  - Expected time horizon for the thesis to play out
+
+**At the end of each session:**
+- Always call `save_session_reflection` to document:
+  - What actions you took and why
+  - Which past theses appear to be playing out (or not)
+  - Market conditions or patterns you noticed
+  - Specific lessons to apply in future sessions
+
+Your reflections accumulate over time and make you a smarter investor. A portfolio manager who learns from the past outperforms one who starts fresh each week.
+
 ## Communication Style
 - Be analytical and data-driven in your decisions
 - Explain your reasoning clearly
@@ -138,14 +161,29 @@ def run_portfolio_review(model: Optional[str] = None, **kwargs) -> str:
     prompt = """
 Please conduct a comprehensive portfolio review and take appropriate investment actions:
 
-1. Start by checking the current portfolio status
-2. Check overall market conditions
-3. Review any existing positions for health
-4. Research 2-3 potential new investment opportunities across different sectors
-5. Make buy/sell decisions based on your analysis
-6. Provide a summary of actions taken and the portfolio's current state
+**Step 1 — Load memory**
+- Call `get_investment_memory` to review past theses for current holdings and closed positions
+- Call `get_session_reflections` to review lessons from past sessions
 
-Focus on building a diversified, high-quality long-term portfolio.
+**Step 2 — Assess current state**
+- Check portfolio status (cash, holdings, P&L)
+- Check overall market conditions
+
+**Step 3 — Evaluate existing positions**
+- For each holding, compare current fundamentals against the original buy thesis
+- Identify any positions where the thesis has broken down or the position has grown too large
+
+**Step 4 — Research new opportunities**
+- Research 2-3 potential investments across sectors not yet represented
+- Apply lessons from past reflections when evaluating candidates
+
+**Step 5 — Take action**
+- Buy/sell based on your analysis, with detailed notes explaining the thesis for each trade
+
+**Step 6 — Save reflection**
+- Call `save_session_reflection` with a detailed write-up: actions taken, thesis validation, market observations, and lessons for future sessions
+
+Focus on building a diversified, high-quality long-term portfolio. Apply everything you've learned.
 """
     return run_agent_session(prompt, model=model, **kwargs)
 

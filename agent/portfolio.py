@@ -1,6 +1,6 @@
 """
 Portfolio manager with SQLite persistence.
-Tracks cash, holdings, and transaction history.
+Tracks cash, holdings, transaction history, investment theses, and session reflections.
 """
 
 import sqlite3
@@ -49,6 +49,7 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
                 shares REAL NOT NULL,
                 price REAL NOT NULL,
                 total REAL NOT NULL,
+                realized_pnl REAL,
                 notes TEXT
             )
         """)
@@ -59,6 +60,34 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
                 message TEXT NOT NULL
             )
         """)
+        # Stores the agent's reasoning at the time of each trade
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trade_thesis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                transaction_id INTEGER,
+                ticker TEXT NOT NULL,
+                action TEXT NOT NULL,
+                thesis TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        # Stores the agent's post-session reflections and lessons
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS reflections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                reflection TEXT NOT NULL,
+                portfolio_value REAL,
+                session_type TEXT DEFAULT 'review'
+            )
+        """)
+
+        # Migrate existing DBs: add realized_pnl column if missing
+        try:
+            conn.execute("ALTER TABLE transactions ADD COLUMN realized_pnl REAL")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
         # Seed initial state only if not present
         existing = conn.execute("SELECT id FROM portfolio_state WHERE id = 1").fetchone()
         if not existing:
@@ -99,7 +128,7 @@ def get_holding(ticker: str) -> Optional[dict]:
 def buy_stock(ticker: str, shares: float, price_per_share: float, notes: str = "") -> dict:
     """
     Execute a paper buy order.
-    Returns result dict with success/error info.
+    Returns result dict with success/error info, including transaction_id on success.
     """
     ticker = ticker.upper()
     total_cost = shares * price_per_share
@@ -141,13 +170,15 @@ def buy_stock(ticker: str, shares: float, price_per_share: float, notes: str = "
                 )
 
             # Record transaction
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO transactions (ts, action, ticker, shares, price, total, notes) VALUES (?, 'BUY', ?, ?, ?, ?, ?)",
                 (now, ticker, shares, price_per_share, total_cost, notes),
             )
+            transaction_id = cursor.lastrowid
 
         return {
             "success": True,
+            "transaction_id": transaction_id,
             "ticker": ticker,
             "shares": shares,
             "price": price_per_share,
@@ -161,7 +192,7 @@ def buy_stock(ticker: str, shares: float, price_per_share: float, notes: str = "
 def sell_stock(ticker: str, shares: float, price_per_share: float, notes: str = "") -> dict:
     """
     Execute a paper sell order.
-    Returns result dict with success/error info.
+    Returns result dict with success/error info, including transaction_id on success.
     """
     ticker = ticker.upper()
     total_proceeds = shares * price_per_share
@@ -200,14 +231,16 @@ def sell_stock(ticker: str, shares: float, price_per_share: float, notes: str = 
             )
 
             # Record transaction
-            conn.execute(
-                "INSERT INTO transactions (ts, action, ticker, shares, price, total, notes) VALUES (?, 'SELL', ?, ?, ?, ?, ?)",
-                (now, ticker, shares, price_per_share, total_proceeds, notes),
+            cursor = conn.execute(
+                "INSERT INTO transactions (ts, action, ticker, shares, price, total, realized_pnl, notes) VALUES (?, 'SELL', ?, ?, ?, ?, ?, ?)",
+                (now, ticker, shares, price_per_share, total_proceeds, realized_pnl, notes),
             )
+            transaction_id = cursor.lastrowid
 
         cash = get_cash()
         return {
             "success": True,
+            "transaction_id": transaction_id,
             "ticker": ticker,
             "shares": shares,
             "price": price_per_share,
@@ -217,6 +250,108 @@ def sell_stock(ticker: str, shares: float, price_per_share: float, notes: str = 
         }
     finally:
         conn.close()
+
+
+def save_trade_thesis(transaction_id: int, ticker: str, action: str, thesis: str) -> None:
+    """Record the agent's reasoning for a buy or sell at the time of the trade."""
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            "INSERT INTO trade_thesis (transaction_id, ticker, action, thesis, created_at) VALUES (?, ?, ?, ?, ?)",
+            (transaction_id, ticker.upper(), action.upper(), thesis, datetime.utcnow().isoformat()),
+        )
+    conn.close()
+
+
+def get_investment_memory() -> dict:
+    """
+    Return past investment theses for current holdings and recently closed positions.
+    Gives the agent context about its past reasoning so it can evaluate whether
+    original theses are playing out and apply lessons from closed positions.
+    """
+    conn = _get_connection()
+
+    # Most recent buy thesis for each current holding
+    holdings = conn.execute(
+        "SELECT ticker, shares, avg_cost, first_bought FROM holdings ORDER BY ticker"
+    ).fetchall()
+
+    holding_theses = []
+    for h in holdings:
+        ticker = h["ticker"]
+        thesis_row = conn.execute("""
+            SELECT thesis, created_at FROM trade_thesis
+            WHERE ticker = ? AND action = 'BUY'
+            ORDER BY created_at DESC LIMIT 1
+        """, (ticker,)).fetchone()
+
+        holding_theses.append({
+            "ticker": ticker,
+            "shares": h["shares"],
+            "avg_cost_per_share": h["avg_cost"],
+            "first_bought": h["first_bought"],
+            "original_buy_thesis": thesis_row["thesis"] if thesis_row else "(no thesis recorded)",
+            "thesis_date": thesis_row["created_at"] if thesis_row else None,
+        })
+
+    # Recently closed positions with their sell thesis and realized P&L
+    closed_rows = conn.execute("""
+        SELECT t.ticker, t.shares, t.price as sell_price, t.total as proceeds,
+               t.realized_pnl, t.ts as sold_at, t.notes as sell_notes,
+               tt.thesis as sell_thesis
+        FROM transactions t
+        LEFT JOIN trade_thesis tt ON tt.transaction_id = t.id
+        WHERE t.action = 'SELL'
+          AND t.ticker NOT IN (SELECT ticker FROM holdings)
+        ORDER BY t.ts DESC
+        LIMIT 10
+    """).fetchall()
+
+    conn.close()
+
+    closed = []
+    for r in closed_rows:
+        row = dict(r)
+        # Format realized P&L direction clearly
+        if row.get("realized_pnl") is not None:
+            row["realized_pnl"] = round(row["realized_pnl"], 2)
+            row["outcome"] = "profit" if row["realized_pnl"] >= 0 else "loss"
+        closed.append(row)
+
+    return {
+        "current_holdings_theses": holding_theses,
+        "recently_closed_positions": closed,
+        "instruction": (
+            "Review your original theses for current holdings — are they still valid? "
+            "Review closed positions to identify patterns in what worked and what didn't."
+        ),
+    }
+
+
+def save_reflection(
+    reflection: str,
+    portfolio_value: Optional[float] = None,
+    session_type: str = "review",
+) -> None:
+    """Save the agent's post-session reflection."""
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            "INSERT INTO reflections (created_at, reflection, portfolio_value, session_type) VALUES (?, ?, ?, ?)",
+            (datetime.utcnow().isoformat(), reflection, portfolio_value, session_type),
+        )
+    conn.close()
+
+
+def get_reflections(limit: int = 5) -> list[dict]:
+    """Return the most recent post-session reflections."""
+    conn = _get_connection()
+    rows = conn.execute(
+        "SELECT created_at, reflection, portfolio_value, session_type FROM reflections ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_transactions(limit: int = 50) -> list[dict]:

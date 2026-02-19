@@ -184,6 +184,59 @@ TOOL_DEFINITIONS = [
             "required": [],
         },
     },
+    {
+        "name": "get_investment_memory",
+        "description": (
+            "Retrieve your past investment theses for current holdings and recently closed positions. "
+            "Call this at the start of each session to understand why you made past decisions, "
+            "whether original theses are still valid, and what worked or didn't in closed positions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "get_session_reflections",
+        "description": (
+            "Retrieve your past post-session reflections — lessons and observations you documented "
+            "from previous portfolio reviews. Call this at the start of sessions to apply past learnings."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of recent reflections to retrieve (default 5)",
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "save_session_reflection",
+        "description": (
+            "Save a reflection at the end of your portfolio review session. "
+            "Document: what actions you took, whether past theses are playing out, "
+            "market patterns you observed, and specific lessons for future sessions. "
+            "Always call this at the end of each review."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "reflection": {
+                    "type": "string",
+                    "description": (
+                        "Your written reflection on this session. Include: actions taken, "
+                        "thesis validation for existing positions, market observations, "
+                        "and key lessons to apply in future sessions."
+                    ),
+                }
+            },
+            "required": ["reflection"],
+        },
+    },
 ]
 
 
@@ -221,6 +274,19 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_transaction_history":
         limit = tool_input.get("limit", 20)
         return portfolio.get_transactions(limit)
+
+    elif tool_name == "get_investment_memory":
+        return portfolio.get_investment_memory()
+
+    elif tool_name == "get_session_reflections":
+        limit = tool_input.get("limit", 5)
+        return portfolio.get_reflections(limit)
+
+    elif tool_name == "save_session_reflection":
+        status = _get_portfolio_status()
+        portfolio_value = status.get("total_portfolio_value")
+        portfolio.save_reflection(tool_input["reflection"], portfolio_value, "review")
+        return {"success": True, "message": "Reflection saved successfully."}
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}
@@ -299,6 +365,8 @@ def _handle_buy(tool_input: dict) -> dict:
         portfolio.log_agent_message(
             f"BUY {shares:.4f} shares of {ticker} @ ${price:.2f} | Reason: {notes}"
         )
+        if notes:
+            portfolio.save_trade_thesis(result["transaction_id"], ticker, "BUY", notes)
     return result
 
 
@@ -328,4 +396,6 @@ def _handle_sell(tool_input: dict) -> dict:
         portfolio.log_agent_message(
             f"SELL {shares:.4f} shares of {ticker} @ ${price:.2f} | Reason: {notes}"
         )
+        if notes:
+            portfolio.save_trade_thesis(result["transaction_id"], ticker, "SELL", notes)
     return result
