@@ -205,16 +205,28 @@ hr { border-color: var(--border) !important; }
 /* ─ Success/error ─ */
 [data-testid="stAlert"] { border-radius: 0 !important; font-family: 'IBM Plex Mono', monospace !important; }
 
-/* ─ Hide Streamlit chrome (toolbar, header, footer, keyboard badge) ─ */
-header[data-testid="stHeader"]          { display: none !important; }
-[data-testid="stToolbar"]               { display: none !important; }
-[data-testid="stToolbarActions"]        { display: none !important; }
-[data-testid="stStatusWidget"]          { display: none !important; }
-[data-testid="stDecoration"]            { display: none !important; }
-#MainMenu                               { display: none !important; }
-footer                                  { display: none !important; }
-button[title="Open keyboard shortcuts help"] { display: none !important; }
-button[kind="keyboardShortcutButton"]   { display: none !important; }
+/* ─ Hide ALL Streamlit chrome ─ */
+header, header *, footer, footer *,
+#MainMenu, #MainMenu *,
+[data-testid="stHeader"], [data-testid="stHeader"] *,
+[data-testid="stToolbar"], [data-testid="stToolbar"] *,
+[data-testid="stToolbarActions"], [data-testid="stToolbarActions"] *,
+[data-testid="stStatusWidget"],
+[data-testid="stDecoration"],
+[data-testid="collapsedControl"],
+[class*="toolbar"], [class*="Toolbar"],
+[class*="StatusWidget"], [class*="keyboardShortcut"],
+button[aria-label*="keyboard" i], button[aria-label*="shortcut" i],
+button[title*="keyboard" i], button[title*="shortcut" i] {
+    display:    none !important;
+    visibility: hidden !important;
+    height:     0 !important;
+    max-height: 0 !important;
+    overflow:   hidden !important;
+    opacity:    0 !important;
+    pointer-events: none !important;
+}
+.main .block-container { padding-top: 1rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
