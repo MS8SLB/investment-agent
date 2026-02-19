@@ -173,24 +173,42 @@ def get_stock_news(ticker: str, limit: int = 8) -> list[dict]:
     """
     Fetch recent news headlines for a stock from Yahoo Finance.
     Returns title, publisher, publish date, and related tickers.
+    Handles both yfinance <1.0 (flat dict) and >=1.0 (nested content) formats.
     """
     try:
         t = yf.Ticker(ticker.upper())
         raw = t.news or []
         articles = []
         for a in raw[:limit]:
-            ts = a.get("providerPublishTime")
-            published = (
-                datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
-                if ts else "unknown"
-            )
-            articles.append({
-                "title": a.get("title", ""),
-                "publisher": a.get("publisher", ""),
-                "published_at": published,
-                "related_tickers": a.get("relatedTickers", []),
-                "link": a.get("link", ""),
-            })
+            # yfinance >= 1.0 wraps everything under a "content" key
+            if "content" in a and isinstance(a["content"], dict):
+                content = a["content"]
+                title = content.get("title", "")
+                publisher = (content.get("provider") or {}).get("displayName", "")
+                pub_date = content.get("pubDate", "")
+                published = pub_date[:16].replace("T", " ") if pub_date else "unknown"
+                link = (content.get("canonicalUrl") or {}).get("url", "") or (content.get("clickThroughUrl") or {}).get("url", "")
+                related = [r.get("symbol", "") for r in (content.get("relatedTickers") or []) if isinstance(r, dict)]
+            else:
+                # Legacy flat dict format (yfinance < 1.0)
+                title = a.get("title", "")
+                publisher = a.get("publisher", "")
+                ts = a.get("providerPublishTime")
+                published = (
+                    datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M UTC")
+                    if ts else "unknown"
+                )
+                link = a.get("link", "")
+                related = a.get("relatedTickers", [])
+
+            if title:
+                articles.append({
+                    "title": title,
+                    "publisher": publisher,
+                    "published_at": published,
+                    "related_tickers": related,
+                    "link": link,
+                })
         if not articles:
             return [{"note": f"No recent news found for {ticker.upper()}"}]
         return articles
@@ -202,47 +220,90 @@ def get_earnings_calendar(ticker: str) -> dict:
     """
     Return upcoming earnings date with consensus EPS/revenue estimates,
     plus the last 4 quarters' beat/miss history.
+    Handles yfinance <1.0 and >=1.0 calendar formats.
     """
     try:
         t = yf.Ticker(ticker.upper())
         result: dict = {"ticker": ticker.upper()}
 
-        # Upcoming earnings
+        # ── Upcoming earnings date ────────────────────────────────────────────
         try:
             cal = t.calendar
-            if isinstance(cal, dict) and cal:
-                dates = cal.get("Earnings Date", [])
-                result["next_earnings_date"] = (
-                    str(dates[0].date()) if dates else None
-                )
-                result["eps_estimate_avg"] = cal.get("Earnings Average")
-                result["eps_estimate_low"] = cal.get("Earnings Low")
-                result["eps_estimate_high"] = cal.get("Earnings High")
-                result["revenue_estimate_avg"] = cal.get("Revenue Average")
-                result["revenue_estimate_low"] = cal.get("Revenue Low")
-                result["revenue_estimate_high"] = cal.get("Revenue High")
+            if cal is not None:
+                # yfinance >= 1.0 may return a dict keyed by date strings or a
+                # DataFrame; yfinance < 1.0 returns a plain dict with list values.
+                if isinstance(cal, dict) and cal:
+                    # Try the legacy key names first
+                    dates = cal.get("Earnings Date") or cal.get("earningsDate") or []
+                    if dates:
+                        first = dates[0]
+                        result["next_earnings_date"] = (
+                            str(first.date()) if hasattr(first, "date") else str(first)
+                        )
+                    else:
+                        result["next_earnings_date"] = None
+
+                    def _safe(key, alt=None):
+                        v = cal.get(key) or (cal.get(alt) if alt else None)
+                        return float(v) if v is not None else None
+
+                    result["eps_estimate_avg"]     = _safe("Earnings Average", "epsAverage")
+                    result["eps_estimate_low"]      = _safe("Earnings Low", "epsLow")
+                    result["eps_estimate_high"]     = _safe("Earnings High", "epsHigh")
+                    result["revenue_estimate_avg"]  = _safe("Revenue Average", "revenueAverage")
+                    result["revenue_estimate_low"]  = _safe("Revenue Low", "revenueLow")
+                    result["revenue_estimate_high"] = _safe("Revenue High", "revenueHigh")
+                else:
+                    result["next_earnings_date"] = None
         except Exception:
             result["next_earnings_date"] = None
 
-        # Historical earnings beat/miss (last 4 quarters)
+        # ── Historical EPS beat/miss (last 4 quarters) ───────────────────────
         try:
             ed = t.earnings_dates
             if ed is not None and not ed.empty:
-                # Keep only rows with reported EPS (past quarters)
-                past = ed.dropna(subset=["Reported EPS"]).head(4)
+                # Normalise column names (they differ across yfinance versions)
+                col_map = {}
+                for col in ed.columns:
+                    lc = col.lower().replace(" ", "").replace("_", "")
+                    if "reportedeps" in lc or "reportedearnings" in lc:
+                        col_map["reported"] = col
+                    elif "epsestimate" in lc or "estimate" in lc:
+                        col_map["estimate"] = col
+                    elif "surprise" in lc:
+                        col_map["surprise"] = col
+
+                rep_col = col_map.get("reported", "Reported EPS")
+                est_col = col_map.get("estimate", "EPS Estimate")
+                sur_col = col_map.get("surprise", "Surprise(%)")
+
+                if rep_col in ed.columns:
+                    past = ed.dropna(subset=[rep_col]).head(4)
+                else:
+                    past = ed.head(4)
+
                 history = []
                 for date, row in past.iterrows():
-                    estimated = row.get("EPS Estimate")
-                    reported = row.get("Reported EPS")
-                    surprise = row.get("Surprise(%)")
+                    estimated = row.get(est_col)
+                    reported  = row.get(rep_col)
+                    surprise  = row.get(sur_col)
+                    try:
+                        estimated = float(estimated) if estimated is not None else None
+                        reported  = float(reported)  if reported  is not None else None
+                        surprise  = float(surprise)  if surprise  is not None else None
+                    except (TypeError, ValueError):
+                        estimated = reported = surprise = None
+
                     history.append({
-                        "date": str(date.date()),
-                        "eps_estimate": round(float(estimated), 4) if estimated is not None else None,
-                        "eps_reported": round(float(reported), 4) if reported is not None else None,
-                        "surprise_pct": round(float(surprise), 2) if surprise is not None else None,
+                        "date":         str(date.date()) if hasattr(date, "date") else str(date),
+                        "eps_estimate": round(estimated, 4) if estimated is not None else None,
+                        "eps_reported": round(reported, 4)  if reported  is not None else None,
+                        "surprise_pct": round(surprise, 2)  if surprise  is not None else None,
                         "beat": (reported > estimated) if (reported is not None and estimated is not None) else None,
                     })
                 result["last_4_quarters"] = history
+            else:
+                result["last_4_quarters"] = []
         except Exception:
             result["last_4_quarters"] = []
 
@@ -255,6 +316,7 @@ def get_analyst_upgrades(ticker: str, limit: int = 10) -> list[dict]:
     """
     Return recent analyst upgrades and downgrades for a stock.
     Includes firm name, action (upgrade/downgrade/init), and grade change.
+    Handles column name variations across yfinance versions.
     """
     try:
         t = yf.Ticker(ticker.upper())
@@ -263,14 +325,22 @@ def get_analyst_upgrades(ticker: str, limit: int = 10) -> list[dict]:
             return [{"note": f"No recent analyst actions found for {ticker.upper()}"}]
 
         df = df.head(limit)
+
+        # Normalise column names (yfinance 1.x lowercased some)
+        col = {c.lower(): c for c in df.columns}
+        firm_col       = col.get("firm",       col.get("firm",       None))
+        action_col     = col.get("action",     col.get("action",     None))
+        from_col       = col.get("fromgrade",  col.get("from grade", None))
+        to_col         = col.get("tograde",    col.get("to grade",   None))
+
         results = []
         for date, row in df.iterrows():
             results.append({
-                "date": str(date.date()) if hasattr(date, "date") else str(date),
-                "firm": row.get("Firm", ""),
-                "action": row.get("Action", ""),
-                "from_grade": row.get("FromGrade", ""),
-                "to_grade": row.get("ToGrade", ""),
+                "date":       str(date.date()) if hasattr(date, "date") else str(date),
+                "firm":       row.get(firm_col,   row.get("Firm",      "")),
+                "action":     row.get(action_col, row.get("Action",    "")),
+                "from_grade": row.get(from_col,   row.get("FromGrade", "")),
+                "to_grade":   row.get(to_col,     row.get("ToGrade",   "")),
             })
         return results
     except Exception as e:
@@ -281,6 +351,7 @@ def get_insider_activity(ticker: str) -> dict:
     """
     Return recent insider transactions (buys/sells by executives and directors).
     High insider buying is often a bullish signal; heavy selling can be a warning.
+    Handles column name variations across yfinance versions.
     """
     try:
         t = yf.Ticker(ticker.upper())
@@ -292,43 +363,60 @@ def get_insider_activity(ticker: str) -> dict:
                 "note": "No recent insider transactions found.",
             }
 
+        # Build a lowercase → actual column name map
+        col = {c.lower().replace(" ", "").replace("_", ""): c for c in df.columns}
+
+        def _col(*candidates):
+            """Return the first matching actual column name, or None."""
+            for c in candidates:
+                if c in col:
+                    return col[c]
+            return None
+
+        date_col     = _col("startdate", "date", "transactiondate")
+        shares_col   = _col("shares", "sharestransacted")
+        value_col    = _col("value", "transactionvalue")
+        text_col     = _col("text", "transaction", "transactiontext")
+        insider_col  = _col("insider", "reportingname", "name")
+        position_col = _col("position", "relationship", "title")
+
         transactions = []
         for _, row in df.head(15).iterrows():
-            # Column names differ slightly across yfinance versions
-            date_val = row.get("startDate") or row.get("Date") or row.get("date")
+            date_val = row.get(date_col) if date_col else None
             if hasattr(date_val, "date"):
                 date_val = str(date_val.date())
-            else:
-                date_val = str(date_val) if date_val is not None else None
+            elif date_val is not None:
+                date_val = str(date_val)[:10]
 
-            shares = row.get("shares") or row.get("Shares")
-            value = row.get("value") or row.get("Value")
-            text = row.get("text") or row.get("Text") or row.get("Transaction", "")
+            shares = row.get(shares_col) if shares_col else None
+            value  = row.get(value_col)  if value_col  else None
+            text   = row.get(text_col)   if text_col   else ""
+
+            try:
+                shares = int(float(shares)) if shares is not None else None
+            except (TypeError, ValueError):
+                shares = None
+            try:
+                value = round(float(value)) if value is not None else None
+            except (TypeError, ValueError):
+                value = None
 
             transactions.append({
-                "date": date_val,
-                "insider": row.get("insider") or row.get("Insider", ""),
-                "position": row.get("position") or row.get("Position", ""),
+                "date":        date_val,
+                "insider":     str(row.get(insider_col,  "")) if insider_col  else "",
+                "position":    str(row.get(position_col, "")) if position_col else "",
                 "transaction": str(text)[:120],
-                "shares": int(shares) if shares is not None else None,
-                "value_usd": round(float(value)) if value is not None else None,
+                "shares":      shares,
+                "value_usd":   value,
             })
 
-        # Quick buy/sell summary
-        buy_count = sum(
-            1 for tx in transactions
-            if "purchase" in str(tx.get("transaction", "")).lower()
-            or "buy" in str(tx.get("transaction", "")).lower()
-        )
-        sell_count = sum(
-            1 for tx in transactions
-            if "sale" in str(tx.get("transaction", "")).lower()
-            or "sell" in str(tx.get("transaction", "")).lower()
-        )
+        tx_text = " ".join(str(tx.get("transaction", "")).lower() for tx in transactions)
+        buy_count  = tx_text.count("purchase") + tx_text.count("buy")
+        sell_count = tx_text.count("sale") + tx_text.count("sell")
 
         return {
             "ticker": ticker.upper(),
-            "recent_buy_transactions": buy_count,
+            "recent_buy_transactions":  buy_count,
             "recent_sell_transactions": sell_count,
             "transactions": transactions,
         }
