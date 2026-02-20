@@ -352,6 +352,10 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════════
 if "PORTFOLIO" in page:
     page_header("PORTFOLIO — LIVE OVERVIEW")
+    _, _rb = st.columns([6, 1])
+    with _rb:
+        if st.button("⟳  REFRESH", key="refresh_portfolio", use_container_width=True):
+            st.rerun()
 
     from agent.tools import _get_portfolio_status
 
@@ -520,6 +524,10 @@ if "PORTFOLIO" in page:
 # ═══════════════════════════════════════════════════════════════════════════════
 elif "PERFORMANCE" in page:
     page_header("PERFORMANCE — VS S&P 500")
+    _, _rb = st.columns([6, 1])
+    with _rb:
+        if st.button("⟳  REFRESH", key="refresh_performance", use_container_width=True):
+            st.rerun()
 
     from agent.portfolio import get_portfolio_snapshots
     from agent.tools import _handle_benchmark_comparison
