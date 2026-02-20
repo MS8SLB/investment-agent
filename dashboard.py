@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
-from agent.portfolio import initialize_portfolio, get_reflections
+from agent.portfolio import initialize_portfolio, get_reflections, reset_portfolio
 initialize_portfolio(float(os.environ.get("STARTING_CASH", "1000000")))
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -452,6 +452,47 @@ if "PORTFOLIO" in page:
                 )],
             )
             st.plotly_chart(fig, use_container_width=True)
+
+
+    # ── Danger zone ──────────────────────────────────────────────────────────
+    section("DANGER ZONE")
+
+    if "reset_confirm" not in st.session_state:
+        st.session_state.reset_confirm = False
+
+    if not st.session_state.reset_confirm:
+        st.markdown(
+            '<div style="color:#505050;font-size:11px;margin-bottom:10px;">'
+            'Clears all positions and restores starting cash. Trade history is preserved.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("⚠  RESET PORTFOLIO"):
+            st.session_state.reset_confirm = True
+            st.rerun()
+    else:
+        st.markdown(
+            '<div style="color:#FF3B3B;font-size:12px;letter-spacing:1px;margin-bottom:12px;">'
+            '⚠ THIS WILL WIPE ALL POSITIONS AND RESET CASH — ARE YOU SURE?'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        col_confirm, col_cancel, _ = st.columns([1, 1, 4])
+        with col_confirm:
+            if st.button("✓  CONFIRM RESET"):
+                starting_cash = float(os.environ.get("STARTING_CASH", "1000000"))
+                reset_portfolio(starting_cash)
+                # Also discard any interrupted session checkpoint
+                _ckpt = "data/session_checkpoint.json"
+                if os.path.exists(_ckpt):
+                    os.remove(_ckpt)
+                st.session_state.reset_confirm = False
+                st.success(f"Portfolio reset — cash restored to ${starting_cash:,.0f}.")
+                st.rerun()
+        with col_cancel:
+            if st.button("✗  CANCEL"):
+                st.session_state.reset_confirm = False
+                st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -710,6 +710,22 @@ def get_shadow_positions() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def reset_portfolio(starting_cash: float) -> None:
+    """
+    Wipe all holdings and reset cash to starting_cash.
+    Transaction history, reflections, and snapshots are preserved.
+    """
+    now = datetime.utcnow().isoformat()
+    conn = _get_connection()
+    with conn:
+        conn.execute("DELETE FROM holdings")
+        conn.execute(
+            "UPDATE portfolio_state SET cash = ?, updated_at = ? WHERE id = 1",
+            (starting_cash, now),
+        )
+    conn.close()
+
+
 def get_portfolio_metrics() -> dict:
     """
     Compute risk and return metrics from portfolio snapshot history.
