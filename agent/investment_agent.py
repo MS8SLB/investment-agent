@@ -110,6 +110,33 @@ Your reflections accumulate over time and make you a smarter investor. A portfol
 Always use your tools to gather real data before making investment decisions. Never guess at prices."""
 
 
+def _serialize_content(content) -> list:
+    """Convert Anthropic SDK content blocks to plain JSON-serializable dicts."""
+    out = []
+    for block in content:
+        t = getattr(block, "type", None)
+        if t == "text":
+            out.append({"type": "text", "text": block.text})
+        elif t == "tool_use":
+            out.append({"type": "tool_use", "id": block.id, "name": block.name, "input": block.input})
+        else:
+            out.append(block if isinstance(block, dict) else {"type": str(t)})
+    return out
+
+
+def _save_checkpoint(path: str, messages: list, iteration: int) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({"iteration": iteration, "messages": messages}, f)
+
+
+def _delete_checkpoint(path: str) -> None:
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
 def run_agent_session(
     user_prompt: str,
     model: Optional[str] = None,
@@ -118,6 +145,7 @@ def run_agent_session(
     on_text: Optional[callable] = None,
     on_tool_call: Optional[callable] = None,
     on_tool_result: Optional[callable] = None,
+    checkpoint_path: Optional[str] = None,
 ) -> str:
     """
     Run one agent session with the given user prompt.
@@ -129,6 +157,9 @@ def run_agent_session(
         on_text: Callback(text: str) for streaming text chunks.
         on_tool_call: Callback(tool_name: str, tool_input: dict).
         on_tool_result: Callback(tool_name: str, result: any).
+        checkpoint_path: File path for saving/resuming session state. When set,
+            the message history is written after each tool round-trip so the
+            session can be resumed after a crash or credit error.
 
     Returns:
         The final text response from the agent.
@@ -148,7 +179,24 @@ def run_agent_session(
     client = anthropic.Anthropic(api_key=_api_key)
     model = model or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
-    messages = [{"role": "user", "content": user_prompt}]
+    # Resume from checkpoint if one exists, otherwise start fresh.
+    messages = None
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        try:
+            with open(checkpoint_path) as f:
+                ckpt = json.load(f)
+            messages = ckpt["messages"]
+            if on_text:
+                on_text(
+                    f"\n[Resuming from checkpoint — {len(messages)} messages, "
+                    f"iteration {ckpt.get('iteration', '?')} — skipping already-completed work]\n\n"
+                )
+        except Exception:
+            messages = None  # corrupt checkpoint → start fresh
+
+    if messages is None:
+        messages = [{"role": "user", "content": user_prompt}]
+
     final_text = ""
 
     # Waits (seconds) between retry attempts for rate-limit errors.
@@ -208,12 +256,14 @@ def run_agent_session(
         if text_parts:
             final_text = "\n".join(text_parts)
 
-        # If no tool calls, the agent is done
+        # If no tool calls, the agent is done — clean up checkpoint and exit.
         if response.stop_reason == "end_turn" or not tool_calls:
+            if checkpoint_path:
+                _delete_checkpoint(checkpoint_path)
             break
 
-        # Append assistant message
-        messages.append({"role": "assistant", "content": response.content})
+        # Append assistant message (serialized so messages stay JSON-safe).
+        messages.append({"role": "assistant", "content": _serialize_content(response.content)})
 
         # Execute tool calls and build tool results
         tool_results = []
@@ -228,6 +278,10 @@ def run_agent_session(
             })
 
         messages.append({"role": "user", "content": tool_results})
+
+        # Persist state after every completed round-trip so we can resume on failure.
+        if checkpoint_path:
+            _save_checkpoint(checkpoint_path, messages, iteration)
 
     portfolio.log_agent_message(f"Session completed: {user_prompt[:100]}")
     return final_text
@@ -293,6 +347,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 
 Focus on building a diversified, high-quality long-term portfolio. Apply everything you've learned.
 """
+    kwargs.setdefault("checkpoint_path", "data/session_checkpoint.json")
     return run_agent_session(prompt, model=model, max_iterations=40, **kwargs)
 
 
