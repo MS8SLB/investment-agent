@@ -1,16 +1,81 @@
 """
-Market data retrieval using yfinance.
+Market data retrieval using yfinance with Polygon.io as a fallback.
 Provides stock quotes, fundamentals, historical data, news, earnings, and analyst data.
 """
 
+import os
+import requests
 import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Optional
 
 
+# ── Polygon.io fallback ────────────────────────────────────────────────────────
+# Sign up at https://polygon.io (free tier) and set POLYGON_API_KEY in .env
+# Free tier provides: end-of-day quotes, news, reference data — enough for a
+# monthly investor. Activated automatically when yfinance returns no data.
+
+POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY")
+_POLYGON_BASE = "https://api.polygon.io"
+
+
+def _polygon_get_quote(ticker: str) -> dict:
+    """Polygon.io fallback for stock quote — returns previous close OHLCV."""
+    if not POLYGON_API_KEY:
+        return {"error": "POLYGON_API_KEY not set"}
+    try:
+        url = f"{_POLYGON_BASE}/v2/aggs/ticker/{ticker.upper()}/prev"
+        r = requests.get(url, params={"adjusted": "true", "apiKey": POLYGON_API_KEY}, timeout=8)
+        r.raise_for_status()
+        data = r.json()
+        results = data.get("results") or []
+        if not results:
+            return {"error": f"Polygon: no data for {ticker}"}
+        bar = results[0]
+        return {
+            "ticker": ticker.upper(),
+            "price": bar.get("c"),          # previous close
+            "currency": "USD",
+            "name": ticker.upper(),
+            "day_high": bar.get("h"),
+            "day_low": bar.get("l"),
+            "volume": bar.get("v"),
+            "source": "polygon",
+        }
+    except Exception as e:
+        return {"error": f"Polygon quote error: {e}"}
+
+
+def _polygon_get_news(ticker: str, limit: int = 5) -> list[dict]:
+    """Polygon.io fallback for stock news."""
+    if not POLYGON_API_KEY:
+        return [{"error": "POLYGON_API_KEY not set"}]
+    try:
+        url = f"{_POLYGON_BASE}/v2/reference/news"
+        r = requests.get(url, params={"ticker": ticker.upper(), "limit": limit, "apiKey": POLYGON_API_KEY}, timeout=8)
+        r.raise_for_status()
+        articles = []
+        for a in r.json().get("results", []):
+            pub = a.get("published_utc", "")
+            articles.append({
+                "title": a.get("title", ""),
+                "publisher": (a.get("publisher") or {}).get("name", ""),
+                "published_at": pub[:16].replace("T", " ") if pub else "unknown",
+                "related_tickers": a.get("tickers", []),
+                "link": a.get("article_url", ""),
+                "source": "polygon",
+            })
+        return articles if articles else [{"note": f"No Polygon news for {ticker.upper()}"}]
+    except Exception as e:
+        return [{"error": f"Polygon news error: {e}"}]
+
+
 def get_stock_quote(ticker: str) -> dict:
-    """Get current price and basic info for a ticker."""
+    """
+    Get current price and basic info for a ticker.
+    Tries yfinance first; falls back to Polygon.io if price is unavailable.
+    """
     try:
         t = yf.Ticker(ticker.upper())
         info = t.info
@@ -20,25 +85,29 @@ def get_stock_quote(ticker: str) -> dict:
             or info.get("regularMarketPrice")
             or info.get("previousClose")
         )
-        if price is None:
-            return {"error": f"Could not retrieve price for {ticker}"}
+        if price is not None:
+            return {
+                "ticker": ticker.upper(),
+                "price": price,
+                "currency": info.get("currency", "USD"),
+                "name": info.get("longName") or info.get("shortName", ticker),
+                "exchange": info.get("exchange", ""),
+                "market_cap": info.get("marketCap"),
+                "volume": info.get("regularMarketVolume") or info.get("volume"),
+                "day_high": info.get("dayHigh") or info.get("regularMarketDayHigh"),
+                "day_low": info.get("dayLow") or info.get("regularMarketDayLow"),
+                "52w_high": info.get("fiftyTwoWeekHigh"),
+                "52w_low": info.get("fiftyTwoWeekLow"),
+                "previous_close": info.get("previousClose") or info.get("regularMarketPreviousClose"),
+            }
+    except Exception:
+        pass
 
-        return {
-            "ticker": ticker.upper(),
-            "price": price,
-            "currency": info.get("currency", "USD"),
-            "name": info.get("longName") or info.get("shortName", ticker),
-            "exchange": info.get("exchange", ""),
-            "market_cap": info.get("marketCap"),
-            "volume": info.get("regularMarketVolume") or info.get("volume"),
-            "day_high": info.get("dayHigh") or info.get("regularMarketDayHigh"),
-            "day_low": info.get("dayLow") or info.get("regularMarketDayLow"),
-            "52w_high": info.get("fiftyTwoWeekHigh"),
-            "52w_low": info.get("fiftyTwoWeekLow"),
-            "previous_close": info.get("previousClose") or info.get("regularMarketPreviousClose"),
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    # yfinance failed — try Polygon.io
+    result = _polygon_get_quote(ticker)
+    if "error" not in result:
+        return result
+    return {"error": f"Could not retrieve price for {ticker} from any source"}
 
 
 def get_stock_fundamentals(ticker: str) -> dict:
@@ -210,11 +279,13 @@ def get_stock_news(ticker: str, limit: int = 8) -> list[dict]:
                     "related_tickers": related,
                     "link": link,
                 })
-        if not articles:
-            return [{"note": f"No recent news found for {ticker.upper()}"}]
-        return articles
-    except Exception as e:
-        return [{"error": str(e)}]
+        if articles:
+            return articles
+    except Exception:
+        pass
+
+    # yfinance returned nothing — try Polygon.io
+    return _polygon_get_news(ticker, limit)
 
 
 def get_earnings_calendar(ticker: str) -> dict:

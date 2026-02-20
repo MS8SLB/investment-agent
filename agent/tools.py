@@ -301,6 +301,17 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_portfolio_metrics",
+        "description": (
+            "Return risk and return metrics computed from portfolio snapshot history: "
+            "Sharpe ratio, max drawdown, annualised volatility, and rolling 1/3/6-month "
+            "returns vs S&P 500. "
+            "Call this in Step 2 to understand whether the portfolio is taking too much "
+            "risk relative to its returns, and how recent momentum compares to the benchmark."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "get_investment_memory",
         "description": (
             "Retrieve your past investment theses for current holdings and recently closed positions. "
@@ -611,6 +622,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_benchmark_comparison":
         return _handle_benchmark_comparison()
+
+    elif tool_name == "get_portfolio_metrics":
+        return portfolio.get_portfolio_metrics()
 
     elif tool_name == "get_sector_exposure":
         holdings = portfolio.get_holdings()

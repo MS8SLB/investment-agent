@@ -549,6 +549,99 @@ elif "PERFORMANCE" in page:
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        # ── Risk metrics ──────────────────────────────────────────────────────
+        from agent.portfolio import get_portfolio_metrics
+        metrics = get_portfolio_metrics()
+
+        section("RISK METRICS")
+        if metrics.get("sharpe_ratio") is not None or metrics.get("max_drawdown_pct") is not None:
+            r1, r2, r3, r4 = st.columns(4)
+            sharpe = metrics.get("sharpe_ratio")
+            drawdown = metrics.get("max_drawdown_pct")
+            vol = metrics.get("annualised_volatility_pct")
+            ann_ret = metrics.get("annualised_return_pct")
+
+            r1.metric(
+                "SHARPE RATIO",
+                f"{sharpe:.2f}" if sharpe is not None else "N/A",
+                "GOOD" if sharpe is not None and sharpe > 1 else ("WEAK" if sharpe is not None and sharpe < 0 else None),
+                delta_color="normal" if sharpe is not None and sharpe > 0 else "inverse",
+            )
+            r2.metric(
+                "MAX DRAWDOWN",
+                f"-{drawdown:.1f}%" if drawdown is not None else "N/A",
+                delta_color="off",
+            )
+            r3.metric(
+                "ANNUALISED VOL",
+                f"{vol:.1f}%" if vol is not None else "N/A",
+                delta_color="off",
+            )
+            r4.metric(
+                "ANNUALISED RETURN",
+                f"{ann_ret:+.1f}%" if ann_ret is not None else "N/A",
+                delta_color="off",
+            )
+            if metrics.get("note"):
+                st.markdown(
+                    f'<div style="color:#505050;font-size:10px;margin-top:4px;">{metrics["note"]}</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.markdown(
+                '<div style="color:#505050;font-size:12px;">Not enough snapshots yet — metrics appear after 2+ reviews.</div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── Rolling returns ───────────────────────────────────────────────────
+        section("ROLLING RETURNS VS S&P 500")
+        rolling = metrics.get("rolling", {})
+        periods = ["1m", "3m", "6m"]
+        labels = ["1 MONTH", "3 MONTHS", "6 MONTHS"]
+        port_vals = [rolling.get(p, {}).get("portfolio_pct") for p in periods]
+        spy_vals  = [rolling.get(p, {}).get("benchmark_pct") for p in periods]
+
+        has_rolling = any(v is not None for v in port_vals)
+        if has_rolling:
+            fig2 = go.Figure()
+            fig2.add_trace(go.Bar(
+                name="MY PORTFOLIO",
+                x=labels,
+                y=port_vals,
+                marker_color=["#FF8000" if (v or 0) >= 0 else "#FF3B3B" for v in port_vals],
+                text=[f"{v:+.1f}%" if v is not None else "N/A" for v in port_vals],
+                textposition="outside",
+                textfont=dict(color="#C8C8C8", size=11),
+            ))
+            fig2.add_trace(go.Bar(
+                name="S&P 500",
+                x=labels,
+                y=spy_vals,
+                marker_color="#303030",
+                text=[f"{v:+.1f}%" if v is not None else "N/A" for v in spy_vals],
+                textposition="outside",
+                textfont=dict(color="#505050", size=11),
+            ))
+            fig2.update_layout(
+                paper_bgcolor="#000",
+                plot_bgcolor="#000",
+                barmode="group",
+                bargap=0.3,
+                bargroupgap=0.05,
+                font=dict(family="IBM Plex Mono", color="#FF8000"),
+                xaxis=dict(gridcolor="#0d0d0d", tickfont=dict(color="#505050", size=11), title=None),
+                yaxis=dict(gridcolor="#0d0d0d", tickfont=dict(color="#505050", size=10), ticksuffix="%", title=None),
+                legend=dict(bgcolor="#080808", bordercolor="#1a1a1a", font=dict(color="#C8C8C8", size=11)),
+                margin=dict(l=0, r=0, t=20, b=0),
+                height=300,
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.markdown(
+                '<div style="color:#505050;font-size:12px;">Rolling return data builds over time — check back after more monthly reviews.</div>',
+                unsafe_allow_html=True,
+            )
+
         # ── Snapshot table ────────────────────────────────────────────────────
         section("SNAPSHOT HISTORY")
         snap_rows = []

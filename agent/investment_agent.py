@@ -313,6 +313,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_sector_exposure` — see current sector weights before making any new allocation decisions
 - Call `get_macro_environment` — understand the rate/dollar/volatility regime before making any decisions
 - Call `get_benchmark_comparison` — are we beating the S&P 500? If not, why not?
+- Call `get_portfolio_metrics` — review Sharpe ratio, max drawdown, volatility, and rolling 1/3/6-month returns vs S&P 500; if max drawdown > 15% or Sharpe < 0, tighten position sizing this session
 - Check overall market index conditions
 
 **Step 3 — Evaluate existing positions**

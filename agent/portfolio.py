@@ -708,3 +708,87 @@ def get_shadow_positions() -> list[dict]:
     """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_portfolio_metrics() -> dict:
+    """
+    Compute risk and return metrics from portfolio snapshot history.
+    Returns Sharpe ratio, max drawdown, annualised volatility, and
+    rolling 1/3/6-month returns vs S&P 500.
+    Assumes snapshots are roughly monthly (one per review session).
+    """
+    snapshots = get_portfolio_snapshots(limit=200)
+    if len(snapshots) < 2:
+        return {
+            "message": "Need at least 2 review sessions to compute metrics. Run more reviews.",
+            "n_snapshots": len(snapshots),
+        }
+
+    values = [s["portfolio_value"] for s in snapshots]
+    spy_prices = [s.get("benchmark_price") for s in snapshots]
+    n = len(values)
+
+    # Period-over-period returns (between consecutive snapshots)
+    returns = [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, n)]
+
+    avg_r = sum(returns) / len(returns)
+    variance = sum((r - avg_r) ** 2 for r in returns) / max(len(returns) - 1, 1)
+    std_r = variance ** 0.5
+
+    # Annualise assuming monthly snapshots
+    annualised_return = ((1 + avg_r) ** 12 - 1) * 100
+    annualised_vol = std_r * (12 ** 0.5) * 100
+    risk_free = 4.5  # % annual, approx current 10yr treasury
+
+    sharpe = (
+        round((annualised_return - risk_free) / annualised_vol, 2)
+        if annualised_vol > 0 else None
+    )
+
+    # Max drawdown
+    peak = values[0]
+    max_dd = 0.0
+    for v in values:
+        if v > peak:
+            peak = v
+        dd = (peak - v) / peak
+        if dd > max_dd:
+            max_dd = dd
+
+    # Rolling returns — portfolio
+    def _port_return(n_periods: int) -> Optional[float]:
+        if n < n_periods + 1:
+            return None
+        start, end = values[-(n_periods + 1)], values[-1]
+        return round((end - start) / start * 100, 2)
+
+    # Rolling returns — S&P 500 (only use snapshots where benchmark exists)
+    spy_valid = [(s["ts"], s["benchmark_price"]) for s in snapshots if s.get("benchmark_price")]
+
+    def _spy_return(n_periods: int) -> Optional[float]:
+        if len(spy_valid) < n_periods + 1:
+            return None
+        start = spy_valid[-(n_periods + 1)][1]
+        end = spy_valid[-1][1]
+        return round((end - start) / start * 100, 2)
+
+    total_return = round((values[-1] - values[0]) / values[0] * 100, 2)
+
+    return {
+        "n_snapshots": n,
+        "total_return_pct": total_return,
+        "annualised_return_pct": round(annualised_return, 2) if n >= 3 else None,
+        "annualised_volatility_pct": round(annualised_vol, 2) if len(returns) > 1 else None,
+        "sharpe_ratio": sharpe if len(returns) > 1 else None,
+        "max_drawdown_pct": round(max_dd * 100, 2),
+        "rolling": {
+            "1m": {"portfolio_pct": _port_return(1), "benchmark_pct": _spy_return(1)},
+            "3m": {"portfolio_pct": _port_return(3), "benchmark_pct": _spy_return(3)},
+            "6m": {"portfolio_pct": _port_return(6), "benchmark_pct": _spy_return(6)},
+        },
+        "note": (
+            f"Based on {n} snapshots. "
+            "Annualised figures assume monthly snapshot frequency. "
+            "Sharpe uses 4.5% annual risk-free rate."
+        ),
+    }
