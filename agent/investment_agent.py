@@ -56,7 +56,7 @@ Use these tools proactively — not just when researching new stocks, but also w
 
 ## Stock Discovery Tools
 Use these to search beyond popular mega-caps and find overlooked quality companies:
-- `get_stock_universe(index, sample_n, random_seed, sector)` — returns a sample of tickers from "sp500", "broad" (mid/small caps), or "all". Use the `sector` parameter (e.g. "Health Care", "Financials") to target sectors that fit the current macro regime. Sector filtering works for S&P 500 tickers. Call multiple times with different seeds or sectors to broaden coverage.
+- `get_stock_universe(index, sector)` — when `index="sp500"`, returns **all** ~500 S&P 500 tickers (no sampling). Use the optional `sector` parameter (e.g. "Health Care", "Financials") to narrow to a specific GICS sector. For mid/small-cap exposure use `index="broad"` with `random_seed` and `sample_n`.
 - `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each on revenue growth, margins, ROE, PEG ratio, FCF yield, debt, and 52-week momentum relative to the S&P 500. Returns ranked candidates with `peg_ratio`, `fcf_yield_pct`, and `relative_momentum_pct`. The ideal pick has a low PEG (cheap relative to growth), positive FCF yield (real cash generation), AND positive relative momentum (already working). Stocks with strongly negative relative momentum require extra conviction.
 
 ## Macro-Driven Sector Allocation
@@ -322,16 +322,12 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Check upcoming earnings (`get_earnings_calendar`) to flag positions with imminent earnings risk
 - Identify any positions where the thesis has broken down or the position has grown too large
 
-**Step 4 — Discover new opportunities from the full market**
-- Based on the macro regime (Step 2), decide the 2 sectors best positioned right now.
-  Use the sector allocation rules from your investment philosophy:
-  high rates → Financials / Energy; inverted curve → Health Care / Consumer Staples;
-  strong dollar → domestically focused sectors; high VIX → wait or size small.
-- Call `get_stock_universe("sp500", sector="<your top sector>")` — targeted S&P 500 screen of your #1 macro-favoured sector
-- Call `get_stock_universe("sp500", sector="<your second sector>")` — same for #2 sector
-- Call `get_stock_universe("broad", random_seed={seed_b})` — broad mid/small-cap batch to surface overlooked names
-- Call `get_stock_universe("broad", random_seed={seed_c})` — second broad batch for wider coverage
-- Screen each batch with `screen_stocks` (50-100 tickers per call). The screener returns:
+**Step 4 — Discover new opportunities from the full S&P 500**
+- Call `get_stock_universe("sp500")` **once** — this returns all ~500 S&P 500 tickers.
+- Split the returned list into batches of 100 and call `screen_stocks` on each batch
+  (5-6 calls total). This gives you exhaustive, deterministic coverage of the entire index —
+  no ticker is missed due to random sampling.
+- Screen each batch with `screen_stocks` (100 tickers per call). The screener returns:
   - `peg_ratio`: prefer < 1.5 — paying a fair price for the growth rate
   - `fcf_yield_pct`: prefer > 3% — company generating real cash, not just accounting profits
   - `relative_momentum_pct`: prefer positive — stock already outperforming the S&P 500

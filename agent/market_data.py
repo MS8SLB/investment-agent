@@ -758,19 +758,29 @@ def get_stock_universe(
                 "Returning unfiltered sample instead."
             )
 
-    # Sample
-    rng = random.Random(random_seed)
-    sample = rng.sample(all_tickers, min(sample_n, len(all_tickers)))
+    # For sp500-only queries, return the full list (≤500 tickers — manageable).
+    # For broad/all queries, random-sample to keep response size reasonable.
+    if index == "sp500":
+        sample = all_tickers
+    else:
+        rng = random.Random(random_seed)
+        sample = rng.sample(all_tickers, min(sample_n, len(all_tickers)))
 
     result["total_count"] = total_count
     result["returned_count"] = len(sample)
     result["tickers"] = sample
     sector_note = f" (sector: {sector})" if sector and "sector_filter_warning" not in result else ""
-    result["note"] = (
-        f"Returning {len(sample)} tickers{sector_note} out of {len(all_tickers)} available. "
-        "Pass these to screen_stocks (50-100 at a time). "
-        "Call get_stock_universe again with a different random_seed to get a different batch."
-    )
+    if index == "sp500":
+        result["note"] = (
+            f"Returning all {len(sample)} S&P 500 tickers{sector_note}. "
+            "Pass to screen_stocks in batches of 100 tickers at a time."
+        )
+    else:
+        result["note"] = (
+            f"Returning {len(sample)} tickers{sector_note} out of {len(all_tickers)} available. "
+            "Pass these to screen_stocks (50-100 at a time). "
+            "Call get_stock_universe again with a different random_seed to get a different batch."
+        )
     if available_sectors and not sector:
         result["available_sectors"] = available_sectors
     return result

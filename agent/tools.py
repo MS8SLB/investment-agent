@@ -344,12 +344,12 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_stock_universe",
         "description": (
-            "Fetch a sample of tickers from major US stock universes. "
-            "Returns 'sample_n' tickers (default 200) to keep response size manageable. "
-            "Use 'sector' to target a specific GICS sector — ideal after calling "
-            "get_macro_environment to identify which sectors suit the current regime. "
-            "Sector filtering works for S&P 500 tickers (use index='sp500' or 'all'). "
-            "Call multiple times with different random_seed values to cover more of the universe."
+            "Fetch tickers from major US stock universes. "
+            "When index='sp500', returns ALL ~500 S&P 500 constituents (no sampling) — "
+            "use this for exhaustive coverage. Optionally filter by GICS sector. "
+            "When index='broad' or 'all', returns a random sample of 'sample_n' tickers "
+            "from the ~2700-stock universe; call multiple times with different random_seed "
+            "values to cover more of the universe."
         ),
         "input_schema": {
             "type": "object",
