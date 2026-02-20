@@ -1,5 +1,6 @@
 .env
 data/*.db
+portfolio.db
 data/*.json
 data/*.log
 __pycache__/
