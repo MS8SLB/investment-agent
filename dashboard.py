@@ -352,6 +352,9 @@ if "PORTFOLIO" in page:
     with st.spinner("FETCHING LIVE MARKET DATA..."):
         status = _get_portfolio_status()
 
+    import datetime as _dt
+    st.caption(f"Data fetched at {_dt.datetime.now().strftime('%H:%M:%S')} — if this timestamp is current, you are seeing live data.")
+
     cash = status["cash"]
     total = status["total_portfolio_value"]
     invested = status["total_invested_value"]

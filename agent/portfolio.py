@@ -712,27 +712,17 @@ def get_shadow_positions() -> list[dict]:
 
 def reset_portfolio(starting_cash: float) -> None:
     """
-    Full reset: wipe all data and restore cash to starting_cash.
-    Clears holdings, transactions, reflections, snapshots, watchlist,
-    shadow positions, trade signals, theses, and agent log.
+    Full reset: delete the DB file entirely and reinitialise from scratch.
+    This guarantees a clean state regardless of any in-memory or WAL caching.
     """
-    now = datetime.utcnow().isoformat()
-    conn = _get_connection()
-    with conn:
-        conn.execute("DELETE FROM holdings")
-        conn.execute("DELETE FROM transactions")
-        conn.execute("DELETE FROM reflections")
-        conn.execute("DELETE FROM portfolio_snapshots")
-        conn.execute("DELETE FROM watchlist")
-        conn.execute("DELETE FROM shadow_positions")
-        conn.execute("DELETE FROM trade_thesis")
-        conn.execute("DELETE FROM trade_signals")
-        conn.execute("DELETE FROM agent_log")
-        conn.execute(
-            "UPDATE portfolio_state SET cash = ?, updated_at = ? WHERE id = 1",
-            (starting_cash, now),
-        )
-    conn.close()
+    import shutil
+    # Remove the DB file (and any WAL / SHM sidecar files)
+    for suffix in ("", "-wal", "-shm"):
+        path = DB_PATH + suffix
+        if os.path.exists(path):
+            os.remove(path)
+    # Recreate tables and seed fresh cash balance
+    initialize_portfolio(starting_cash)
 
 
 def get_portfolio_metrics() -> dict:
