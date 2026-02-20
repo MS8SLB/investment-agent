@@ -160,13 +160,14 @@ def run_agent_session(
         if iteration > 0:
             time.sleep(3)
 
-        # Retry with exponential backoff on rate limit errors
+        # Retry with exponential backoff on rate-limit (429) and overloaded (529) errors.
         response = None
+        last_err_label = "API limit"
         for attempt, wait in enumerate(_RETRY_WAITS):
             try:
                 if wait:
                     if on_text:
-                        on_text(f"\n[Rate limit hit — waiting {wait}s before retry {attempt}/{len(_RETRY_WAITS)-1}...]\n")
+                        on_text(f"\n[{last_err_label} — waiting {wait}s before retry {attempt}/{len(_RETRY_WAITS)-1}...]\n")
                     time.sleep(wait)
                 response = client.messages.create(
                     model=model,
@@ -178,6 +179,13 @@ def run_agent_session(
                 )
                 break
             except anthropic.RateLimitError:
+                last_err_label = "Rate limit hit"
+                if attempt == len(_RETRY_WAITS) - 1:
+                    raise
+            except anthropic.InternalServerError as e:
+                if getattr(e, "status_code", None) != 529:
+                    raise
+                last_err_label = "API overloaded (529)"
                 if attempt == len(_RETRY_WAITS) - 1:
                     raise
         if response is None:
