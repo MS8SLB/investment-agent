@@ -515,7 +515,12 @@ def get_macro_environment() -> dict:
     return result
 
 
-def get_stock_universe(index: str = "all", sample_n: int = 200, random_seed: Optional[int] = None) -> dict:
+def get_stock_universe(
+    index: str = "all",
+    sample_n: int = 200,
+    random_seed: Optional[int] = None,
+    sector: Optional[str] = None,
+) -> dict:
     """
     Return a random sample of tickers for US stocks fetched from public GitHub datasets.
     Returns sample_n tickers (default 200) to keep response size manageable.
@@ -525,6 +530,11 @@ def get_stock_universe(index: str = "all", sample_n: int = 200, random_seed: Opt
       "sp500"  — ~500 S&P 500 large-cap constituents
       "broad"  — ~2700 US-listed stocks (mid + small caps included)
       "all"    — sp500 + broad combined and deduplicated
+
+    sector: optional GICS sector filter (only applies to S&P 500 tickers which have
+      sector data). Examples: "Information Technology", "Health Care", "Financials",
+      "Consumer Discretionary", "Communication Services", "Industrials",
+      "Consumer Staples", "Energy", "Utilities", "Real Estate", "Materials".
     """
     import urllib.request
     import csv
@@ -540,12 +550,16 @@ def get_stock_universe(index: str = "all", sample_n: int = 200, random_seed: Opt
         "/master/get_all_tickers/tickers.csv"
     )
 
-    def _fetch_sp500() -> list[str]:
+    def _fetch_sp500() -> list[dict]:
+        """Returns list of {ticker, sector} dicts."""
         with urllib.request.urlopen(SP500_URL, timeout=15) as r:
             content = r.read().decode()
         reader = csv.DictReader(io.StringIO(content))
         return [
-            row["Symbol"].strip().replace(".", "-")
+            {
+                "ticker": row["Symbol"].strip().replace(".", "-"),
+                "sector": row.get("Sector", "").strip(),
+            }
             for row in reader
             if row.get("Symbol", "").strip()
         ]
@@ -555,46 +569,73 @@ def get_stock_universe(index: str = "all", sample_n: int = 200, random_seed: Opt
             lines = r.read().decode().splitlines()
         return [line.strip() for line in lines if line.strip()]
 
+    sp500_entries: list[dict] = []
+    broad_tickers: list[str] = []
     result: dict = {}
 
     if index in ("sp500", "all"):
         try:
-            result["sp500"] = _fetch_sp500()
+            sp500_entries = _fetch_sp500()
         except Exception as e:
-            result["sp500"] = {"error": str(e)}
+            result["sp500_error"] = str(e)
 
     if index in ("broad", "all"):
         try:
-            result["broad"] = _fetch_broad()
+            broad_tickers = _fetch_broad()
         except Exception as e:
-            result["broad"] = {"error": str(e)}
+            result["broad_error"] = str(e)
+
+    # Build sector map from S&P 500 data (broad universe has no sector info)
+    sector_map: dict[str, str] = {e["ticker"]: e["sector"] for e in sp500_entries}
+    available_sectors = sorted(set(v for v in sector_map.values() if v))
 
     # Build combined deduplicated list
     all_tickers: list[str] = []
     seen: set[str] = set()
-    for key in ("sp500", "broad"):
-        v = result.get(key)
-        if isinstance(v, list):
-            for t in v:
-                if t not in seen:
-                    seen.add(t)
-                    all_tickers.append(t)
+    for e in sp500_entries:
+        t = e["ticker"]
+        if t not in seen:
+            seen.add(t)
+            all_tickers.append(t)
+    for t in broad_tickers:
+        if t not in seen:
+            seen.add(t)
+            all_tickers.append(t)
 
     total_count = len(all_tickers)
 
-    # Return a random sample to keep tool result size manageable
+    # Apply sector filter — matches against the S&P 500 sector map.
+    # Tickers not in the S&P 500 (broad-only) are excluded when filtering by sector
+    # since their sector is unknown. Use index="sp500" for pure sector-targeted screens.
+    if sector:
+        sector_lower = sector.lower()
+        filtered = [t for t in all_tickers if sector_lower in sector_map.get(t, "").lower()]
+        if filtered:
+            all_tickers = filtered
+            result["sector_filter"] = sector
+            result["sector_match_count"] = len(filtered)
+        else:
+            result["sector_filter_warning"] = (
+                f"No S&P 500 tickers matched sector '{sector}'. "
+                f"Available sectors: {available_sectors}. "
+                "Returning unfiltered sample instead."
+            )
+
+    # Sample
     rng = random.Random(random_seed)
-    sample = rng.sample(all_tickers, min(sample_n, total_count))
+    sample = rng.sample(all_tickers, min(sample_n, len(all_tickers)))
 
     result["total_count"] = total_count
     result["returned_count"] = len(sample)
     result["tickers"] = sample
+    sector_note = f" (sector: {sector})" if sector and "sector_filter_warning" not in result else ""
     result["note"] = (
-        f"Returning {len(sample)} randomly sampled tickers out of {total_count} total. "
+        f"Returning {len(sample)} tickers{sector_note} out of {len(all_tickers)} available. "
         "Pass these to screen_stocks (50-100 at a time). "
-        "Call get_stock_universe again with a different random_seed (e.g. 1, 2, 3...) "
-        "to get a different batch and cover more of the universe."
+        "Call get_stock_universe again with a different random_seed to get a different batch."
     )
+    if available_sectors and not sector:
+        result["available_sectors"] = available_sectors
     return result
 
 
@@ -617,15 +658,19 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
 
             pe = info.get("trailingPE")
             forward_pe = info.get("forwardPE")
+            peg = info.get("pegRatio")
             revenue_growth = info.get("revenueGrowth")
             profit_margin = info.get("profitMargins")
             roe = info.get("returnOnEquity")
             debt_to_equity = info.get("debtToEquity")
             market_cap = info.get("marketCap") or 0
             volume = info.get("regularMarketVolume") or info.get("volume") or 0
+            week52_change = info.get("52WeekChange")        # stock 52-wk return
+            sp52_change = info.get("SandP52WeekChange")     # S&P 500 52-wk return
 
-            # Composite score: quality + reasonable valuation + liquidity
             score = 0.0
+
+            # ── Quality ────────────────────────────────────────────────────────
             if revenue_growth and revenue_growth > 0.08:
                 score += 2
             if revenue_growth and revenue_growth > 0.20:
@@ -634,16 +679,49 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
                 score += 2
             if roe and roe > 0.15:
                 score += 2
-            if pe and 5 < pe < 25:
-                score += 2
-            elif pe and 25 <= pe < 40:
+
+            # ── Valuation: PEG-first, PE as fallback ───────────────────────────
+            # PEG < 1 = growing faster than you're paying; PEG > 2.5 = expensive
+            if peg is not None and peg > 0:
+                if peg < 1.0:
+                    score += 3
+                elif peg < 1.5:
+                    score += 2
+                elif peg < 2.5:
+                    score += 1
+            elif pe:
+                if 5 < pe < 20:
+                    score += 2
+                elif pe < 30:
+                    score += 1
+            # Forward PE meaningfully below trailing → earnings growth expected
+            if forward_pe and pe and forward_pe < pe * 0.9:
                 score += 1
-            if forward_pe and pe and forward_pe < pe:
-                score += 1  # earnings expected to grow
+
+            # ── Balance sheet ──────────────────────────────────────────────────
             if debt_to_equity is not None and debt_to_equity < 1.0:
                 score += 1
+
+            # ── Liquidity ──────────────────────────────────────────────────────
             if volume > 200_000:
-                score += 1  # basic liquidity
+                score += 1
+
+            # ── Momentum: performance relative to S&P 500 ─────────────────────
+            # Relative momentum is a strong empirical factor; an outperformer
+            # that's also fundamentally cheap is the ideal combination.
+            relative_momentum = None
+            if week52_change is not None and sp52_change is not None:
+                relative_momentum = week52_change - sp52_change
+                if relative_momentum > 0.10:
+                    score += 2   # significantly beating the market
+                elif relative_momentum > 0:
+                    score += 1   # modestly outperforming
+                elif relative_momentum < -0.20:
+                    score -= 1   # meaningful laggard — raises the bar for a buy
+            elif week52_change is not None:
+                # No S&P baseline available; use absolute momentum
+                if week52_change > 0.15:
+                    score += 1
 
             return {
                 "ticker": ticker,
@@ -654,10 +732,13 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
                 "price": price,
                 "pe_ratio": round(pe, 1) if pe else None,
                 "forward_pe": round(forward_pe, 1) if forward_pe else None,
+                "peg_ratio": round(peg, 2) if peg is not None else None,
                 "revenue_growth_pct": round(revenue_growth * 100, 1) if revenue_growth else None,
                 "profit_margin_pct": round(profit_margin * 100, 1) if profit_margin else None,
                 "roe_pct": round(roe * 100, 1) if roe else None,
                 "debt_to_equity": round(debt_to_equity, 2) if debt_to_equity is not None else None,
+                "week52_return_pct": round(week52_change * 100, 1) if week52_change is not None else None,
+                "relative_momentum_pct": round(relative_momentum * 100, 1) if relative_momentum is not None else None,
                 "recommendation": info.get("recommendationKey", ""),
                 "score": score,
             }

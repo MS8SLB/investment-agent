@@ -325,11 +325,12 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_stock_universe",
         "description": (
-            "Fetch a random sample of tickers from major US stock universes. "
+            "Fetch a sample of tickers from major US stock universes. "
             "Returns 'sample_n' tickers (default 200) to keep response size manageable. "
-            "Call multiple times with different random_seed values (0, 1, 2, ...) to cover "
-            "different parts of the universe across multiple screen_stocks calls. "
-            "Use this to discover investment opportunities beyond well-known names."
+            "Use 'sector' to target a specific GICS sector — ideal after calling "
+            "get_macro_environment to identify which sectors suit the current regime. "
+            "Sector filtering works for S&P 500 tickers (use index='sp500' or 'all'). "
+            "Call multiple times with different random_seed values to cover more of the universe."
         ),
         "input_schema": {
             "type": "object",
@@ -341,11 +342,21 @@ TOOL_DEFINITIONS = [
                 },
                 "sample_n": {
                     "type": "integer",
-                    "description": "Number of tickers to return in this sample (default 200, max 300). Keep this reasonable to avoid large responses.",
+                    "description": "Number of tickers to return in this sample (default 200, max 300).",
                 },
                 "random_seed": {
                     "type": "integer",
-                    "description": "Seed for random sampling. Use different values (0, 1, 2, 3...) across calls to get different batches from the full universe.",
+                    "description": "Seed for random sampling. Use different values (0, 1, 2, 3...) across calls to get different batches.",
+                },
+                "sector": {
+                    "type": "string",
+                    "description": (
+                        "Optional GICS sector filter. Only returns tickers from this sector. "
+                        "Valid values: 'Information Technology', 'Health Care', 'Financials', "
+                        "'Consumer Discretionary', 'Communication Services', 'Industrials', "
+                        "'Consumer Staples', 'Energy', 'Utilities', 'Real Estate', 'Materials'. "
+                        "Sector data is only available for S&P 500 constituents."
+                    ),
                 },
             },
             "required": [],
@@ -459,7 +470,8 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         index = tool_input.get("index", "all")
         sample_n = min(tool_input.get("sample_n", 200), 300)
         random_seed = tool_input.get("random_seed", None)
-        return market_data.get_stock_universe(index, sample_n=sample_n, random_seed=random_seed)
+        sector = tool_input.get("sector", None)
+        return market_data.get_stock_universe(index, sample_n=sample_n, random_seed=random_seed, sector=sector)
 
     elif tool_name == "screen_stocks":
         tickers = tool_input.get("tickers", [])

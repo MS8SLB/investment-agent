@@ -55,8 +55,8 @@ Use these tools proactively — not just when researching new stocks, but also w
 
 ## Stock Discovery Tools
 Use these to search beyond popular mega-caps and find overlooked quality companies:
-- `get_stock_universe(index, sample_n, random_seed)` — returns a random sample of tickers (default 200) from "sp500", "broad" (mid/small caps), or "all". Call multiple times with different random_seed values (0, 1, 2...) to explore different parts of the universe.
-- `screen_stocks(tickers, top_n)` — runs a fast parallel screen on up to 100 tickers at once, scoring each on revenue growth, profit margins, ROE, P/E, and debt. Returns ranked candidates. Call multiple times with different universe batches.
+- `get_stock_universe(index, sample_n, random_seed, sector)` — returns a sample of tickers from "sp500", "broad" (mid/small caps), or "all". Use the `sector` parameter (e.g. "Health Care", "Financials") to target sectors that fit the current macro regime. Sector filtering works for S&P 500 tickers. Call multiple times with different seeds or sectors to broaden coverage.
+- `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each on revenue growth, margins, ROE, PEG ratio, debt, and 52-week momentum relative to the S&P 500. Returns ranked candidates with `peg_ratio` and `relative_momentum_pct`. The ideal pick has a low PEG (cheap relative to growth) AND positive relative momentum (already working). Stocks with strongly negative relative momentum require extra conviction.
 
 ## Macro-Driven Sector Allocation
 Adjust sector tilts based on the macro regime:
@@ -238,15 +238,24 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Identify any positions where the thesis has broken down or the position has grown too large
 
 **Step 4 — Discover new opportunities from the full market**
-- Call `get_stock_universe("sp500", random_seed={seed_a})` — large-cap batch
-- Call `get_stock_universe("broad", random_seed={seed_b})` — mid/small-cap batch
-- Call `get_stock_universe("broad", random_seed={seed_c})` — second mid/small-cap batch for wider coverage
-- Identify which sectors you want more exposure to based on macro regime and current gaps in the portfolio
-- Call `screen_stocks` on batches of 80-100 tickers from the universe samples (prioritise underrepresented sectors). Call it multiple times to screen all batches.
-- From the screener results, pick the 3-5 highest-scoring candidates for deep research
+- Based on the macro regime (Step 2), decide the 2 sectors best positioned right now.
+  Use the sector allocation rules from your investment philosophy:
+  high rates → Financials / Energy; inverted curve → Health Care / Consumer Staples;
+  strong dollar → domestically focused sectors; high VIX → wait or size small.
+- Call `get_stock_universe("sp500", sector="<your top sector>")` — targeted S&P 500 screen of your #1 macro-favoured sector
+- Call `get_stock_universe("sp500", sector="<your second sector>")` — same for #2 sector
+- Call `get_stock_universe("broad", random_seed={seed_b})` — broad mid/small-cap batch to surface overlooked names
+- Call `get_stock_universe("broad", random_seed={seed_c})` — second broad batch for wider coverage
+- Screen each batch with `screen_stocks` (50-100 tickers per call). The screener returns:
+  - `peg_ratio`: prefer < 1.5 — paying a fair price for the growth rate
+  - `relative_momentum_pct`: prefer positive — stock already outperforming the S&P 500
+  - `week52_return_pct`: supporting context for trend direction
+  The ideal candidate scores well on BOTH valuation (low PEG) AND momentum (positive relative to market).
+  Be cautious of stocks with strongly negative relative momentum even if fundamentals look attractive.
+- From all screener results, pick the 3-5 highest-scoring candidates for deep research
 - For each finalist: check fundamentals, news, earnings calendar, analyst upgrades, and insider activity
 - Apply lessons from past reflections when evaluating candidates
-- Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies across mid and small caps
+- Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies
 
 **Step 5 — Take action**
 - Buy/sell based on your analysis, with detailed notes explaining the thesis for each trade
