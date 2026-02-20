@@ -315,6 +315,7 @@ with st.sidebar:
             "ASK AGENT",
             "REFLECTIONS",
         ],
+        key="page_selector",
     )
 
     st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
@@ -328,6 +329,7 @@ with st.sidebar:
         "AI MODEL",
         list(MODEL_OPTIONS.keys()),
         index=1,
+        key="model_selector",
     )
     selected_model = MODEL_OPTIONS[selected_model_label]
 
