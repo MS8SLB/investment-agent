@@ -764,25 +764,40 @@ elif "AI REVIEW" in page:
     if "agent_running" not in st.session_state:
         st.session_state.agent_running = False
 
+    CHECKPOINT_PATH = "data/session_checkpoint.json"
+    checkpoint_exists = os.path.exists(CHECKPOINT_PATH)
+
     # ── Last successful run timestamp ─────────────────────────────────────────
     last_reviews = [r for r in get_reflections(limit=20) if r.get("session_type") == "review"]
     if last_reviews:
         last_ts = last_reviews[0]["created_at"][:16].replace("T", " ") + " UTC"
         last_run_label = f'LAST SUCCESSFUL RUN: {last_ts}'
-        last_run_color = "#505050"
     else:
         last_run_label = "LAST SUCCESSFUL RUN: NEVER"
-        last_run_color = "#505050"
     st.markdown(
-        f'<div style="color:{last_run_color};font-size:11px;letter-spacing:1px;margin-bottom:12px;">'
+        f'<div style="color:#505050;font-size:11px;letter-spacing:1px;margin-bottom:8px;">'
         f'{last_run_label}</div>',
         unsafe_allow_html=True,
     )
 
-    col_btn, col_status = st.columns([1, 3])
+    if checkpoint_exists:
+        st.markdown(
+            '<div style="color:#FFA040;font-size:11px;letter-spacing:1px;margin-bottom:12px;">'
+            '⚠ INTERRUPTED SESSION FOUND — "RUN AI REVIEW" will resume it. '
+            'Use "FRESH RUN" to discard it and start over.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    col_btn, col_fresh, col_status = st.columns([1, 1, 2])
     with col_btn:
         run_btn = st.button(
             "▶  RUN AI REVIEW",
+            disabled=st.session_state.agent_running,
+        )
+    with col_fresh:
+        fresh_btn = st.button(
+            "↺  FRESH RUN",
             disabled=st.session_state.agent_running,
         )
     with col_status:
@@ -795,7 +810,10 @@ elif "AI REVIEW" in page:
 
     output_area = st.empty()
 
-    if run_btn:
+    if fresh_btn and os.path.exists(CHECKPOINT_PATH):
+        os.remove(CHECKPOINT_PATH)
+
+    if run_btn or fresh_btn:
         from agent.investment_agent import run_portfolio_review
 
         st.session_state.agent_running = True
@@ -804,9 +822,10 @@ elif "AI REVIEW" in page:
             unsafe_allow_html=True,
         )
 
+        session_label = "FRESH RUN" if fresh_btn else "SESSION STARTED"
         lines = [
             '<span style="color:#505050">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>',
-            f'<span style="color:#505050">SESSION STARTED  {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</span>',
+            f'<span style="color:#505050">{session_label}  {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</span>',
             '<span style="color:#505050">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>',
             "",
         ]
