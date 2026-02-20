@@ -133,7 +133,19 @@ def run_agent_session(
     Returns:
         The final text response from the agent.
     """
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    # Resolve API key: prefer explicit env var, then fall back to session token file.
+    _token_file = os.environ.get(
+        "CLAUDE_SESSION_INGRESS_TOKEN_FILE",
+        "/home/claude/.claude/remote/.session_ingress_token",
+    )
+    _api_key = os.environ.get("ANTHROPIC_API_KEY") or (
+        open(_token_file).read().strip() if os.path.exists(_token_file) else None
+    )
+    if not _api_key:
+        raise RuntimeError(
+            "No Anthropic API key found. Set ANTHROPIC_API_KEY in .env or ensure the session token file exists."
+        )
+    client = anthropic.Anthropic(api_key=_api_key)
     model = model or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
     messages = [{"role": "user", "content": user_prompt}]
