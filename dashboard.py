@@ -561,7 +561,16 @@ elif "PERFORMANCE" in page:
 
     if snapshots:
         df = pd.DataFrame(snapshots)
-        df["ts"] = pd.to_datetime(df["ts"])
+        df["ts"] = pd.to_datetime(df["ts"]).dt.floor("min")
+        df = df.drop_duplicates(subset="ts").sort_values("ts")
+
+        time_span = df["ts"].max() - df["ts"].min()
+        if time_span.days >= 7:
+            tick_fmt = "%b %d"
+        elif time_span.days >= 1:
+            tick_fmt = "%b %d %H:%M"
+        else:
+            tick_fmt = "%H:%M"
 
         fig = go.Figure()
 
@@ -600,6 +609,8 @@ elif "PERFORMANCE" in page:
                 showline=True,
                 linecolor="#1a1a1a",
                 title=None,
+                tickformat=tick_fmt,
+                nticks=10,
             ),
             yaxis=dict(
                 gridcolor="#0d0d0d",
