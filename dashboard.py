@@ -407,13 +407,25 @@ if "PORTFOLIO" in page:
                 "AVG COST":      fmt_usd(h["avg_cost"]),
                 "CURRENT PRICE": fmt_usd(h.get("current_price")),
                 "MKT VALUE":     fmt_usd(h.get("market_value")),
-                "UNREAL P&L":    fmt_usd(up),
-                "RETURN":        fmt_pct(up_pct),
+                "UNREAL P&L":    up,
+                "RETURN":        up_pct,
                 "FIRST BOUGHT":  (h.get("first_bought") or "")[:10],
             })
 
         df = pd.DataFrame(rows)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        def _color_signed(col):
+            return col.apply(lambda v: "color: #00E676" if v >= 0 else "color: #FF3B3B")
+
+        styled = (
+            df.style
+            .apply(_color_signed, subset=["UNREAL P&L", "RETURN"])
+            .format({
+                "UNREAL P&L": lambda v: ("-$" if v < 0 else "$") + f"{abs(v):,.2f}",
+                "RETURN":     lambda v: ("+" if v >= 0 else "") + f"{v:.2f}%",
+            })
+        )
+        st.dataframe(styled, use_container_width=True, hide_index=True)
 
         # ── Allocation chart ─────────────────────────────────────────────────
         section("PORTFOLIO ALLOCATION")
