@@ -321,11 +321,11 @@ with st.sidebar:
     st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
 
     MODEL_OPTIONS = {
-        "Haiku 4.5  (fast, high limits)": "claude-haiku-4-5-20251001",
+        "Haiku 4.5  (fast)": "claude-haiku-4-5-20251001",
         "Sonnet 4.5 (balanced)": "claude-sonnet-4-5-20250929",
-        "Opus 4.6   (most capable)": "claude-opus-4-6",
+        "Opus 4.6   (best)": "claude-opus-4-6",
     }
-    selected_model_label = st.radio(
+    selected_model_label = st.selectbox(
         "AI MODEL",
         list(MODEL_OPTIONS.keys()),
         index=1,
