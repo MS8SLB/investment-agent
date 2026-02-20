@@ -110,6 +110,7 @@ def run_agent_session(
     user_prompt: str,
     model: Optional[str] = None,
     max_iterations: int = 20,
+    temperature: float = 0,
     on_text: Optional[callable] = None,
     on_tool_call: Optional[callable] = None,
     on_tool_result: Optional[callable] = None,
@@ -154,6 +155,7 @@ def run_agent_session(
                 response = client.messages.create(
                     model=model,
                     max_tokens=4096,
+                    temperature=temperature,
                     system=SYSTEM_PROMPT,
                     tools=TOOL_DEFINITIONS,
                     messages=messages,
