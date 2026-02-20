@@ -16,11 +16,17 @@ import streamlit as st
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 load_dotenv(override=True)
 
+# Read STARTING_CASH directly from .env file so it is never affected by
+# stale shell environment variables inherited by the Streamlit process.
+_env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+_dotenv_vals = dotenv_values(_env_file)
+STARTING_CASH = float(_dotenv_vals.get("STARTING_CASH") or os.environ.get("STARTING_CASH") or "1000000")
+
 from agent.portfolio import initialize_portfolio, get_reflections, reset_portfolio
-initialize_portfolio(float(os.environ.get("STARTING_CASH", "1000000")))
+initialize_portfolio(STARTING_CASH)
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -483,14 +489,13 @@ if "PORTFOLIO" in page:
         col_confirm, col_cancel, _ = st.columns([1, 1, 4])
         with col_confirm:
             if st.button("✓  CONFIRM RESET"):
-                starting_cash = float(os.environ.get("STARTING_CASH", "1000000"))
-                reset_portfolio(starting_cash)
+                reset_portfolio(STARTING_CASH)
                 # Also discard any interrupted session checkpoint
                 _ckpt = "data/session_checkpoint.json"
                 if os.path.exists(_ckpt):
                     os.remove(_ckpt)
                 st.session_state.reset_confirm = False
-                st.success(f"Portfolio reset — cash restored to ${starting_cash:,.0f}.")
+                st.success(f"Portfolio reset — cash restored to ${STARTING_CASH:,.0f}.")
                 st.rerun()
         with col_cancel:
             if st.button("✗  CANCEL"):
