@@ -23,7 +23,7 @@ load_dotenv(override=True)
 # stale shell environment variables inherited by the Streamlit process.
 _env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 _dotenv_vals = dotenv_values(_env_file)
-STARTING_CASH = float(_dotenv_vals.get("STARTING_CASH") or os.environ.get("STARTING_CASH") or "1000000")
+STARTING_CASH = float(_dotenv_vals.get("STARTING_CASH") or os.environ.get("STARTING_CASH") or "100000")
 
 from agent.portfolio import initialize_portfolio, get_reflections, reset_portfolio
 initialize_portfolio(STARTING_CASH)

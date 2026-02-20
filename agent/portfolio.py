@@ -19,7 +19,7 @@ def _get_connection() -> sqlite3.Connection:
     return conn
 
 
-def initialize_portfolio(starting_cash: float = 1_000_000.0) -> None:
+def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
     """Create tables and seed initial cash balance if not already done."""
     conn = _get_connection()
     with conn:
