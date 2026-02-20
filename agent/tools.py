@@ -464,23 +464,79 @@ TOOL_DEFINITIONS = [
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
+        "name": "get_signal_performance",
+        "description": (
+            "Analyze which screener signals (PEG < 1.5, FCF yield > 3%, positive momentum, "
+            "revenue growth > 10%) have historically predicted positive returns in this portfolio. "
+            "Returns per-signal statistics split by whether the threshold was met at buy time. "
+            "Call this in Step 1 alongside get_trade_outcomes to calibrate signal weights for this session."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "add_to_shadow_portfolio",
+        "description": (
+            "Record a stock you analyzed and decided NOT to buy or watchlist. "
+            "Use this for stocks that were seriously considered but rejected (too expensive, "
+            "weak moat, sector crowded, thesis uncertain). "
+            "Tracked so future sessions can review whether passing was the right call."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "price_at_consideration": {
+                    "type": "number",
+                    "description": "Current stock price at the time you considered it",
+                },
+                "reason_passed": {
+                    "type": "string",
+                    "description": "Primary reason for passing (e.g. 'overvalued', 'weak FCF', 'sector too heavy', 'thesis unclear')",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Additional context on the decision",
+                },
+            },
+            "required": ["ticker", "price_at_consideration", "reason_passed"],
+        },
+    },
+    {
+        "name": "get_shadow_performance",
+        "description": (
+            "Review all stocks you previously passed on, showing their price change since consideration. "
+            "Call this in Step 1 to audit past pass decisions — if a rejected stock is up 30%, "
+            "understand why you were wrong; if it's down 20%, your thesis was validated. "
+            "Use these lessons to sharpen your screening judgment."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "save_session_reflection",
         "description": (
-            "Save a reflection at the end of your portfolio review session. "
-            "Document: what actions you took, whether past theses are playing out, "
-            "market patterns you observed, and specific lessons for future sessions. "
-            "Always call this at the end of each review."
+            "Save a structured reflection at the end of your portfolio review session. "
+            "Always call this at the end of each review. "
+            "Use exactly this markdown template:\n\n"
+            "## Actions Taken\n"
+            "[Buys, sells, watchlist additions, shadow records — with one-line rationale each]\n\n"
+            "## Thesis Validation\n"
+            "[For each holding: is the original thesis playing out? Any cracks?]\n\n"
+            "## Signal Performance\n"
+            "[Which signals (PEG, FCF, momentum) appear to be working this session? "
+            "Any surprises from get_signal_performance?]\n\n"
+            "## Macro Observations\n"
+            "[Rate environment, dollar, VIX, sector rotation — what the regime is telling you]\n\n"
+            "## Shadow Portfolio Review\n"
+            "[Any passed-on stocks that moved significantly? Was the pass correct?]\n\n"
+            "## Lessons for Next Session\n"
+            "[2-4 specific, actionable rules to apply next time]"
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "reflection": {
                     "type": "string",
-                    "description": (
-                        "Your written reflection on this session. Include: actions taken, "
-                        "thesis validation for existing positions, market observations, "
-                        "and key lessons to apply in future sessions."
-                    ),
+                    "description": "Structured reflection using the template above.",
                 }
             },
             "required": ["reflection"],
@@ -595,6 +651,34 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         spy_price = spy.get("price") if "error" not in spy else None
         portfolio.save_portfolio_snapshot(portfolio_value, cash, invested, spy_price, "review")
         return {"success": True, "message": "Reflection and portfolio snapshot saved."}
+
+    elif tool_name == "get_signal_performance":
+        return portfolio.get_signal_performance()
+
+    elif tool_name == "add_to_shadow_portfolio":
+        return portfolio.add_to_shadow_portfolio(
+            ticker=tool_input["ticker"],
+            price_at_consideration=tool_input["price_at_consideration"],
+            reason_passed=tool_input["reason_passed"],
+            notes=tool_input.get("notes", ""),
+        )
+
+    elif tool_name == "get_shadow_performance":
+        positions = portfolio.get_shadow_positions()
+        if not positions:
+            return {"message": "No shadow positions recorded yet.", "positions": []}
+        enriched = []
+        for p in positions:
+            quote = market_data.get_stock_quote(p["ticker"])
+            current_price = quote.get("price") if "error" not in quote else None
+            entry = dict(p)
+            if current_price and p["price_at_consideration"]:
+                change_pct = (current_price - p["price_at_consideration"]) / p["price_at_consideration"] * 100
+                entry["current_price"] = current_price
+                entry["change_since_pass_pct"] = round(change_pct, 2)
+                entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
+            enriched.append(entry)
+        return {"positions": enriched}
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}

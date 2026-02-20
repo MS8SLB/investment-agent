@@ -122,6 +122,18 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
             )
         """)
 
+        # Stocks the agent analyzed and decided NOT to buy or watchlist —
+        # tracked so we can measure whether passing was the right call.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS shadow_positions (
+                ticker TEXT PRIMARY KEY,
+                considered_at TEXT NOT NULL,
+                price_at_consideration REAL NOT NULL,
+                reason_passed TEXT NOT NULL,
+                notes TEXT
+            )
+        """)
+
         # Migrate existing DBs: add realized_pnl column if missing
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN realized_pnl REAL")
@@ -588,3 +600,111 @@ def get_trade_outcomes() -> list[dict]:
 
     conn.close()
     return results
+
+
+def get_signal_performance() -> dict:
+    """
+    Analyze which screener signals have predicted positive returns across closed trades.
+    Returns per-signal statistics split by whether the threshold was met at buy time.
+    """
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT ts.peg_ratio, ts.fcf_yield_pct, ts.relative_momentum_pct,
+               ts.revenue_growth_pct, ts.screener_score,
+               t.price AS buy_price, t.ticker,
+               (SELECT s2.price FROM transactions s2
+                WHERE s2.action = 'SELL' AND s2.ticker = t.ticker AND s2.ts > t.ts
+                ORDER BY s2.ts ASC LIMIT 1) AS sell_price
+        FROM trade_signals ts
+        JOIN transactions t ON t.id = ts.transaction_id
+        ORDER BY ts.recorded_at DESC
+        LIMIT 20
+    """).fetchall()
+    conn.close()
+
+    rows = [dict(r) for r in rows]
+    closed = [r for r in rows if r["sell_price"] is not None]
+    open_count = len(rows) - len(closed)
+
+    if not closed:
+        return {
+            "message": (
+                "No closed trades yet — signal performance will build over time. "
+                f"{len(rows)} open position(s) tracked."
+            ),
+            "total_closed_trades": 0,
+            "total_open_trades": open_count,
+        }
+
+    thresholds = {
+        "peg_lt_1_5": lambda r: r["peg_ratio"] is not None and r["peg_ratio"] < 1.5,
+        "fcf_yield_gt_3pct": lambda r: r["fcf_yield_pct"] is not None and r["fcf_yield_pct"] > 3.0,
+        "positive_momentum": lambda r: r["relative_momentum_pct"] is not None and r["relative_momentum_pct"] > 0,
+        "revenue_growth_gt_10pct": lambda r: r["revenue_growth_pct"] is not None and r["revenue_growth_pct"] > 10.0,
+    }
+
+    def _stats(group: list) -> dict:
+        if not group:
+            return {"count": 0, "positive_rate_pct": None, "avg_return_pct": None}
+        returns = [(r["sell_price"] - r["buy_price"]) / r["buy_price"] * 100 for r in group]
+        positive = sum(1 for x in returns if x > 0)
+        return {
+            "count": len(group),
+            "positive_rate_pct": round(positive / len(group) * 100, 1),
+            "avg_return_pct": round(sum(returns) / len(returns), 2),
+        }
+
+    signal_stats = {}
+    for name, passes in thresholds.items():
+        met = [r for r in closed if passes(r)]
+        not_met = [r for r in closed if not passes(r)]
+        signal_stats[name] = {
+            "threshold_met": _stats(met),
+            "threshold_not_met": _stats(not_met),
+        }
+
+    return {
+        "total_closed_trades": len(closed),
+        "total_open_trades": open_count,
+        "signal_performance": signal_stats,
+        "interpretation": (
+            "Where threshold_met shows higher positive_rate_pct and avg_return_pct than "
+            "threshold_not_met, that signal is genuinely predictive — weight it more heavily. "
+            "Where there is no difference, the signal adds little edge."
+        ),
+    }
+
+
+def add_to_shadow_portfolio(
+    ticker: str,
+    price_at_consideration: float,
+    reason_passed: str,
+    notes: str = "",
+) -> dict:
+    """
+    Record a stock that was analyzed but not bought or watchlisted.
+    Tracks whether the decision to pass was correct over time.
+    """
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    with conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO shadow_positions
+                (ticker, considered_at, price_at_consideration, reason_passed, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (ticker.upper(), now, price_at_consideration, reason_passed, notes))
+    conn.close()
+    return {"status": "recorded", "ticker": ticker.upper(), "price_at_consideration": price_at_consideration}
+
+
+def get_shadow_positions() -> list[dict]:
+    """Return all shadow portfolio positions (stocks analyzed and passed on)."""
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT ticker, considered_at, price_at_consideration, reason_passed, notes
+        FROM shadow_positions
+        ORDER BY considered_at DESC
+        LIMIT 30
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

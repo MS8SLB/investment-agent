@@ -83,7 +83,9 @@ You have persistent memory across sessions. Use it to improve your decision-maki
 1. Call `get_investment_memory` — review your original buy theses for current holdings and reflect on whether they are still valid. Review closed positions to identify what worked and what didn't.
 2. Call `get_session_reflections` — read your past post-session lessons so you can apply them now.
 3. Call `get_watchlist` — check if any watchlist candidates have reached their target entry price or had a meaningful pullback since you added them.
-4. Call `get_trade_outcomes` — review which screener signals (PEG, momentum, FCF yield) have correlated with positive returns in past trades. Weight those signals more heavily in this session's screening.
+4. Call `get_trade_outcomes` — raw signal snapshots for all past trades.
+5. Call `get_signal_performance` — statistical breakdown of which signal thresholds have predicted positive returns. Use this to weight signals in screening: if PEG < 1.5 shows 70% win rate vs 40% without, make it a near-requirement.
+6. Call `get_shadow_performance` — check how stocks you previously passed on have moved. Validate or challenge your past reasoning.
 
 **When making trades:**
 - Always write a detailed thesis in the `notes` field. Include:
@@ -302,7 +304,9 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_investment_memory` to review past theses for current holdings and closed positions
 - Call `get_session_reflections` to review lessons from past sessions
 - Call `get_watchlist` — check if any watchlist candidates have hit their target price or had a meaningful pullback
-- Call `get_trade_outcomes` — review which signals (PEG, momentum, FCF yield) have predicted positive returns; weight them accordingly this session
+- Call `get_trade_outcomes` — review raw signal snapshots for all past trades
+- Call `get_signal_performance` — get statistical analysis of which signals (PEG, FCF yield, momentum, revenue growth) have actually predicted positive returns; use this to weight signals in Step 4
+- Call `get_shadow_performance` — review stocks you previously passed on; note which passes were validated (stock fell) and which were mistakes (stock rose); apply lessons to this session's screening
 
 **Step 2 — Assess current state**
 - Check portfolio status (cash, holdings, P&L)
@@ -334,16 +338,18 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   Be cautious of stocks with strongly negative relative momentum even if fundamentals look attractive.
 - From all screener results, pick the 3-5 highest-scoring candidates for deep research
 - For each finalist: check fundamentals, news, earnings calendar, analyst upgrades, and insider activity
-- Apply lessons from `get_trade_outcomes` — weight signals that have historically predicted positive returns
+- Apply lessons from `get_signal_performance` — if PEG < 1.5 has a 70% positive-return rate vs 40% when not met, require it; if momentum shows no edge, treat it as a tiebreaker only
 - Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies
 
 **Step 5 — Take action**
 - For each buy: pass `screener_snapshot` (the screen_stocks result dict for that ticker) to `buy_stock` so signals are recorded
 - For stocks you like but won't buy yet (earnings soon, slightly overvalued, sector already heavy): call `add_to_watchlist` with target entry price
+- For stocks you researched deeply but decided against AND won't watchlist: call `add_to_shadow_portfolio` with the current price and reason (e.g. "overvalued", "weak FCF", "thesis unclear"); this creates a record to audit next session
 - For sells: clear reasoning in notes; if relevant, remove from watchlist
 
 **Step 6 — Save reflection**
-- Call `save_session_reflection` with a detailed write-up: actions taken, thesis validation, market observations, and lessons for future sessions
+- Call `save_session_reflection` using the structured template defined in the tool description
+- Be specific in "Lessons for Next Session" — write rules, not vague intentions
 
 Focus on building a diversified, high-quality long-term portfolio. Apply everything you've learned.
 """
