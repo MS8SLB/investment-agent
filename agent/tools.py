@@ -724,6 +724,9 @@ def _get_portfolio_status() -> dict:
 
         enriched_holdings.append({
             **h,
+            "name": quote.get("name", ""),
+            "sector": quote.get("sector", ""),
+            "industry": quote.get("industry", ""),
             "current_price": current_price,
             "market_value": round(market_value, 2) if market_value else None,
             "unrealized_pnl": round(unrealized_pnl, 2) if unrealized_pnl is not None else None,

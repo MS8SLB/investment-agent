@@ -91,6 +91,8 @@ def get_stock_quote(ticker: str) -> dict:
                 "price": price,
                 "currency": info.get("currency", "USD"),
                 "name": info.get("longName") or info.get("shortName", ticker),
+                "sector": info.get("sector", ""),
+                "industry": info.get("industry", ""),
                 "exchange": info.get("exchange", ""),
                 "market_cap": info.get("marketCap"),
                 "volume": info.get("regularMarketVolume") or info.get("volume"),

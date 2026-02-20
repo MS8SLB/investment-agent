@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
-from agent.portfolio import initialize_portfolio
+from agent.portfolio import initialize_portfolio, get_reflections
 initialize_portfolio(float(os.environ.get("STARTING_CASH", "100000")))
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -392,6 +392,8 @@ if "PORTFOLIO" in page:
             up_pct = h.get("unrealized_pct") or 0
             rows.append({
                 "TICKER":        h["ticker"],
+                "NAME":          h.get("name") or "",
+                "INDUSTRY":      h.get("industry") or "",
                 "SHARES":        f"{h['shares']:.4f}",
                 "AVG COST":      fmt_usd(h["avg_cost"]),
                 "CURRENT PRICE": fmt_usd(h.get("current_price")),
@@ -761,6 +763,21 @@ elif "AI REVIEW" in page:
 
     if "agent_running" not in st.session_state:
         st.session_state.agent_running = False
+
+    # ── Last successful run timestamp ─────────────────────────────────────────
+    last_reviews = [r for r in get_reflections(limit=20) if r.get("session_type") == "review"]
+    if last_reviews:
+        last_ts = last_reviews[0]["created_at"][:16].replace("T", " ") + " UTC"
+        last_run_label = f'LAST SUCCESSFUL RUN: {last_ts}'
+        last_run_color = "#505050"
+    else:
+        last_run_label = "LAST SUCCESSFUL RUN: NEVER"
+        last_run_color = "#505050"
+    st.markdown(
+        f'<div style="color:{last_run_color};font-size:11px;letter-spacing:1px;margin-bottom:12px;">'
+        f'{last_run_label}</div>',
+        unsafe_allow_html=True,
+    )
 
     col_btn, col_status = st.columns([1, 3])
     with col_btn:
