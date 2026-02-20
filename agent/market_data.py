@@ -515,6 +515,70 @@ def get_macro_environment() -> dict:
     return result
 
 
+def get_sector_exposure(holdings: list[dict]) -> dict:
+    """
+    Compute current sector breakdown of the portfolio by market value.
+    holdings: list of {ticker, shares, avg_cost} dicts (from get_holdings()).
+    Returns sector weights so the agent can see concentration before new buys.
+    """
+    if not holdings:
+        return {"sector_breakdown": [], "total_invested": 0, "note": "No holdings."}
+
+    def _fetch(h: dict) -> dict:
+        ticker = h["ticker"]
+        try:
+            info = yf.Ticker(ticker).info
+            price = (
+                info.get("currentPrice")
+                or info.get("regularMarketPrice")
+                or info.get("previousClose")
+            )
+            sector = info.get("sector") or "Unknown"
+            market_value = h["shares"] * price if price else h["shares"] * h["avg_cost"]
+        except Exception:
+            sector = "Unknown"
+            market_value = h["shares"] * h["avg_cost"]
+        return {"ticker": ticker, "sector": sector, "market_value": market_value}
+
+    holding_data: list[dict] = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_fetch, h): h for h in holdings}
+        for future in as_completed(futures):
+            holding_data.append(future.result())
+
+    total_value = sum(h["market_value"] for h in holding_data)
+
+    sector_map: dict[str, dict] = {}
+    for h in holding_data:
+        s = h["sector"]
+        if s not in sector_map:
+            sector_map[s] = {"tickers": [], "total_value": 0.0}
+        sector_map[s]["tickers"].append(h["ticker"])
+        sector_map[s]["total_value"] += h["market_value"]
+
+    breakdown = sorted(
+        [
+            {
+                "sector": sector,
+                "tickers": sorted(data["tickers"]),
+                "market_value": round(data["total_value"], 2),
+                "weight_pct": round(data["total_value"] / total_value * 100, 1) if total_value else 0,
+            }
+            for sector, data in sector_map.items()
+        ],
+        key=lambda x: -x["market_value"],
+    )
+
+    return {
+        "sector_breakdown": breakdown,
+        "total_invested": round(total_value, 2),
+        "note": (
+            "Weights are % of invested value (cash excluded). "
+            "Use this before new buys to avoid over-concentrating in one sector."
+        ),
+    }
+
+
 def get_stock_universe(
     index: str = "all",
     sample_n: int = 200,
@@ -667,6 +731,8 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
             volume = info.get("regularMarketVolume") or info.get("volume") or 0
             week52_change = info.get("52WeekChange")        # stock 52-wk return
             sp52_change = info.get("SandP52WeekChange")     # S&P 500 52-wk return
+            free_cashflow = info.get("freeCashflow")
+            fcf_yield = (free_cashflow / market_cap) if (free_cashflow and market_cap > 0) else None
 
             score = 0.0
 
@@ -700,6 +766,13 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
 
             # ── Balance sheet ──────────────────────────────────────────────────
             if debt_to_equity is not None and debt_to_equity < 1.0:
+                score += 1
+
+            # ── FCF yield: cash generation relative to market cap ──────────────
+            # >5% FCF yield = business generating real cash; not just accounting profit
+            if fcf_yield is not None and fcf_yield > 0.05:
+                score += 2
+            elif fcf_yield is not None and fcf_yield > 0.02:
                 score += 1
 
             # ── Liquidity ──────────────────────────────────────────────────────
@@ -737,6 +810,7 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
                 "profit_margin_pct": round(profit_margin * 100, 1) if profit_margin else None,
                 "roe_pct": round(roe * 100, 1) if roe else None,
                 "debt_to_equity": round(debt_to_equity, 2) if debt_to_equity is not None else None,
+                "fcf_yield_pct": round(fcf_yield * 100, 1) if fcf_yield is not None else None,
                 "week52_return_pct": round(week52_change * 100, 1) if week52_change is not None else None,
                 "relative_momentum_pct": round(relative_momentum * 100, 1) if relative_momentum is not None else None,
                 "recommendation": info.get("recommendationKey", ""),

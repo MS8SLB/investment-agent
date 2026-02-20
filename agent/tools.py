@@ -137,6 +137,14 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Reasoning for this buy decision",
                 },
+                "screener_snapshot": {
+                    "type": "object",
+                    "description": (
+                        "Optional: pass the screen_stocks result row for this ticker "
+                        "(the dict containing score, peg_ratio, relative_momentum_pct, etc.). "
+                        "Saves the signal state at purchase time for future performance attribution."
+                    ),
+                },
             },
             "required": ["ticker", "notes"],
         },
@@ -389,6 +397,73 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_sector_exposure",
+        "description": (
+            "Show current portfolio weights broken down by GICS sector. "
+            "Call this before buying new positions to see where you're already concentrated "
+            "and where you have room to add without over-weighting a sector."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "add_to_watchlist",
+        "description": (
+            "Add a stock to the watchlist when you like the business but the timing isn't right — "
+            "e.g. earnings in the next 2 weeks, valuation slightly too high, or waiting for a "
+            "pullback to a target price. The watchlist is reviewed at the start of every session."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "company_name": {"type": "string", "description": "Company name (optional)"},
+                "reason": {
+                    "type": "string",
+                    "description": "Why you like this stock and what would trigger a buy (e.g. 'strong FCF, waiting for post-earnings dip below $X')",
+                },
+                "target_entry_price": {
+                    "type": "number",
+                    "description": "Optional price at or below which you'd be a buyer",
+                },
+            },
+            "required": ["ticker", "reason"],
+        },
+    },
+    {
+        "name": "get_watchlist",
+        "description": (
+            "Retrieve the current watchlist — stocks you've flagged for future purchase. "
+            "Call this at the start of each session to check if any watchlist candidates "
+            "have reached their target entry price or had a meaningful pullback."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "remove_from_watchlist",
+        "description": (
+            "Remove a stock from the watchlist. Call this after buying the stock, "
+            "or if the investment thesis has broken down and it's no longer worth watching."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol to remove"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_trade_outcomes",
+        "description": (
+            "Return all past buy signal snapshots with their actual outcomes. "
+            "For each recorded buy, shows the screener signals that were present at purchase "
+            "(PEG, momentum, FCF yield, etc.) alongside the eventual return. "
+            "Use this to identify which signals have historically predicted positive returns "
+            "and weight them more heavily in future screening decisions."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "save_session_reflection",
         "description": (
             "Save a reflection at the end of your portfolio review session. "
@@ -480,6 +555,27 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_benchmark_comparison":
         return _handle_benchmark_comparison()
+
+    elif tool_name == "get_sector_exposure":
+        holdings = portfolio.get_holdings()
+        return market_data.get_sector_exposure(holdings)
+
+    elif tool_name == "add_to_watchlist":
+        return portfolio.add_to_watchlist(
+            ticker=tool_input["ticker"],
+            reason=tool_input["reason"],
+            target_entry_price=tool_input.get("target_entry_price"),
+            company_name=tool_input.get("company_name"),
+        )
+
+    elif tool_name == "get_watchlist":
+        return portfolio.get_watchlist()
+
+    elif tool_name == "remove_from_watchlist":
+        return portfolio.remove_from_watchlist(tool_input["ticker"])
+
+    elif tool_name == "get_trade_outcomes":
+        return portfolio.get_trade_outcomes()
 
     elif tool_name == "get_investment_memory":
         return portfolio.get_investment_memory()
@@ -574,11 +670,18 @@ def _handle_buy(tool_input: dict) -> dict:
 
     result = portfolio.buy_stock(ticker, shares, price, notes)
     if result["success"]:
+        txn_id = result["transaction_id"]
         portfolio.log_agent_message(
             f"BUY {shares:.4f} shares of {ticker} @ ${price:.2f} | Reason: {notes}"
         )
         if notes:
-            portfolio.save_trade_thesis(result["transaction_id"], ticker, "BUY", notes)
+            portfolio.save_trade_thesis(txn_id, ticker, "BUY", notes)
+        # Save screener signals if provided — enables performance attribution later
+        screener = tool_input.get("screener_snapshot")
+        if screener and isinstance(screener, dict):
+            portfolio.save_trade_signals(txn_id, ticker, screener)
+        # Auto-remove from watchlist when bought
+        portfolio.remove_from_watchlist(ticker)
     return result
 
 

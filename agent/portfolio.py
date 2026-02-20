@@ -93,6 +93,34 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
                 session_type TEXT DEFAULT 'review'
             )
         """)
+        # Stocks to monitor and buy later at a better price or after a catalyst
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS watchlist (
+                ticker TEXT PRIMARY KEY,
+                company_name TEXT,
+                reason TEXT NOT NULL,
+                target_entry_price REAL,
+                added_at TEXT NOT NULL
+            )
+        """)
+        # Screener signal snapshot at time of each buy — enables performance attribution
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trade_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                transaction_id INTEGER NOT NULL,
+                ticker TEXT NOT NULL,
+                screener_score REAL,
+                peg_ratio REAL,
+                relative_momentum_pct REAL,
+                week52_return_pct REAL,
+                revenue_growth_pct REAL,
+                profit_margin_pct REAL,
+                roe_pct REAL,
+                fcf_yield_pct REAL,
+                sector TEXT,
+                recorded_at TEXT NOT NULL
+            )
+        """)
 
         # Migrate existing DBs: add realized_pnl column if missing
         try:
@@ -423,3 +451,139 @@ def get_agent_log(limit: int = 20) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ── Watchlist ─────────────────────────────────────────────────────────────────
+
+def add_to_watchlist(
+    ticker: str,
+    reason: str,
+    target_entry_price: Optional[float] = None,
+    company_name: Optional[str] = None,
+) -> dict:
+    """Add or update a stock on the watchlist."""
+    ticker = ticker.upper()
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            """INSERT INTO watchlist (ticker, company_name, reason, target_entry_price, added_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(ticker) DO UPDATE SET
+                   reason = excluded.reason,
+                   company_name = excluded.company_name,
+                   target_entry_price = excluded.target_entry_price,
+                   added_at = excluded.added_at""",
+            (ticker, company_name, reason, target_entry_price, datetime.utcnow().isoformat()),
+        )
+    conn.close()
+    return {"success": True, "ticker": ticker}
+
+
+def get_watchlist() -> list[dict]:
+    """Return all current watchlist entries, newest first."""
+    conn = _get_connection()
+    rows = conn.execute(
+        "SELECT ticker, company_name, reason, target_entry_price, added_at FROM watchlist ORDER BY added_at DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def remove_from_watchlist(ticker: str) -> dict:
+    """Remove a stock from the watchlist."""
+    ticker = ticker.upper()
+    conn = _get_connection()
+    with conn:
+        conn.execute("DELETE FROM watchlist WHERE ticker = ?", (ticker,))
+    conn.close()
+    return {"success": True, "ticker": ticker}
+
+
+# ── Trade signal log ──────────────────────────────────────────────────────────
+
+def save_trade_signals(transaction_id: int, ticker: str, signals: dict) -> None:
+    """
+    Save the screener signal snapshot at time of a buy.
+    Call this immediately after a successful buy, passing the screen_stocks
+    result row for the purchased ticker. Enables future performance attribution.
+    """
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            """INSERT INTO trade_signals (
+                transaction_id, ticker, screener_score, peg_ratio,
+                relative_momentum_pct, week52_return_pct, revenue_growth_pct,
+                profit_margin_pct, roe_pct, fcf_yield_pct, sector, recorded_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                transaction_id,
+                ticker.upper(),
+                signals.get("score"),
+                signals.get("peg_ratio"),
+                signals.get("relative_momentum_pct"),
+                signals.get("week52_return_pct"),
+                signals.get("revenue_growth_pct"),
+                signals.get("profit_margin_pct"),
+                signals.get("roe_pct"),
+                signals.get("fcf_yield_pct"),
+                signals.get("sector"),
+                datetime.utcnow().isoformat(),
+            ),
+        )
+    conn.close()
+
+
+def get_trade_outcomes() -> list[dict]:
+    """
+    Return all buy signal snapshots with their actual outcomes.
+
+    For closed positions: buy price → sell price → return %.
+    For open positions: status='open', no return yet.
+
+    Use this to identify which screener signals correlate with positive returns
+    over time. As the portfolio accumulates history this becomes a genuine
+    feedback loop for improving screening criteria.
+    """
+    conn = _get_connection()
+    rows = conn.execute(
+        """SELECT
+               ts.transaction_id, ts.ticker, ts.recorded_at AS signal_date,
+               ts.screener_score, ts.peg_ratio, ts.relative_momentum_pct,
+               ts.week52_return_pct, ts.revenue_growth_pct,
+               ts.profit_margin_pct, ts.roe_pct, ts.fcf_yield_pct, ts.sector,
+               t.price AS buy_price, t.ts AS buy_date
+           FROM trade_signals ts
+           JOIN transactions t ON t.id = ts.transaction_id
+           ORDER BY ts.recorded_at DESC"""
+    ).fetchall()
+
+    results = []
+    for row in rows:
+        r = dict(row)
+        # Find first sell after this buy for the same ticker
+        sell = conn.execute(
+            """SELECT price AS sell_price, ts AS sell_date, realized_pnl
+               FROM transactions
+               WHERE action = 'SELL' AND ticker = ? AND ts > ?
+               ORDER BY ts ASC LIMIT 1""",
+            (r["ticker"], r["buy_date"]),
+        ).fetchone()
+
+        if sell:
+            return_pct = (sell["sell_price"] - r["buy_price"]) / r["buy_price"] * 100
+            r.update({
+                "status": "closed",
+                "sell_price": sell["sell_price"],
+                "sell_date": sell["sell_date"][:10],
+                "return_pct": round(return_pct, 2),
+                "realized_pnl": sell["realized_pnl"],
+            })
+        else:
+            r["status"] = "open"
+
+        r["buy_date"] = r["buy_date"][:10]
+        r["signal_date"] = r["signal_date"][:10]
+        results.append(r)
+
+    conn.close()
+    return results
