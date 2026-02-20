@@ -37,7 +37,7 @@ def _check_api_key() -> bool:
 
 
 def _init_portfolio() -> None:
-    starting_cash = float(os.environ.get("STARTING_CASH", "100000"))
+    starting_cash = float(os.environ.get("STARTING_CASH", "1000000"))
     from agent.portfolio import initialize_portfolio
     initialize_portfolio(starting_cash)
 

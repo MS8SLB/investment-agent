@@ -75,7 +75,7 @@ def _run_review() -> None:
         from agent.investment_agent import run_portfolio_review
         from agent.portfolio import initialize_portfolio
 
-        starting_cash = float(os.environ.get("STARTING_CASH", "100000"))
+        starting_cash = float(os.environ.get("STARTING_CASH", "1000000"))
         initialize_portfolio(starting_cash)
 
         def on_tool_call(name: str, inp: dict) -> None:

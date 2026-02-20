@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from agent.portfolio import initialize_portfolio, get_reflections
-initialize_portfolio(float(os.environ.get("STARTING_CASH", "100000")))
+initialize_portfolio(float(os.environ.get("STARTING_CASH", "1000000")))
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
