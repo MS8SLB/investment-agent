@@ -167,7 +167,7 @@ def cmd_interactive() -> None:
     print_header("AI Investment Portfolio Agent")
     console.print(
         "\n[bold]Paper trading portfolio powered by Claude AI.[/bold]\n"
-        "Your portfolio starts with [yellow]$100,000[/yellow] in virtual cash.\n"
+        f"Your portfolio starts with [yellow]${float(os.environ.get('STARTING_CASH', '1000000')):,.0f}[/yellow] in virtual cash.\n"
     )
 
     while True:
