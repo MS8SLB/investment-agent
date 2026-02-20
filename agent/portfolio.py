@@ -554,7 +554,8 @@ def get_trade_outcomes() -> list[dict]:
                t.price AS buy_price, t.ts AS buy_date
            FROM trade_signals ts
            JOIN transactions t ON t.id = ts.transaction_id
-           ORDER BY ts.recorded_at DESC"""
+           ORDER BY ts.recorded_at DESC
+           LIMIT 20"""
     ).fetchall()
 
     results = []

@@ -390,7 +390,7 @@ TOOL_DEFINITIONS = [
                 },
                 "top_n": {
                     "type": "integer",
-                    "description": "Number of top candidates to return (default 25)",
+                    "description": "Number of top candidates to return (default 10)",
                 },
             },
             "required": ["tickers"],
@@ -525,7 +525,7 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         return portfolio.get_transactions(limit)
 
     elif tool_name == "get_stock_news":
-        limit = min(tool_input.get("limit", 8), 15)
+        limit = min(tool_input.get("limit", 5), 10)
         return market_data.get_stock_news(tool_input["ticker"], limit)
 
     elif tool_name == "get_earnings_calendar":
@@ -550,7 +550,7 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "screen_stocks":
         tickers = tool_input.get("tickers", [])
-        top_n = tool_input.get("top_n", 25)
+        top_n = tool_input.get("top_n", 10)
         return market_data.screen_stocks(tickers, top_n)
 
     elif tool_name == "get_benchmark_comparison":
