@@ -3,6 +3,7 @@ Claude-powered investment agent.
 Uses an agentic loop with tool use to research and manage a paper portfolio.
 """
 
+import datetime
 import json
 import os
 import time
@@ -211,7 +212,13 @@ def run_agent_session(
 
 def run_portfolio_review(model: Optional[str] = None, **kwargs) -> str:
     """Run a full autonomous portfolio review and rebalancing session."""
-    prompt = """
+    # Rotate seeds daily so each review explores a fresh slice of the universe.
+    # Seeds are deterministic within a day (temperature=0 handles within-session
+    # consistency); over weeks the full ~2,700-ticker universe gets covered.
+    day_seed = datetime.date.today().toordinal() % 1000
+    seed_a, seed_b, seed_c = day_seed, day_seed + 1, day_seed + 2
+
+    prompt = f"""
 Please conduct a comprehensive portfolio review and take appropriate investment actions:
 
 **Step 1 — Load memory**
@@ -231,10 +238,11 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Identify any positions where the thesis has broken down or the position has grown too large
 
 **Step 4 — Discover new opportunities from the full market**
-- Call `get_stock_universe("all", random_seed=0)` to get a 200-ticker sample from the full universe
-- Call `get_stock_universe("broad", random_seed=1)` for a second batch focused on mid/small caps
+- Call `get_stock_universe("sp500", random_seed={seed_a})` — large-cap batch
+- Call `get_stock_universe("broad", random_seed={seed_b})` — mid/small-cap batch
+- Call `get_stock_universe("broad", random_seed={seed_c})` — second mid/small-cap batch for wider coverage
 - Identify which sectors you want more exposure to based on macro regime and current gaps in the portfolio
-- Call `screen_stocks` with 80-100 tickers from the universe samples (focus on underrepresented sectors). You can call it multiple times with different batches.
+- Call `screen_stocks` on batches of 80-100 tickers from the universe samples (prioritise underrepresented sectors). Call it multiple times to screen all batches.
 - From the screener results, pick the 3-5 highest-scoring candidates for deep research
 - For each finalist: check fundamentals, news, earnings calendar, analyst upgrades, and insider activity
 - Apply lessons from past reflections when evaluating candidates
