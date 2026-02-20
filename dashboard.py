@@ -17,7 +17,7 @@ import streamlit as st
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 from agent.portfolio import initialize_portfolio, get_reflections, reset_portfolio
 initialize_portfolio(float(os.environ.get("STARTING_CASH", "1000000")))
