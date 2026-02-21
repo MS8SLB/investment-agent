@@ -60,6 +60,17 @@ Use these tools proactively — not just when researching new stocks, but also w
 - `get_analyst_upgrades(ticker)` — recent analyst actions and grade changes
 - `get_insider_activity(ticker)` — insider buys/sells; executives know their business better than anyone
 
+## External Data Sources
+Broaden your intelligence beyond market prices and SEC filings with real-economy and social signals.
+
+- `get_economic_indicators()` — US macroeconomic data from the Federal Reserve FRED API: real GDP growth, CPI, core CPI, unemployment, jobless claims, retail sales, consumer sentiment, industrial production, housing starts, and the fed funds rate. Returns synthesised signals (e.g. GDP contracting → favour defensives). Call this at the start of every portfolio review alongside `get_macro_environment()` — FRED covers the real economy (leading by 1-2 quarters), while `get_macro_environment()` covers market-price signals (yields, VIX, dollar). Together they give a complete macro picture.
+
+- `get_google_trends(ticker, keywords)` — Google search interest over the past 12 months. Rising search interest 4-8 weeks before earnings is a leading demand indicator, especially for consumer-facing companies (retail, streaming, travel, consumer tech). For B2B companies, pass product names as keywords (e.g. `['Salesforce CRM']` for CRM, `['Azure']` for MSFT). A trend accelerating >20% vs the prior period is a meaningful tailwind signal.
+
+- `get_retail_sentiment(ticker)` — Bull/bear ratio from StockTwits and recent Reddit posts (r/investing, r/wallstreetbets, r/stocks). Use as a CONTRARIAN thermometer: >80% bulls = caution (euphoria often precedes pullbacks); <25% bulls = potential bottom worth checking. Never use sentiment alone — confirm with fundamentals. Most useful when you already have a view and want to know if the crowd agrees (too much agreement = reconsider).
+
+- `get_rss_news(ticker)` — RSS headlines from Yahoo Finance, MarketWatch, and Seeking Alpha, providing broader coverage than `get_stock_news()`. Use when few headlines appear from the standard news tool, or to get a second-source view on breaking stories. Recurring negative themes across multiple independent sources carry more weight than a single outlet's coverage.
+
 ## Deep Research Tools (SEC EDGAR)
 These tools access primary source SEC filings and provide qualitative intelligence that quantitative screeners cannot capture. Use them on high-conviction candidates and for periodic review of existing holdings.
 
@@ -330,7 +341,8 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 **Step 2 — Assess current state**
 - Check portfolio status (cash, holdings, P&L)
 - Call `get_sector_exposure` — see current sector weights before making any new allocation decisions
-- Call `get_macro_environment` — understand the rate/dollar/volatility regime before making any decisions
+- Call `get_macro_environment` — market-price macro signals: yield curve, dollar, VIX, oil
+- Call `get_economic_indicators` — real-economy macro signals: GDP growth, CPI, unemployment, consumer sentiment; synthesise with get_macro_environment for complete regime picture
 - Call `get_benchmark_comparison` — are we beating the S&P 500? If not, why not?
 - Call `get_portfolio_metrics` — review Sharpe ratio, max drawdown, volatility, and rolling 1/3/6-month returns vs S&P 500; if max drawdown > 15% or Sharpe < 0, tighten position sizing this session
 - Check overall market index conditions

@@ -6,7 +6,7 @@ Each tool maps to a market data or portfolio action.
 import json
 from typing import Any
 
-from agent import market_data, portfolio, sec_data
+from agent import market_data, portfolio, sec_data, external_data
 
 
 # ── Tool schemas for Claude ────────────────────────────────────────────────────
@@ -522,6 +522,104 @@ TOOL_DEFINITIONS = [
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    # ── External data sources ─────────────────────────────────────────────────
+    {
+        "name": "get_economic_indicators",
+        "description": (
+            "Fetch key US macroeconomic indicators from the Federal Reserve FRED API: "
+            "real GDP growth, CPI inflation, core CPI, unemployment rate, initial jobless "
+            "claims, retail sales, consumer sentiment, industrial production, housing starts, "
+            "and the federal funds rate. "
+            "Returns synthesised investment signals (e.g. 'GDP negative → favour defensives'). "
+            "These are LEADING real-economy indicators that typically lead equity markets by "
+            "1-2 quarters — use alongside get_macro_environment() (which covers yield curve, "
+            "VIX, dollar) for a complete macro picture. "
+            "Requires FRED_API_KEY in .env (free at https://fredapi.stlouisfed.org)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "get_google_trends",
+        "description": (
+            "Fetch Google search-interest trends for a company's brand or products. "
+            "Search interest is a leading indicator of consumer demand — rising interest "
+            "4-8 weeks before earnings often predicts revenue beats for consumer-facing companies. "
+            "Returns 12-month trend, recent 8-week direction (rising/falling/stable), "
+            "and current interest vs 12-month average. "
+            "Best used for consumer-facing companies (AAPL, AMZN, NFLX). "
+            "For B2B companies, pass specific product keywords (e.g. ['Azure'] for MSFT). "
+            "Uses pytrends — no API key required."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Optional list of specific keywords to track instead of the company name. "
+                        "Use product/service names for better signal (e.g. ['iPhone', 'Mac'] for AAPL). "
+                        "Max 5 keywords."
+                    ),
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_retail_sentiment",
+        "description": (
+            "Aggregate retail investor sentiment from StockTwits and Reddit "
+            "(r/investing, r/wallstreetbets, r/stocks, r/SecurityAnalysis). "
+            "Returns StockTwits bull/bear ratio and recent Reddit posts with scoring. "
+            "IMPORTANT: Retail sentiment is a CONTRARIAN indicator for long-term investors. "
+            "Extreme bullishness (>80% bulls) often precedes corrections; "
+            "extreme bearishness (<25% bulls) can mark bottoms. "
+            "Use as a sentiment thermometer alongside fundamentals — not as a buy/sell trigger. "
+            "No API key required."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_rss_news",
+        "description": (
+            "Aggregate recent news headlines from multiple RSS feeds: "
+            "Yahoo Finance, MarketWatch, and Seeking Alpha. "
+            "Provides broader coverage than get_stock_news(), surfacing analyst commentary, "
+            "earnings previews, sector rotation themes, and M&A / regulatory news. "
+            "Use when get_stock_news() returns few results or you want a second opinion on "
+            "news coverage. Look for recurring negative themes across multiple sources — "
+            "that cross-source agreement is a stronger signal than a single headline. "
+            "Requires feedparser (pip install feedparser) — no API key needed."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
     # ── GenAI intelligence tools (SEC EDGAR) ──────────────────────────────────
     {
         "name": "analyze_earnings_call",
@@ -816,6 +914,19 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
                 entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
             enriched.append(entry)
         return {"positions": enriched}
+
+    elif tool_name == "get_economic_indicators":
+        return external_data.get_economic_indicators()
+
+    elif tool_name == "get_google_trends":
+        keywords = tool_input.get("keywords")
+        return external_data.get_google_trends(tool_input["ticker"], keywords)
+
+    elif tool_name == "get_retail_sentiment":
+        return external_data.get_retail_sentiment(tool_input["ticker"])
+
+    elif tool_name == "get_rss_news":
+        return external_data.get_rss_news(tool_input["ticker"])
 
     elif tool_name == "analyze_earnings_call":
         return sec_data.get_earnings_transcript(tool_input["ticker"])
