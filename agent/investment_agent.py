@@ -99,6 +99,7 @@ These tools access primary source SEC filings and provide qualitative intelligen
 Use these to search beyond popular mega-caps and find overlooked quality companies:
 - `get_stock_universe(index, sector)` — when `index="sp500"`, returns **all** ~500 S&P 500 tickers (no sampling). Use the optional `sector` parameter (e.g. "Health Care", "Financials") to narrow to a specific GICS sector. For mid/small-cap exposure use `index="broad"` with `random_seed` and `sample_n`.
 - `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each on revenue growth, margins, ROE, PEG ratio, FCF yield, debt, and 52-week momentum relative to the S&P 500. Returns ranked candidates with `peg_ratio`, `fcf_yield_pct`, and `relative_momentum_pct`. The ideal pick has a low PEG (cheap relative to growth), positive FCF yield (real cash generation), AND positive relative momentum (already working). Stocks with strongly negative relative momentum require extra conviction.
+- `research_stocks_parallel(tickers_with_data, context)` — **multi-agent deep research**. Launches one specialized research subagent per ticker, all running concurrently. Each subagent runs the full research checklist (15 tools: fundamentals, earnings call, SEC filings, insider activity, competitor analysis, superinvestor positions, material events, sentiment) and returns a structured JSON report with recommendation (buy/watchlist/pass), conviction score 1-10, key positives, key risks, and thesis text. Reports arrive sorted by conviction score. Use this on your 3-6 screener finalists instead of researching them sequentially — it's faster and each subagent focuses entirely on one stock.
 
 ## Macro-Driven Sector Allocation
 Adjust sector tilts based on the macro regime:
@@ -379,10 +380,17 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   - `relative_momentum_pct`: prefer positive — stock already outperforming the S&P 500
   The ideal candidate is strong on ALL three: cheap relative to growth, cash-generative, and trending well.
   Be cautious of stocks with strongly negative relative momentum even if fundamentals look attractive.
-- From all screener results, pick the 3-5 highest-scoring candidates for deep research
-- For each finalist: check fundamentals, news, earnings calendar, analyst upgrades, and insider activity
 - Apply lessons from `get_signal_performance` — if PEG < 1.5 has a 70% positive-return rate vs 40% when not met, require it; if momentum shows no edge, treat it as a tiebreaker only
 - Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies
+- From all screener results, select the **3-6 highest-scoring candidates** for deep research
+- Call `research_stocks_parallel` with those tickers and their screener rows in `tickers_with_data`.
+  Pass a concise `context` string covering: current macro regime, sector exposure weights, available
+  cash, and any signal requirements from `get_signal_performance` / `get_ml_factor_weights`.
+  Each subagent independently runs the full 15-tool research checklist (fundamentals, earnings call,
+  SEC filings, insider activity, competitor analysis, superinvestor positions, sentiment, material
+  events) and returns a structured JSON report. Reports arrive sorted by conviction score.
+- Use the returned reports directly to decide which tickers to buy, watchlist, or shadow-record.
+  You do NOT need to call individual research tools on finalists — the subagents have already done it.
 
 **Step 5 — Take action**
 - For each buy: pass `screener_snapshot` (the screen_stocks result dict for that ticker) to `buy_stock` so signals are recorded

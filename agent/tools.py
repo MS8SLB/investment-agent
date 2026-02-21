@@ -802,6 +802,65 @@ TOOL_DEFINITIONS = [
             "required": ["ticker"],
         },
     },
+    # ── Multi-agent parallel research ─────────────────────────────────────────
+    {
+        "name": "research_stocks_parallel",
+        "description": (
+            "Launch parallel research subagents to deep-dive multiple stocks simultaneously. "
+            "Each subagent independently researches one ticker — running all 15 research tools "
+            "(fundamentals, earnings call, SEC filings, insider activity, competitor analysis, "
+            "superinvestor positions, sentiment, material events, etc.) — and returns a "
+            "structured JSON report with a recommendation (buy/watchlist/pass), "
+            "conviction score 1-10, key positives, key risks, and a full thesis. "
+            "\n\n"
+            "Use this in Step 4 instead of researching finalists one-by-one. "
+            "Pass 3-6 tickers from your screener results. All reports arrive at once, "
+            "already sorted by conviction score. The coordinator then decides which to "
+            "buy, watchlist, or shadow-record based on the synthesised reports. "
+            "\n\n"
+            "Provide 'context' with the current macro regime, sector exposure, and "
+            "available cash — subagents use this to calibrate recommendations. "
+            "Each screener_data dict (from screen_stocks) should include the full "
+            "screener row for that ticker so subagents can see the screener signals."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers_with_data": {
+                    "type": "array",
+                    "description": (
+                        "List of stocks to research in parallel. Each item must have 'ticker' "
+                        "and optionally 'screener_data' (the screen_stocks result row for that ticker)."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "ticker": {
+                                "type": "string",
+                                "description": "Stock ticker symbol",
+                            },
+                            "screener_data": {
+                                "type": "object",
+                                "description": "Screener metrics from screen_stocks for this ticker",
+                            },
+                        },
+                        "required": ["ticker"],
+                    },
+                },
+                "context": {
+                    "type": "string",
+                    "description": (
+                        "Portfolio context for the subagents: current macro regime, sector exposure "
+                        "weights, available cash, and any signals from get_ml_factor_weights or "
+                        "get_signal_performance that should bias the research. "
+                        "Example: Macro RISK_OFF, yield curve inverted. Tech 35%, Health Care 18% overweight. "
+                        "Cash $145k. Require PEG < 1.5 and positive FCF yield."
+                    ),
+                },
+            },
+            "required": ["tickers_with_data", "context"],
+        },
+    },
     {
         "name": "save_session_reflection",
         "description": (
@@ -973,6 +1032,14 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
                 entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
             enriched.append(entry)
         return {"positions": enriched}
+
+    elif tool_name == "research_stocks_parallel":
+        # Local import to avoid circular dependency (research_agent imports tools)
+        from agent.research_agent import research_stocks_parallel
+        return research_stocks_parallel(
+            tickers_with_data=tool_input["tickers_with_data"],
+            context=tool_input.get("context", ""),
+        )
 
     elif tool_name == "get_ml_factor_weights":
         return ml_insights.get_ml_factor_weights()
