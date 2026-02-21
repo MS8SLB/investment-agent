@@ -560,12 +560,40 @@ elif "PERFORMANCE" in page:
     section("PORTFOLIO VALUE OVER TIME")
 
     if snapshots:
+        _RANGES = {"1D": 1, "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": None}
+        _TICK_FMTS = {
+            "1D": "%H:%M", "1W": "%b %d", "1M": "%b %d",
+            "3M": "%b %d", "6M": "%b %d", "1Y": "%b '%y", "ALL": "%b '%y",
+        }
+
+        if "perf_range" not in st.session_state:
+            st.session_state.perf_range = "ALL"
+
+        _rcols = st.columns(len(_RANGES))
+        for _col, _label in zip(_rcols, _RANGES):
+            if _col.button(
+                _label,
+                key=f"range_{_label}",
+                use_container_width=True,
+                type="primary" if st.session_state.perf_range == _label else "secondary",
+            ):
+                st.session_state.perf_range = _label
+                st.rerun()
+
+        _sel = st.session_state.perf_range
+
         df = pd.DataFrame(snapshots)
-        df["ts"] = pd.to_datetime(df["ts"]).dt.floor("D")
+        df["ts"] = pd.to_datetime(df["ts"])
+        df = df.sort_values("ts")
+
+        if _RANGES[_sel] is not None:
+            _cutoff = df["ts"].max() - pd.Timedelta(days=_RANGES[_sel])
+            df = df[df["ts"] >= _cutoff].copy()
+
+        df["ts"] = df["ts"].dt.floor("h" if _sel == "1D" else "D")
         df = df.drop_duplicates(subset="ts").sort_values("ts")
 
-        time_span = df["ts"].max() - df["ts"].min()
-        tick_fmt = "%b %d '%y" if time_span.days > 365 else "%b %d"
+        tick_fmt = _TICK_FMTS[_sel]
 
         fig = go.Figure()
 
@@ -583,7 +611,7 @@ elif "PERFORMANCE" in page:
 
         if df["benchmark_price"].notna().any():
             first_spy = df["benchmark_price"].dropna().iloc[0]
-            first_val = df["portfolio_value"].iloc[0]
+            first_val = df.loc[df["benchmark_price"].notna(), "portfolio_value"].iloc[0]
             df["spy_indexed"] = df["benchmark_price"] / first_spy * first_val
             fig.add_trace(go.Scatter(
                 x=df["ts"],
