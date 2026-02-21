@@ -41,8 +41,9 @@ When considering a buy:
    - `analyze_earnings_call` — read the last earnings call for management tone and guidance quality
    - `get_superinvestor_positions` — check if smart money has independently reached the same conclusion
    - `analyze_sec_filing` — for new positions, review the 10-K Risk Factors and MD&A for hidden red flags
-10. Make the purchase if conviction is high. Pass the `screener_snapshot` dict from screen_stocks so the signal state is recorded for future performance attribution.
-11. If you like the stock but timing is wrong (earnings too close, slightly overvalued, sector already heavy), call `add_to_watchlist` with a target entry price instead of buying.
+10. Call `get_position_size_recommendation(ticker, features)` — pass the screener_snapshot as features. Use the recommended_pct as your position size unless you have strong thesis-based reasons to deviate. A regime-adjusted, risk-calibrated size is almost always better than a round-number guess.
+11. Make the purchase if conviction is high. Pass the `screener_snapshot` dict from screen_stocks so the signal state is recorded for future performance attribution.
+12. If you like the stock but timing is wrong (earnings too close, slightly overvalued, sector already heavy), call `add_to_watchlist` with a target entry price instead of buying.
 
 When considering a sell:
 1. Fundamentals have deteriorated (not just price drop)
@@ -59,6 +60,16 @@ Use these tools proactively — not just when researching new stocks, but also w
 - `get_earnings_calendar(ticker)` — next earnings date + EPS/revenue consensus + beat/miss record
 - `get_analyst_upgrades(ticker)` — recent analyst actions and grade changes
 - `get_insider_activity(ticker)` — insider buys/sells; executives know their business better than anyone
+
+## ML Intelligence (Self-Learning from Portfolio History)
+These tools learn from YOUR portfolio's own closed trade history and improve automatically over time.
+With no closed trades they use regime-adjusted prior weights; each new closed position makes them smarter.
+
+- `get_ml_factor_weights()` — Analyses all closed trades to determine which screener signals (PEG, FCF yield, momentum, revenue growth, margins, ROE) have actually predicted returns in this portfolio. Returns data-driven factor weights blended with regime-prior weights, per-feature correlations, and a cross-validated R² score. Also detects the current macro regime and explains how it adjusts the weights. Call this at the start of every session alongside `get_signal_performance()` to understand which signals to trust most when evaluating screener candidates.
+
+- `prioritize_watchlist_ml()` — Scores every watchlist item using the learned factor weights, fetches their current fundamentals, and returns a ranked list with strengths, risk flags, and proximity to target entry price. Items near their target entry price are promoted within their score tier. Call this instead of (or alongside) `get_watchlist()` — it saves you from researching low-conviction watchlist items first.
+
+- `get_position_size_recommendation(ticker, features)` — Estimates drawdown risk from the stock's screener features and recommends a position size (% of portfolio). Combines: (1) rule-based risk flags (high PEG, negative FCF, sharp negative momentum), (2) a logistic regression drawdown classifier trained on closed trade history once ≥5 trades exist, and (3) regime-adjusted base sizes (smaller in RISK_OFF, larger in RISK_ON). Call this just before executing a buy — pass the screen_stocks result dict as 'features'. Always respect the 20% maximum position cap.
 
 ## External Data Sources
 Broaden your intelligence beyond market prices and SEC filings with real-economy and social signals.
@@ -335,7 +346,9 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_session_reflections` to review lessons from past sessions
 - Call `get_watchlist` — check if any watchlist candidates have hit their target price or had a meaningful pullback
 - Call `get_trade_outcomes` — review raw signal snapshots for all past trades
-- Call `get_signal_performance` — get statistical analysis of which signals (PEG, FCF yield, momentum, revenue growth) have actually predicted positive returns; use this to weight signals in Step 4
+- Call `get_signal_performance` — binary threshold win-rate analysis of signals
+- Call `get_ml_factor_weights` — continuous ML-derived factor weights that go beyond binary thresholds; use blended_weights and actionable_guidance when scoring screener candidates in Step 4
+- Call `prioritize_watchlist_ml` — replaces plain get_watchlist; returns watchlist ranked by ML score with current fundamentals already fetched; start with rank-1 items when doing deep research
 - Call `get_shadow_performance` — review stocks you previously passed on; note which passes were validated (stock fell) and which were mistakes (stock rose); apply lessons to this session's screening
 
 **Step 2 — Assess current state**

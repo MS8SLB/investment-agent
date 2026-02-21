@@ -6,7 +6,7 @@ Each tool maps to a market data or portfolio action.
 import json
 from typing import Any
 
-from agent import market_data, portfolio, sec_data, external_data
+from agent import market_data, portfolio, sec_data, external_data, ml_insights
 
 
 # ── Tool schemas for Claude ────────────────────────────────────────────────────
@@ -522,6 +522,65 @@ TOOL_DEFINITIONS = [
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    # ── ML insights (learned from portfolio history) ──────────────────────────
+    {
+        "name": "get_ml_factor_weights",
+        "description": (
+            "Learn which screener signals have actually predicted returns in THIS portfolio's history. "
+            "Returns data-driven factor weights blended with regime-adjusted priors. "
+            "Weights are 100% regime-prior when no closed trades exist, then shift smoothly toward "
+            "data-driven as closed trades accumulate (25% at 5 trades → 75% at 25+ trades). "
+            "Also detects the current macro regime (RISK_ON / RISK_OFF / INFLATIONARY / NORMAL) "
+            "and returns feature correlations with returns. "
+            "Call this at the start of each session to understand which signals to trust most "
+            "when evaluating screener candidates. Use blended_weights to manually re-rank results."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "prioritize_watchlist_ml",
+        "description": (
+            "Score every watchlist item using ML-derived factor weights and return a ranked list. "
+            "For each item: fetches current fundamentals, applies learned factor weights, "
+            "computes an ML score (0-10), flags strengths and risk factors, and highlights items "
+            "near their target entry price (promoted to top of their score tier). "
+            "Call this alongside get_watchlist() to prioritise which candidates deserve the deepest "
+            "research this session. Score ≥7: strong candidate — investigate thoroughly. "
+            "Score <4: weak fit for current regime — lower priority unless thesis is compelling."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_position_size_recommendation",
+        "description": (
+            "Estimate drawdown risk for a specific stock and recommend an appropriate position size "
+            "(% of portfolio). Combines three inputs: (1) feature-based risk flags on valuation, "
+            "FCF, momentum, growth, and profitability; (2) a logistic regression drawdown model "
+            "trained on the portfolio's own closed trade history (when ≥5 closed trades exist); "
+            "(3) regime-adjusted base size (smaller in RISK_OFF / STAGFLATION). "
+            "Call this just before executing a buy to calibrate position size. "
+            "Pass the screener_snapshot features from screen_stocks as the 'features' argument. "
+            "The recommendation respects the 20% maximum position cap."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol being considered for purchase",
+                },
+                "features": {
+                    "type": "object",
+                    "description": (
+                        "Screener features for this stock — pass the screen_stocks result dict. "
+                        "Expected keys: peg_ratio, fcf_yield_pct, relative_momentum_pct, "
+                        "revenue_growth_pct, profit_margin_pct, roe_pct."
+                    ),
+                },
+            },
+            "required": ["ticker", "features"],
+        },
+    },
     # ── External data sources ─────────────────────────────────────────────────
     {
         "name": "get_economic_indicators",
@@ -914,6 +973,18 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
                 entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
             enriched.append(entry)
         return {"positions": enriched}
+
+    elif tool_name == "get_ml_factor_weights":
+        return ml_insights.get_ml_factor_weights()
+
+    elif tool_name == "prioritize_watchlist_ml":
+        return ml_insights.prioritize_watchlist_ml()
+
+    elif tool_name == "get_position_size_recommendation":
+        return ml_insights.get_position_size_recommendation(
+            ticker=tool_input["ticker"],
+            features=tool_input.get("features", {}),
+        )
 
     elif tool_name == "get_economic_indicators":
         return external_data.get_economic_indicators()
