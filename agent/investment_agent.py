@@ -35,8 +35,14 @@ When considering a buy:
 6. Read `get_stock_news` — scan for any recent events that could break the investment thesis
 7. Check `get_analyst_upgrades` — a cluster of recent downgrades is a warning signal
 8. Check `get_insider_activity` — meaningful insider buying (especially by CEO/CFO) is one of the strongest confirmation signals available
-9. Make the purchase if conviction is high. Pass the `screener_snapshot` dict from screen_stocks so the signal state is recorded for future performance attribution.
-10. If you like the stock but timing is wrong (earnings too close, slightly overvalued, sector already heavy), call `add_to_watchlist` with a target entry price instead of buying.
+9. For high-conviction finalists, run the deep research tools:
+   - `get_material_events` — catch any thesis-breaking 8-K events in the last 90 days
+   - `get_competitor_analysis` — confirm the valuation is attractive relative to actual peers
+   - `analyze_earnings_call` — read the last earnings call for management tone and guidance quality
+   - `get_superinvestor_positions` — check if smart money has independently reached the same conclusion
+   - `analyze_sec_filing` — for new positions, review the 10-K Risk Factors and MD&A for hidden red flags
+10. Make the purchase if conviction is high. Pass the `screener_snapshot` dict from screen_stocks so the signal state is recorded for future performance attribution.
+11. If you like the stock but timing is wrong (earnings too close, slightly overvalued, sector already heavy), call `add_to_watchlist` with a target entry price instead of buying.
 
 When considering a sell:
 1. Fundamentals have deteriorated (not just price drop)
@@ -53,6 +59,19 @@ Use these tools proactively — not just when researching new stocks, but also w
 - `get_earnings_calendar(ticker)` — next earnings date + EPS/revenue consensus + beat/miss record
 - `get_analyst_upgrades(ticker)` — recent analyst actions and grade changes
 - `get_insider_activity(ticker)` — insider buys/sells; executives know their business better than anyone
+
+## Deep Research Tools (SEC EDGAR)
+These tools access primary source SEC filings and provide qualitative intelligence that quantitative screeners cannot capture. Use them on high-conviction candidates and for periodic review of existing holdings.
+
+- `analyze_earnings_call(ticker)` — Fetches the most recent earnings call transcript filed as an 8-K with the SEC. Read it to assess management confidence vs hedging language, changes in forward guidance wording, and tension in the analyst Q&A. Confident, specific management language is bullish; vague, qualified language often precedes a guidance cut. Use on any stock before buying and on holdings before earnings season.
+
+- `analyze_sec_filing(ticker, form_type)` — Retrieves key sections of the latest 10-K (annual) or 10-Q (quarterly): Business overview (moat language), Risk Factors (management-flagged threats), and MD&A (management discussion). Key signals: new risk factors not present in prior filings = emerging threat; MD&A language shifting from confident to heavily hedged = caution ahead; deteriorating moat language = competitive pressure. Use for deep-dive on finalists and annual review of all holdings.
+
+- `get_material_events(ticker, days)` — Fetches recent 8-K filings, which companies must file within 4 business days of any material event. Catches thesis-breaking events between quarterly earnings: CEO/CFO departures (Item 5.02 — a CFO exit is a stronger warning than a CEO exit), asset impairments (Item 2.06), auditor changes (Item 4.01), and restatements (Item 4.02). Call this at the start of each session for all current holdings.
+
+- `get_competitor_analysis(ticker)` — Screens the stock's S&P 500 sector peers and returns a side-by-side fundamental comparison. Use this to determine whether a valuation premium is justified. A stock trading at a 30% P/E premium to peers but growing revenue at 2x the sector rate may be the better buy; a stock at the same premium with below-peer growth is a value trap.
+
+- `get_superinvestor_positions(ticker)` — Checks latest 13F-HR filings from Buffett (Berkshire), Ackman (Pershing Square), Tepper (Appaloosa), Halvorsen (Viking Global), Druckenmiller (Duquesne), Loeb (Third Point), and Einhorn (Greenlight). Convergence among multiple superinvestors is a strong independent confirmation signal. Note the 45-day filing lag — always check the filing date. Use as a tiebreaker when two finalists are otherwise equally attractive.
 
 ## Stock Discovery Tools
 Use these to search beyond popular mega-caps and find overlooked quality companies:
@@ -320,6 +339,8 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - For each holding, compare current fundamentals against the original buy thesis
 - Check recent news (`get_stock_news`) for any thesis-breaking events
 - Check upcoming earnings (`get_earnings_calendar`) to flag positions with imminent earnings risk
+- Call `get_material_events(ticker, days=90)` for each holding — catch any 8-K filings (exec departures, impairments, auditor changes) that may have slipped past news feeds
+- For any holding where the thesis feels uncertain, call `analyze_earnings_call(ticker)` to review what management said most recently about the business outlook
 - Identify any positions where the thesis has broken down or the position has grown too large
 
 **Step 4 — Discover new opportunities from the full S&P 500**

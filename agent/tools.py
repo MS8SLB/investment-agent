@@ -6,7 +6,7 @@ Each tool maps to a market data or portfolio action.
 import json
 from typing import Any
 
-from agent import market_data, portfolio
+from agent import market_data, portfolio, sec_data
 
 
 # ── Tool schemas for Claude ────────────────────────────────────────────────────
@@ -522,6 +522,129 @@ TOOL_DEFINITIONS = [
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    # ── GenAI intelligence tools (SEC EDGAR) ──────────────────────────────────
+    {
+        "name": "analyze_earnings_call",
+        "description": (
+            "Fetch the most recent earnings call transcript from SEC EDGAR (8-K filing) "
+            "and return it for analysis. Use this to assess management tone, changes in "
+            "forward guidance language, analyst Q&A tension points, and topics management "
+            "avoided. A confident, specific management tone is bullish; vague or heavily "
+            "hedged language often precedes a guidance cut. Call this when you want deeper "
+            "qualitative insight beyond EPS beat/miss numbers."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol, e.g. AAPL, MSFT",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "analyze_sec_filing",
+        "description": (
+            "Fetch and return key sections of the latest 10-K (annual) or 10-Q (quarterly) "
+            "report from SEC EDGAR. Returns three high-signal sections: Business overview "
+            "(moat description), Risk Factors (management-flagged threats), and MD&A "
+            "(management discussion and analysis). "
+            "Key signals to look for: new risk factors vs prior year = emerging threats; "
+            "MD&A language shifting from confident to hedged = caution ahead; "
+            "moat language becoming defensive = competitive pressure. "
+            "Use this for deep-dive research on high-conviction candidates or to validate "
+            "the thesis on existing holdings."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "form_type": {
+                    "type": "string",
+                    "description": "Filing type: '10-K' for annual report or '10-Q' for quarterly",
+                    "enum": ["10-K", "10-Q"],
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_material_events",
+        "description": (
+            "Fetch recent SEC 8-K material event filings for a stock. Companies must file "
+            "an 8-K within 4 business days of any material event — making this a real-time "
+            "signal source for: CEO/CFO departures (Item 5.02), M&A activity (Item 2.01), "
+            "asset impairments (Item 2.06), auditor changes (Item 4.01), restatements "
+            "(Item 4.02), and bankruptcy (Item 1.03). "
+            "Use this to catch thesis-breaking events between quarterly earnings calls. "
+            "A CFO exit is typically a stronger warning signal than a CEO exit."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "How many days back to search for 8-K filings (default 90)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_competitor_analysis",
+        "description": (
+            "Identify the stock's closest S&P 500 peers by sector and return a "
+            "side-by-side fundamental comparison (PEG, FCF yield, margins, ROE, momentum). "
+            "Use this to determine whether a valuation premium is justified vs actual "
+            "competitors — not just the broad market. "
+            "Key questions: Is the subject's PEG above or below the peer median? "
+            "Does its revenue growth rate justify a higher multiple? "
+            "Stocks ranking in the top quartile on both quality AND valuation vs peers "
+            "have the strongest long-term outperformance record."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol to analyse vs its sector peers",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_superinvestor_positions",
+        "description": (
+            "Check whether prominent long-term value investors hold this stock based on "
+            "their latest SEC 13F-HR filings. Investors tracked: Buffett (Berkshire), "
+            "Ackman (Pershing Square), Tepper (Appaloosa), Halvorsen (Viking Global), "
+            "Druckenmiller (Duquesne), Loeb (Third Point), Einhorn (Greenlight). "
+            "Multiple superinvestors converging on the same position is a strong "
+            "independent confirmation signal. Note: 13F filings have up to a 45-day lag "
+            "after quarter-end, so positions may have changed since the filing date. "
+            "The absence of smart money is not a negative signal on its own."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
     {
         "name": "save_session_reflection",
         "description": (
@@ -693,6 +816,23 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
                 entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
             enriched.append(entry)
         return {"positions": enriched}
+
+    elif tool_name == "analyze_earnings_call":
+        return sec_data.get_earnings_transcript(tool_input["ticker"])
+
+    elif tool_name == "analyze_sec_filing":
+        form_type = tool_input.get("form_type", "10-K")
+        return sec_data.get_sec_filing_analysis(tool_input["ticker"], form_type)
+
+    elif tool_name == "get_material_events":
+        days = tool_input.get("days", 90)
+        return sec_data.get_material_events(tool_input["ticker"], days)
+
+    elif tool_name == "get_competitor_analysis":
+        return sec_data.get_competitor_analysis(tool_input["ticker"])
+
+    elif tool_name == "get_superinvestor_positions":
+        return sec_data.get_superinvestor_positions(tool_input["ticker"])
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}
