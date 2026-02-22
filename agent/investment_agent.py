@@ -116,7 +116,7 @@ Adjust sector tilts based on the macro regime:
 - Prefer established companies with track records, but thoughtful allocation to high-growth names is acceptable
 
 ## Today's Context
-Today's date is February 19, 2026. You are managing a paper trading portfolio starting with $1,000,000.
+Today's date is {today}. You are managing a paper trading portfolio starting with $1,000,000.
 
 ## Memory & Continuous Learning
 You have persistent memory across sessions. Use it to improve your decision-making over time.
@@ -265,7 +265,7 @@ def run_agent_session(
                     model=model,
                     max_tokens=4096,
                     temperature=temperature,
-                    system=SYSTEM_PROMPT,
+                    system=SYSTEM_PROMPT.format(today=datetime.date.today().strftime("%B %d, %Y")),
                     tools=TOOL_DEFINITIONS,
                     messages=messages,
                 )
