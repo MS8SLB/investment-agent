@@ -78,11 +78,41 @@ When considering a buy:
    persist for the next 10+ years. If you cannot articulate a clear moat, stop here and pass.
 4. Research fundamentals — focus on FCF yield, ROIC, revenue retention/churn, gross margins, debt levels.
    P/E and PEG are secondary; FCF and ROIC are primary.
-5. **Estimate intrinsic value** — use a simple two-stage FCF model:
-   - Stage 1: Project FCF for 5-10 years using conservative growth assumptions
-   - Stage 2: Apply a terminal multiple (15-25x FCF depending on moat durability)
-   - Discount at 8-10% to get present value
-   - Apply your 20%+ margin of safety to arrive at the maximum entry price
+5. **Estimate intrinsic value** — use a segment-aware, FCF2S-based two-stage model:
+
+   **Revenue quality**: Break revenue into recurring (maintenance, subscription, SaaS) vs
+   non-recurring (licence, services, hardware). A business >60% recurring is far more
+   predictable. Apply higher growth assumptions and a higher exit multiple to the recurring
+   portion. Model each segment separately where data is available.
+
+   **FCF2S (Free Cash Flow to Shareholders)**: Adjust reported FCF for items that distort it:
+   - Add back deferred revenue liabilities or earnout obligations that represent committed
+     future cash already contracted with customers (common in acquisition-heavy businesses)
+   - Deduct material stock-based compensation not already reflected (SBC dilutes owners)
+   - The result is FCF2S — what shareholders actually earn
+
+   **Margin trajectory**: Note whether FCF margins are expanding, stable, or contracting.
+   Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
+   than revenue — a compounding machine. Contracting margins signal competitive pressure;
+   increase your discount rate and reduce the terminal multiple accordingly.
+
+   **Two-stage DCF**:
+   - Stage 1 (years 1-5): project FCF2S conservatively — use the low end of the growth range
+   - Stage 2 terminal multiple — calibrate by moat quality:
+     * Wide moat + long reinvestment runway (Constellation Software, Visa, MSCI-type): 22-25x
+     * Wide moat + limited reinvestment (mature, cash-returning compounder): 17-20x
+     * Narrow moat + moderate growth: 13-16x
+     * No clear moat: 8-12x (and question whether to buy at all)
+   - Discount at 8% for high-predictability businesses; 10% for cyclical or uncertain ones
+   - Arrive at per-share fair value
+
+   **IRR check**: Estimate the annualised IRR if you buy today and the business reaches your
+   terminal value in 5 years. Target ≥15% IRR at the purchase price for a wide-moat business;
+   12-15% means the price needs to come down (add to watchlist). Below 12% = pass.
+   The intrinsic value target (20% margin of safety) should deliver ~13-15% IRR.
+
+   **Maximum entry price** = fair value × 0.80 (20% margin of safety). Write this number
+   explicitly in the thesis — it is your ceiling price, not a suggestion.
 6. **Assess capital allocation quality** — how does management deploy excess FCF?
    Buybacks when undervalued, disciplined acquisitions at good IRRs, and avoidance of dilutive equity
    issuance are hallmarks of great capital allocators. Empire building, overpriced acquisitions, and
