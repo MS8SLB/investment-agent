@@ -246,6 +246,23 @@ When considering a buy:
      EBITDA growth, and organic EBITDA growth rate (M&A-driven growth without organic follow-through
      is not durable compounding). Dilution is acceptable when invested capital and EBITDA grow
      materially faster than share count.
+   - *Marketplace / logistics platforms* (DoorDash, Uber, Airbnb, eBay-type): the primary value
+     driver is **GMV (Gross Merchandise/Order Value) × take rate**. The take rate (net revenue /
+     GMV) is the key margin metric — expansion via high-margin advertising and subscription layers
+     stacked on top of low-margin core transactions is the primary earnings growth driver. Model
+     the take-rate trajectory as carefully as revenue growth: even modest take-rate expansion
+     (e.g. 10% → 13%) compounds into large margin improvements at scale.
+     **Variable-cost ceiling**: businesses physically anchored to real-world fulfilment (one driver
+     per delivery, one host per booking) cannot achieve software-like operating leverage. Every
+     incremental order requires a real person in the real world. Even at full scale, 15-20%
+     operating margins may be the realistic ceiling — far below the 30-40%+ achievable by pure
+     software. Do not apply software-grade terminal multiples to a variable-cost business.
+     **Local density economics**: for delivery/logistics marketplaces, local order density (orders
+     per geographic zone enabling efficient route batching) is the primary operating-leverage
+     driver — not global GMV. Being the local density leader in a city matters far more than
+     aggregate global market share. Check whether the company is the clear density leader in its
+     core markets. If a competitor has higher local density in key geographies, their unit
+     economics will be structurally superior regardless of the challenger's aggregate size.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS and
      a P/E exit multiple as the primary metric. P/E exit multiple calibration:
      Exceptional pricing-power / irreplaceable brand (Hermès, LVMH, Ferrari): 35-45x
@@ -326,6 +343,16 @@ When considering a buy:
    businesses where founders hold *economic* interest alongside voting rights — here, founders have
    separated economic from governance rights entirely. Combined with weak capital allocation, zero-vote
    shares are a disqualifying structure: you are providing permanent capital with zero recourse.
+   **Incentive structure / RSU vesting quality**: not all management equity is equal. Distinguish:
+   (a) *Founder equity at personal risk* — strongest alignment; founder's net worth falls alongside
+       shareholders when the thesis fails. This is real skin in the game.
+   (b) *Performance-milestone vesting* — moderate alignment; compensation is contingent on hitting
+       specific financial or operational targets. Management loses the grant if targets are missed.
+   (c) *Pure tenure-based RSU vesting* — weakest alignment; employees receive equity simply for
+       not leaving ("participation trophies"). The grant is essentially guaranteed as long as the
+       employee stays. When >90% of long-term management compensation is tenure-based RSUs with
+       no performance component, treat capital allocation incentives with scepticism — management
+       does not lose alongside shareholders when they get it wrong.
 7. Check price history to understand where the current price sits vs. intrinsic value estimate
 8. Check `get_earnings_calendar` — know when earnings are due. Timing risk matters for entry;
    if an uncertain earnings event is imminent, add to watchlist with a target entry price instead.

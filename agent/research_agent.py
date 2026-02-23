@@ -206,6 +206,20 @@ Work through these in order:
      and analytical certainty is low, the primary thesis is management quality and alignment, not
      the numbers. Report `sidecar_thesis: true` in the JSON and recommend a tracker position (1%)
      rather than full sizing. Sidecar positions should only build on demonstrated execution.
+   - *Marketplace / logistics platforms* (DoorDash, Uber, Airbnb, eBay-type): the primary value
+     driver is **GMV (Gross Merchandise/Order Value) × take rate**. The take rate (net revenue /
+     GMV) is the key margin metric; expansion via high-margin advertising and subscription layers
+     on top of low-margin core transactions is the primary earnings growth driver. Model take-rate
+     trajectory as carefully as revenue growth.
+     **Variable-cost ceiling**: businesses physically anchored to real-world fulfilment cannot
+     achieve software-like operating leverage. Realistic full-scale operating margins for a
+     delivery/logistics marketplace are 15-20%, not 30-40%+. Do not apply software-grade
+     terminal multiples. Report `take_rate_pct` (net revenue / GMV) in JSON where disclosed.
+     **Local density economics**: local order density (orders per geographic zone enabling
+     efficient batching) is the primary operating-leverage driver — not global GMV. The local
+     density leader in a city has structurally superior unit economics to a global challenger
+     with lower local density. Check whether the company holds local density leadership in its
+     core markets before awarding a cost-advantage or network-effects moat classification.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type) and
      *luxury / exceptional pricing-power* (Hermès, Ferrari, LVMH-type): use EPS and a P/E
      exit multiple. P/E calibration:
@@ -280,6 +294,13 @@ Work through these in order:
    alongside their votes — here, economic and governance rights have been fully separated. Combined
    with weak capital allocation, this is a disqualifying governance structure. Report `governance_risk`
    in JSON as "high" when a multi-class / zero-vote structure exists.
+   **Incentive structure / RSU vesting quality**: not all management equity is equal:
+   (a) *Founder equity at personal risk* — strongest alignment; founder's wealth falls with shareholders.
+   (b) *Performance-milestone vesting* — moderate; grants are contingent on hitting specific targets.
+   (c) *Tenure-based RSU vesting* — weakest; employees receive equity grants simply for not leaving
+       ("participation trophies"). When >90% of long-term management comp is tenure-based RSUs with
+       no performance component, management does not lose alongside shareholders. Flag this in
+       `capital_allocation_quality` and note it as a governance concern in `key_risks`.
 6. **Price context** — `get_price_history` (1y): is the current price near a historic low
    relative to your intrinsic value estimate? Understand the setup.
 7. **Earnings risk** — `get_earnings_calendar`: next date, consensus, beat/miss history
@@ -328,6 +349,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "op_income_cagr_5yr_pct": <number or null>,
   "em_discount_applied": true | false,
   "capex_to_da_ratio": <number or null>,
+  "take_rate_pct": <number or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "governance_risk": "low" | "medium" | "high",
   "sbc_pct_of_revenue": <number or null>,
