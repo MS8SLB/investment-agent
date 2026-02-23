@@ -86,6 +86,17 @@ Work through these in order:
      pricing benchmark would require simultaneous agreement from every counterparty, regulator, and
      exchange in the industry (e.g. S&P 500 as the equity benchmark; Platts for oil pricing), the
      switching cost is effectively infinite — no single participant can unilaterally move away.
+     *Derivatives liquidity flywheel*: for financial benchmarks that are also the basis for listed
+     derivatives (futures and options), there is a second, independent moat layer. Derivatives
+     trading volume concentrates on the benchmark with deepest existing liquidity, which improves
+     execution quality, which attracts more volume, which deepens liquidity further — a self-
+     reinforcing network effect layered on top of the switching-cost moat. Even if a competitor
+     perfectly replicated the methodology, they could not replicate accumulated trading liquidity;
+     institutional traders will not abandon deep liquidity for a thinner market regardless of index
+     methodology. The two moats compound: coordination impossibility makes switching unimaginable,
+     and liquidity flywheel dynamics make even a partially successful challenger economically
+     unviable. For index providers with major derivatives markets referencing their benchmarks,
+     classify moat as "mixed" (switching_costs + network_effects) in `moat_type`.
      *Career risk as a switching barrier*: in safety-critical or regulated industries, the buyer
      faces severe personal career consequences if a new supplier fails — "no one gets fired for
      buying [the incumbent]." This is strongest in aerospace, medical devices, and regulated
@@ -108,6 +119,17 @@ Work through these in order:
      yield bonus); (c) whether each additional product added deepens rather than adds to the
      switching cost. Report this in `moat_type` as "switching_costs"; flag the financial-home
      dynamic specifically in `full_thesis` as it compounds over time with account balance growth.
+     *Professional services as moat-deepening loss-leader*: when a software company operates a
+     professional services segment (implementation, consulting, customisation) at breakeven or a
+     slight loss, this may be strategically rational. The logic: (a) implementation services
+     lower adoption barriers for new customers who would otherwise balk at the complexity of
+     switching existing systems; (b) deep professional services engagement produces bespoke
+     integrations per customer, raising per-customer switching costs above what the standard
+     software licence alone creates; (c) trained, embedded customers become multi-year
+     subscription anchors. Evaluate a loss-making professional services segment in context of
+     what it delivers to the far larger, more profitable subscription base — not in isolation.
+     When a services segment runs at breakeven yet the subscription business shows 90%+ retention,
+     the services segment is an unrecognised moat-strengthening investment, not a drag.
    - *Network effects*: Does the product get more valuable as users grow?
    - *Cost advantage*: Structural scale, process, or geography advantage over competitors?
    - *Intangible assets*: Proprietary data, brands, patents, regulatory licences?
@@ -222,6 +244,19 @@ Work through these in order:
      blended operating margin emerge from the segment mix — do not assume a blended margin.
      This reveals mix-shift effects: a high-margin segment growing faster than a low-margin
      one drives margin expansion even if no individual segment's margin changes.
+   *Business mix dilution trap*: the reverse of the positive mix-shift is equally important to
+   model. When a company's highest-margin, highest-moat core business grows more slowly than its
+   lower-margin, lower-moat adjacent segments, blended company quality deteriorates even as
+   aggregate revenue grows. The crown jewel segment — generating superior economics — contributes
+   a shrinking share of total profit over time. Warning signs: (a) the high-margin core is mature
+   while adjacent segments with faster growth but weaker unit economics outpace it; (b) blended
+   operating margin rises more slowly than the core segment's own improvement suggests; (c) a
+   minority of revenue disproportionately drives total profits (e.g. a data/index segment at 55%
+   of revenue generating 70% of operating profit signals the remaining 45% of revenue is very
+   low quality). Model the mix trajectory explicitly: what does blended margin look like in 5
+   years if the high-quality segment grows at 8% while lower-quality segments grow at 20%?
+   Top-line growth looks healthy while per-unit economics silently deteriorate. Flag this in
+   `key_risks` when a high-quality core segment is being outgrown by lower-margin adjacencies.
    - For businesses with distinct investment phases, use two-period growth rates per segment:
      period 1 (years 1-3) at the current investment-cycle rate; period 2 (years 4-5) at the
      maturation rate. An investment-heavy segment (e.g. Reality Labs) may accelerate in
@@ -346,6 +381,24 @@ Work through these in order:
      positions. In volatile markets, intraday collateral calls can require billions on short
      notice (Robinhood 2021). Stress-test the capital adequacy position for a tail-risk
      market dislocation before assigning "low earnings_risk" to any self-clearing platform.
+   - *Financial data / index provider* (MSCI, S&P Global, FTSE Russell-type): the primary
+     economics are driven by **AUM-linked royalty revenue** — asset managers pay a few basis
+     points annually on AUM managed against a licensed benchmark index. This creates a
+     distinctive compounding mechanic: revenue grows automatically with (a) market appreciation
+     of benchmarked financial assets; (b) net inflows into passive vehicles tracking the index;
+     (c) global wealth accumulation. Marginal cost to serve additional AUM is near zero —
+     operating leverage is extreme once index infrastructure is built. Model AUM-linked revenue
+     as a distinct layer from flat subscription/analytics revenue:
+     - *AUM-linked fees*: apply a premium multiple; stress-test for (i) **secular take-rate
+       compression** — as index fund management fees decline, asset managers renegotiate
+       royalty rates upstream (Vanguard departed MSCI in 2012 for this reason); (ii) **customer
+       concentration** — when a single asset manager represents >40% of AUM-linked revenue,
+       their pricing power over the index provider approaches monopsony; (iii) saturation of
+       passive-to-active rotation as markets become predominantly indexed.
+     - *Subscription / analytics data*: modelled conventionally.
+     Report `aum_based_fee_pct` (% of total revenue from AUM-linked fees) in the JSON output;
+     the higher this percentage, the more the business benefits from automatic wealth compounding
+     but the more exposed it is to take-rate compression and passive-investing fee wars.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type) and
      *luxury / exceptional pricing-power* (Hermès, Ferrari, LVMH-type): use EPS and a P/E
      exit multiple. P/E calibration:
@@ -389,6 +442,20 @@ Work through these in order:
    A wonderful business remains wonderful; the problem is the entry price. When this scenario
    produces a -40%+ outcome, output a PASS unless the IRR at a more moderate future entry price
    (after a 30%+ drawdown) would be compelling. Report this scenario explicitly in `key_risks`.
+
+   **Reverse DCF for businesses outside strong directional conviction**: when you cannot form a
+   strong qualitative view on a business's future — because competitive dynamics are genuinely
+   unclear, structural disruption could go either way, or the range of outcomes is unusually
+   wide — a standard forward DCF adds false precision. Use a **reverse DCF** instead: work
+   backward from the current stock price to identify what growth and margin assumptions are
+   already embedded in it, then ask whether those embedded assumptions are implausibly optimistic,
+   reasonable, or too conservative. This requires less directional conviction than a forward model
+   and is more intellectually honest when the outcome is genuinely uncertain. If the market prices
+   in 12% annual revenue growth and you genuinely cannot tell whether growth will be 5% or 20%,
+   the stock belongs in "watchlist" or "pass (circle of competence)" — not because the business
+   is bad, but because the range of outcomes is too wide to establish a margin of safety with
+   confidence. Report the embedded growth assumption from the reverse DCF in `full_thesis` when
+   this technique is applied.
 
    Overvaluation threshold: if the current price is significantly above fair value (IRR at
    current price is below the discount rate, e.g. <8%), this is an outright PASS — not a
@@ -528,6 +595,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "goodwill_adjusted_roic_pct": <number or null>,
   "direct_traffic_pct": <number 0-100 or null>,
   "net_interest_income_pct": <number 0-100 or null>,
+  "aum_based_fee_pct": <number 0-100 or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "governance_risk": "low" | "medium" | "high",
   "sbc_pct_of_revenue": <number or null>,
