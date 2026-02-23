@@ -139,6 +139,21 @@ Work through these in order:
      vs. proprietary supply or post-booking operations, the higher this specific risk. Flag in
      `ai_disruption_risk` as "high" if the business is a thin-margin discovery/aggregation layer
      with no proprietary supply.
+   **AI disruption by customer segment**: for multi-tier software businesses (SMB through
+   enterprise), AI disruption risk is not uniform — assess each segment separately:
+   - *SMB / lower-end customers* (price-sensitive, simpler needs, shallower implementation): high
+     disruption risk. They use fewer features, have lower switching costs, and are most attracted
+     to cheaper AI-native alternatives. SMB churn can accumulate before it's visible in aggregate.
+   - *Enterprise / large customers* (multi-module, compliance-heavy, complex custom workflows):
+     materially lower disruption risk. Enterprise switching is protected by: (a) proprietary data
+     embedded over years; (b) complex custom workflows that AI-native entrants cannot replicate
+     quickly; (c) data security/compliance requirements that preclude external LLMs; (d) total
+     migration cost (retraining, data transfer, downtime) that makes the status quo rational.
+   Do not conflate total customer count decline with business deterioration. Losing SMB customers
+   to AI-native tools while retaining and expanding the enterprise base may produce flat customer
+   count + growing ARR — a quality improvement, not a warning. Always decompose customer metrics
+   by segment when assessing AI disruption. Report `ai_disruption_risk` at the customer-segment
+   level in `key_risks`; do not apply a single risk rating to a heterogeneous customer base.
    **Platform engagement check** (for any business monetising users or physicians or any audience):
    - Require *active* engagement metrics (MAU, DAU, time-on-platform), not just registered totals.
      "Registered users" without engagement data cannot be reliably monetised.
@@ -194,6 +209,14 @@ Work through these in order:
      When a segment has both components, identify the macro variable driving the transactional
      slice (interest rates for credit ratings; M&A volume for advisory) and stress-test it
      separately in the bear case. Report the estimated transactional/recurring split.
+   **RPO and cRPO as leading demand indicators** (B2B subscription companies): RPO = total
+   contracted revenue not yet recognised (the full backlog). cRPO = the portion due within 12
+   months (the near-term bookings signal). These lead reported revenue by 3-12 months:
+   - Expanding RPO + accelerating cRPO = improving demand before it appears in revenue.
+   - Declining RPO or decelerating cRPO = a revenue growth trough approaching. Flag this in
+     `key_risks` when RPO growth is decelerating even if current revenue looks strong.
+   Check RPO/cRPO growth alongside reported revenue for all B2B subscription companies; report
+   the trend direction in `full_thesis` when data is available.
    - For diversified businesses (luxury groups, industrials, conglomerates): model each
      segment with its own growth rate and its own operating margin. Total revenue and
      blended operating margin emerge from the segment mix — do not assume a blended margin.
@@ -268,6 +291,14 @@ Work through these in order:
      and an FCF exit multiple. Terminal multiple tiers by moat quality:
      Wide moat + long reinvestment runway: 22-25x | Wide moat + limited reinvestment: 17-20x
      Narrow moat: 13-16x | No clear moat: 8-12x
+     **Multi-product ARR non-linearity**: in platforms with multiple modules, the relationship
+     between products-per-customer and ARR-per-customer is often exponential, not linear. Each
+     additional product adopted deepens switching costs and unlocks new ARR with minimal
+     incremental sales cost. Track **product attach rate** (average modules per customer) as a
+     primary revenue driver alongside customer count — attach rate expansion within an existing
+     base is capital-efficient compounding. NRR > 120-130% signals strong cross-sell expansion;
+     flat or declining customer count with NRR > 110% typically means attach rate growth rather
+     than churn risk. Do not dismiss stagnant customer count growth without checking attach rate.
      **Early-stage serial acquirers** (Chapters-type): EPS is structurally distorted by:
      (a) timing mismatch — interest on acquisition debt is immediate; acquired earnings lag;
      (b) PPA amortisation — non-cash charges from acquired intangibles suppress reported profit;
@@ -389,6 +420,13 @@ Work through these in order:
    The extreme red flag: cumulative SBC approaching or exceeding cumulative net losses since IPO —
    insiders have extracted wealth via dilution while shareholders received nothing in return. Report
    `sbc_pct_of_revenue` in JSON; flag as a disqualifying red flag if >15% at a mature company.
+   **Buyback effectiveness — gross spend vs. SBC offset**: a large buyback programme may produce
+   negligible net share count reduction when SBC is high. Always compute: (gross buyback spend) −
+   (annual SBC expense) = effective net buyback. When gross buybacks ≈ SBC, the programme is a
+   pass-through with no net benefit to existing shareholders. Verify by checking the actual share
+   count trend over 3-5 years, not management buyback announcements. Flag in `capital_allocation_quality`
+   when gross buybacks are nearly fully offset by SBC (e.g. $25B buyback + $20B SBC = only
+   $5B true retirement). Report the net annual share count change in the JSON `metrics` block.
    **Governance structure / share class**: examine voting rights before investing. A zero-vote or
    near-zero-vote public share class (Class A = 0 or 1 vote; founders Class B = 10 votes) means
    public shareholders have no influence on capital allocation or governance regardless of economic

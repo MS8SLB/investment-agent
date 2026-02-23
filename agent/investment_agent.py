@@ -169,6 +169,25 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
   only requires AI to make the intermediary step *unnecessary* for the end user. The more a business
   relies on being a discovery/aggregation layer vs. owning proprietary supply or providing deep
   post-booking operational value, the higher this specific risk.
+- **AI disruption stratification by customer segment**: for software businesses serving multiple
+  customer tiers (SMB through enterprise), AI disruption risk is not uniform — assess each segment
+  separately:
+  *SMB / lower-end customers* (price-sensitive, simpler needs, less complex implementation): high
+  disruption risk. These customers typically use a subset of features, have shallower workflow
+  integration, lower switching costs, and are most attracted to cheaper AI-native alternatives.
+  Churn from this segment can accumulate before it shows up clearly in aggregate metrics.
+  *Enterprise / large customers* (multi-module custom implementations, compliance, data security):
+  materially lower disruption risk, because: (a) years of proprietary data are embedded in the
+  platform; (b) complex custom workflows would take years for AI-native entrants to replicate;
+  (c) regulatory and data security requirements often preclude external LLM access to customer data;
+  (d) total switching costs (migration, retraining, downtime risk) make the status quo rational even
+  when cheaper alternatives exist. Enterprise AI risk primarily comes from the *incumbent's own AI
+  execution failing*, not from external disrupters.
+  Critically: do not conflate total customer count decline with business deterioration. A company
+  losing SMB customers to AI-native tools while retaining and expanding its enterprise base may show
+  flat or declining total customer count alongside growing ARR and revenue — this is a mix shift
+  toward higher-value, stickier customers, not a warning signal. Always decompose customer count
+  trends by customer size/complexity when assessing AI disruption for a multi-tier software business.
 
 **Platform engagement check** (for any business monetising a user base):
 - Require *active* user metrics, not just *registered* totals. "Registered users" without
@@ -255,6 +274,19 @@ When considering a buy:
    macro variable driving the transactional portion (interest rates for credit ratings; M&A volume
    for advisory) and stress-test the transactional slice in the bear case. Blended segment revenue
    stability is misleading when the transactional component is large.
+   **RPO and cRPO as leading demand indicators** (B2B subscription companies): Remaining
+   Performance Obligations (RPO) = total contracted revenue not yet recognised — the full backlog.
+   Current RPO (cRPO) = the portion due within 12 months — the near-term bookings signal. These are
+   leading indicators of future revenue growth that appear before the revenue does:
+   - Expanding RPO + accelerating cRPO = improving demand trajectory, even if current revenue looks
+     soft. This is the best early signal of a growth re-acceleration before it shows up in reported
+     revenue.
+   - Declining RPO or decelerating cRPO = a growth trough approaching. A company with strong current
+     revenue but declining RPO is burning its backlog without replenishing it — a forward warning
+     investors cannot yet see from the income statement alone.
+   Always track RPO/cRPO growth alongside reported revenue for B2B subscription businesses. Where
+   disclosed, model future revenue by amortising the RPO balance rather than extrapolating current-
+   quarter growth rates, which are easily distorted by deal timing and renewal cadence.
    For diversified businesses (luxury groups,
    industrials, healthcare conglomerates), go further and model each segment separately:
    - Assign each segment its own organic growth rate based on its specific market position
@@ -340,6 +372,20 @@ When considering a buy:
      multiple as the primary exit value. Terminal multiple tiers:
      Wide moat + long reinvestment runway: 22-25x FCF | Wide moat + limited reinvestment: 17-20x
      Narrow moat: 13-16x | No clear moat: 8-12x
+     **Multi-product ARR non-linearity**: in platform businesses with multiple modules or clouds,
+     the relationship between products-per-customer and ARR-per-customer is highly non-linear —
+     often exponential rather than linear. Each additional product adopted: (a) deepens integration
+     complexity and workflow dependency, raising switching costs; (b) unlocks new ARR with minimal
+     incremental sales cost (pure margin expansion). As a result, a 4-product customer may generate
+     20x+ the ARR of a 1-product customer, not 4x. When evaluating a multi-module B2B platform:
+     - Track **product attach rate** (average modules per customer) as a primary revenue driver
+       alongside total customer count. Attach rate expansion within an existing base is a high-
+       quality, capital-efficient growth engine — no new customer acquisition cost required.
+     - NRR > 120-130% typically signals strong cross-sell expansion in the installed base; NRR >
+       110% with flat or declining customer count = attach rate expansion, not churn risk.
+     - A company growing customers at 5% but expanding product attach from 1.5 to 2.5 modules per
+       customer may be compounding ARR at 25-30%+ — far more attractive than raw customer count
+       growth implies. Do not dismiss a business as growth-stalled based solely on customer count.
      **Early-stage serial acquirers** (Chapters-type — young, rapid-acquisition, limited FCF history):
      EPS is structurally unreliable due to three compounding distortions:
      (a) *Timing mismatch*: interest on acquisition debt hits the P&L immediately; earnings from
@@ -479,6 +525,16 @@ When considering a buy:
    effectively subsidising operations. The most extreme form: cumulative SBC approaching or exceeding
    cumulative losses since IPO signals that insiders have extracted enormous wealth through dilution
    while public shareholders received nothing. This is a disqualifying red flag, not a footnote.
+   **Buyback effectiveness — gross spend vs. SBC offset**: a buyback programme that appears large
+   in absolute dollars may produce negligible net share count reduction when SBC is high. Always
+   calculate: (gross buyback spend) − (annual SBC expense) = effective net buyback. When gross
+   buybacks ≈ SBC, the programme is a pass-through: newly issued employee shares are cancelled by
+   repurchases, with no net benefit to existing shareholders. Example: $5B gross buyback with $4B
+   SBC = $1B effective net retirement, not $5B. True value-creating buybacks require gross
+   repurchases materially in excess of SBC — only the net share retirement compounds per-share
+   metrics. Verify by checking the actual share count trend over 3-5 years (not management
+   buyback announcements). A company that announces "$10B buyback authorization!" while
+   quietly issuing $9B in SBC is a negative signal, not a positive one.
    **Governance structure / share class**: examine the voting structure before investing. A zero-vote
    or near-zero-vote public share class (Class A = 0 or 1 vote; founders retain Class B = 10 votes
    per share) means public shareholders cannot influence capital allocation, governance, or management
