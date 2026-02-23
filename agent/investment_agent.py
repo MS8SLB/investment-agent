@@ -397,6 +397,18 @@ When considering a buy:
    price hikes stall and model revenue at the volume CAGR alone — this is the bear case
    floor. Conversely, businesses with volume-driven revenue growth (users, AUM, transactions)
    and modest price increases have more durable and less regulatorily-exposed growth.
+   **Performance-contingent multi-stream revenue cascade**: in businesses where a single
+   performance outcome (league placement, app store ranking, credit rating tier) simultaneously
+   gates multiple independent revenue streams via different contractual mechanisms, revenue
+   volatility is multiplicatively higher than any single-stream analysis would suggest. A
+   European football club's Champions League qualification simultaneously determines
+   broadcasting distributions, sponsorship performance-clause bonuses, UEFA prize money, and
+   matchday fixture count — a performance failure triggers a cascade of simultaneous, correlated
+   revenue impacts across every stream at once. When this structure exists, do not model revenue
+   streams independently: build a performance-scenario matrix and attach all revenue streams to
+   each outcome. The bear case is a cascading collapse across multiple streams, not a single-
+   stream miss. Identify this structure as a key risk whenever a significant share of revenue
+   is performance-contingent via multiple independent mechanisms.
    **RPO and cRPO as leading demand indicators** (B2B subscription companies): Remaining
    Performance Obligations (RPO) = total contracted revenue not yet recognised — the full backlog.
    Current RPO (cRPO) = the portion due within 12 months — the near-term bookings signal. These are
@@ -621,6 +633,31 @@ When considering a buy:
        and enterprise risk management demand.
      Report the split between AUM-linked fees and flat subscription revenue, as the two layers
      have fundamentally different growth dynamics and risk profiles.
+   - *Sports franchises / trophy assets*: distinguish league structure before applying any
+     valuation framework.
+     **Open vs. closed league economics**: franchise value is structurally different in
+     closed vs. open competitive systems.
+     - *Closed leagues* (NFL, NBA, MLB, NHL, MLS): fixed franchise count, no promotion/
+       relegation, mandatory revenue sharing, salary caps enforcing competitive parity.
+       Revenue is structurally guaranteed regardless of on-pitch performance; franchise
+       scarcity — not earnings — anchors value. Use comparable franchise sale transactions
+       as the primary valuation anchor; DCF materially understates strategic scarcity.
+       Multiples deserve a structural premium vs. open leagues.
+     - *Open leagues* (Premier League, La Liga, Bundesliga, Champions League competition):
+       relegation/promotion risk; no salary cap; merit-based broadcasting distributions;
+       performance-contingent commercial clauses. A bad season can simultaneously collapse
+       broadcasting, sponsorship, and matchday revenues (see performance-contingent cascade).
+       Apply a risk premium to DCF; model the relegation or non-European-qualification
+       scenario as an explicit bear case, not a tail event.
+     **Forbes comparable-transactions valuation for trophy assets**: when DCF materially
+     understates the scarcity and emotional premium paid in private transactions for prestige
+     assets (sports franchises, luxury property, iconic brands), anchor valuation to recent
+     comparable private-market sale prices. The gap between public market cap and comparable-
+     transaction implied value is the margin of safety for a sale-catalyst thesis. Unlike
+     NAV discount, the comparable transaction IS the intrinsic value anchor. Critical caveat:
+     this approach requires a credible transaction catalyst (active sale process, PE or
+     strategic bidder interest) — without a catalyst, trophy assets can remain at discounts
+     indefinitely. Note the catalyst status explicitly in the investment thesis.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS and
      a P/E exit multiple as the primary metric. P/E exit multiple calibration:
      Exceptional pricing-power / irreplaceable brand (Hermès, LVMH, Ferrari): 35-45x
@@ -696,6 +733,20 @@ When considering a buy:
    establish a margin of safety with confidence. The reverse DCF establishes the minimum embedded
    assumption: if even a moderately optimistic scenario barely justifies today's price, passing
    is disciplined capital allocation rather than pessimism.
+
+   **Catalyst-without-yield trap** (event-driven theses): before sizing any position anchored
+   to a pending catalyst (acquisition, privatisation, spin-off, regulatory ruling), verify
+   whether the stock pays a dividend or has an active buyback programme. If neither, the
+   opportunity cost clock runs uncompensated while waiting. Three compounding risks:
+   (a) the catalyst may be delayed by years; (b) underlying business performance may
+   deteriorate while waiting, reducing the price at which the catalyst ultimately executes;
+   (c) your capital earns zero while a dividend-paying alternative would have compounded.
+   Test: "If this catalyst never arrives, what is this worth on standalone fundamentals?"
+   If the answer is "below current price" or "unclear", the position has downside without
+   compensation for the wait. Contrast: event-driven positions that pay a yield while waiting
+   (even 3-5% dividend) fundamentally change the risk/reward. When an event-driven thesis has
+   no yield and standalone fundamental value is uncertain or below current price, flag this as
+   a key risk and require a larger margin of safety on the catalyst-scenario valuation.
 
    **Maximum entry price** = fair value × (1 − margin of safety %). Write this number
    explicitly in the thesis — it is your ceiling price, not a suggestion.

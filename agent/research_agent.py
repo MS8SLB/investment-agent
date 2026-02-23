@@ -314,6 +314,22 @@ Work through these in order:
    hikes stall and model revenue at the volume CAGR alone — this is the floor for intrinsic
    value without pricing power. Note in `key_risks` when revenue growth appears to be
    disproportionately price-driven, particularly in regulated or politically-visible industries.
+   **Performance-contingent multi-stream revenue cascade**: in businesses where a single
+   performance outcome (league placement, app store ranking, credit rating tier, regulatory
+   approval classification) simultaneously gates multiple independent revenue streams via
+   different contractual mechanisms, revenue volatility is multiplicatively higher than
+   any single-stream analysis would suggest. Example: a European football club's Champions
+   League qualification simultaneously determines (a) UEFA prize money; (b) merit-based
+   broadcasting distributions; (c) commercial/sponsorship performance-clause bonuses (often
+   $10-15M/year per major partner); (d) matchday revenue (more high-value home fixtures);
+   (e) player wage obligations (squad investment scales with competitive ambition). A single
+   performance failure does not produce one revenue miss — it triggers a cascade of
+   simultaneous, correlated revenue impacts across every stream at once. When this structure
+   exists, do not model revenue streams independently: build a performance-scenario matrix
+   (e.g. "top-4 finish", "mid-table", "relegation") and attach all revenue streams to each
+   outcome. The bear case is a cascading collapse across streams, not a single-stream miss.
+   Flag in `key_risks` when a significant share of revenue is performance-contingent via
+   multiple independent mechanisms.
    **RPO and cRPO as leading demand indicators** (B2B subscription companies): RPO = total
    contracted revenue not yet recognised (the full backlog). cRPO = the portion due within 12
    months (the near-term bookings signal). These lead reported revenue by 3-12 months:
@@ -492,6 +508,35 @@ Work through these in order:
      Report `aum_based_fee_pct` (% of total revenue from AUM-linked fees) in the JSON output;
      the higher this percentage, the more the business benefits from automatic wealth compounding
      but the more exposed it is to take-rate compression and passive-investing fee wars.
+   - *Sports franchises / trophy assets*: distinguish league structure before applying any
+     valuation multiple or framework.
+     **Open vs. closed league economics**: franchise valuation is structurally different in
+     closed vs. open competitive systems.
+     - *Closed leagues* (NFL, NBA, MLB, NHL, MLS): fixed franchise count, no promotion/
+       relegation, mandatory revenue sharing, salary caps enforcing competitive parity.
+       Revenue floors are effectively guaranteed regardless of on-pitch performance; franchise
+       scarcity — not earnings — anchors value. Comparable franchise sale transactions are
+       the primary valuation input; DCF materially understates strategic scarcity value.
+       Multiples deserve a structural premium vs. open leagues.
+     - *Open leagues* (Premier League, La Liga, Bundesliga, Champions League competition):
+       relegation/promotion risk; no salary cap; merit-based broadcasting distributions
+       (top-finish teams earn 3-5x bottom-finish); performance-contingent commercial clauses.
+       A bad season can simultaneously collapse broadcasting, sponsorship, and matchday
+       revenues (see performance-contingent cascade above). Apply a meaningful risk premium
+       to DCF-based estimates; model the relegation or non-European-qualification scenario
+       as an explicit bear case scenario, not a tail event.
+     **Forbes comparable-transactions valuation for trophy assets**: for any prestige asset
+     (sports franchise, luxury property, iconic brand) where DCF materially understates the
+     scarcity and emotional premium paid in private transactions, anchor valuation to *recent
+     comparable private-market sale prices* rather than discounted cash flows. Ask: "What
+     have the most comparable trophy assets recently sold for per unit of revenue, per seat,
+     or per fan?" The gap between the public market cap and comparable-transaction implied
+     value is the acquisition premium / margin of safety for a sale-catalyst thesis. Unlike
+     a NAV discount model (which marks asset inventory), the comparable transaction price IS
+     the intrinsic value anchor. Critical caveat: this approach is only valid when a credible
+     transaction catalyst exists (active sale process, PE bidder interest, strategic acquirer);
+     without a catalyst, a trophy asset can remain at a discount indefinitely. Flag in
+     `full_thesis` when this technique is applied and note the catalyst status explicitly.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type) and
      *luxury / exceptional pricing-power* (Hermès, Ferrari, LVMH-type): use EPS and a P/E
      exit multiple. P/E calibration:
@@ -572,6 +617,21 @@ Work through these in order:
    - The target entry price (after margin of safety) should deliver ~13-15% IRR
 
    - Calculate margin of safety: (intrinsic value - current price) / intrinsic value × 100
+   **Catalyst-without-yield trap** (event-driven theses): before sizing any position anchored
+   to a pending catalyst (acquisition, privatisation, spin-off, regulatory ruling, management
+   change), verify whether the stock pays a dividend or has an active buyback programme. If
+   neither — no yield, no net buyback — the opportunity cost clock runs uncompensated while
+   waiting. Three compounding risks: (a) the catalyst may be delayed by years (contested sale,
+   hostile regulatory review, management resistance); (b) underlying business performance may
+   deteriorate while waiting, reducing the price at which the catalyst ultimately executes;
+   (c) your capital earns zero while a dividend-paying alternative would have compounded.
+   The key test: "If this catalyst never arrives, what is this investment worth on standalone
+   fundamentals?" If the answer is "below current price" or "genuinely unclear", the position
+   has downside risk without a yield to compensate the wait. Contrast with event-driven
+   positions that pay a yield while waiting — even a modest 3-5% dividend fundamentally
+   changes the risk/reward by partially compensating the time cost of waiting. Report in
+   `key_risks` when an event-driven thesis has no yield component and standalone fundamental
+   value is uncertain or below the current price.
 5. **Capital allocation quality** — `analyze_earnings_call` + `analyze_sec_filing`:
    How does management deploy FCF? Disciplined buybacks when undervalued, acquisitions at high IRRs,
    and low stock dilution = excellent. Empire building, overpriced deals, excessive SBC = poor.
