@@ -53,6 +53,21 @@ has a durable competitive advantage. The five moat sources are:
   customers cannot defer replacement without safety or compliance violations. In valuation, weight
   the captive aftermarket revenue stream far more heavily than OEM/initial-sale revenue — it is
   more predictable, recurring, and defensible.
+  *Financial ecosystem / "financial home" lock-in*: when a subscription or product bundle causes
+  customers to migrate core financial assets — retirement accounts (IRA), savings deposits (HYSA),
+  credit card spend, brokerage positions — onto a single platform, the resulting switching cost is
+  qualitatively different from canceling a software subscription. Migrating an IRA requires form
+  fills, SIPC transfer paperwork, re-establishing beneficiaries, and waiting periods. Redirecting
+  direct deposit, re-enrolling in auto-contributions, and losing accrued rewards on a co-branded
+  credit card add further friction. The more of a customer's financial life is consolidated onto
+  one platform, the higher the total migration cost — not as one large obstacle but as the
+  accumulated friction of dozens of small administrative tasks. Assess: (a) what percentage of
+  a customer's financial life is genuinely on-platform (brokerage, IRA, savings, credit, loans);
+  (b) whether the subscription explicitly incentivises balance migration (e.g. an IRA match that
+  requires consolidating retirement assets onto the platform); (c) whether the platform design
+  makes adding each new product frictionless but leaving the whole stack painful. A platform that
+  successfully becomes the "financial home" for a customer has switching costs that compound over
+  time with each product added — the moat widens automatically as the customer's balance grows.
 - **Network effects**: The product becomes more valuable as more people use it
   (e.g. marketplaces, payment networks, social platforms)
 - **Cost advantages**: Structural cost edge from scale, proprietary processes, or geography
@@ -177,6 +192,20 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
   requires Y low-ARPU users to maintain flat revenue." Growing total users while shrinking average
   ARPU is quality degradation, not growth. If the company does not disclose regional ARPU, treat
   aggregate user growth with scepticism.
+- **Demographic cohort lifetime value vs. current metrics**: low current ARPU or account balance
+  is not inherently a quality concern — it depends on whether the customer is early in their
+  wealth accumulation cycle. A platform that dominates the financial services relationship of a
+  25-year-old with $5,000 today may be acquiring the highest-lifetime-value customer in its
+  industry if that customer's income, savings rate, and eventual inheritance are on a strong
+  upward trajectory. This is the inverse of ARPU geographic mix degradation: not all low-ARPU
+  growth is dilutive — growing early-career cohorts in wealth-accumulating developed markets can
+  be the most valuable customer acquisition a financial platform can make. Signals to check:
+  (a) customer age skew toward 20s-30s in a product with natural balance growth (brokerage,
+  retirement); (b) documented cohort-level balance growth over time — average account balance
+  doubling in 2-3 years signals lifecycle-driven value accretion, not just marketing spend;
+  (c) a large demographic wealth transfer that will flow to current low-balance users as their
+  parents' generation ages (e.g. "$X trillion in inheritance expected to transfer to millennials
+  over Y years"). Apply this check before dismissing low current ARPU as a structural weakness.
 - **Ad format friction**: if an ad-supported platform requires bespoke, platform-specific creative
   (unique aspect ratios, custom workflows, non-standard formats) rather than accepting plug-in-play
   formats that run across multiple platforms, advertiser ROI per dollar spent is lower. Advertisers
@@ -344,6 +373,39 @@ When considering a buy:
      aggregate global market share. Check whether the company is the clear density leader in its
      core markets. If a competitor has higher local density in key geographies, their unit
      economics will be structurally superior regardless of the challenger's aggregate size.
+   - *Fintech / brokerage / neobank* (Robinhood, SoFi, Nubank, Block/Square-type): revenue is a
+     layered stack — model each layer separately because they have different growth rates,
+     cyclicality, and deserved terminal multiples:
+     (a) *Transaction revenue* (PFOF, options routing, crypto spread, interchange): cyclical and
+         correlated with market volumes and sentiment. In bear markets or low-volatility regimes,
+         this layer can fall 30-50%. Model through-cycle using a normalised level, not peak
+         volumes. Understand this layer as a **customer acquisition funnel** — zero/cheap trading
+         lowers the barrier to onboard users who then deposit balances; the marginal cost of
+         providing free trades is tiny; the economic value is the balance attracted, not the
+         trading fee collected.
+     (b) *Net interest income (NII)*: the spread between what the platform earns on customer
+         assets (treasury reinvestment, margin lending, securities lending) and what it credits
+         to depositors. This is the primary, scalable profit driver — it compounds with AUC
+         (assets under custody) growth and is largely insensitive to trading volumes. Key
+         sensitivity: rate moves shift NII margin directly; stress-test with a 100-150bp rate
+         compression scenario. Products that appear to "give away value" (IRA contribution
+         matches, bonus HYSA yields, travel credits) can be ROI-positive when they attract
+         sticky, long-duration balances: the platform pays a one-time marketing cost to acquire
+         a deposit that earns a multi-year NII spread.
+     (c) *Subscription/fee revenue*: most predictable layer; model subscriber count and ARPU
+         separately. The subscription acts as a **behavioral anchor** — upgrading shifts a
+         customer's center of gravity from "I occasionally trade here" to "my financial life
+         lives here," driving IRA, savings, and credit migration from external platforms onto
+         the ecosystem. This is when the financial-home switching cost (described in the moat
+         section) kicks in and AUC growth accelerates.
+     Assign a higher terminal multiple to the NII layer (annuity-like, durable) and a lower
+     multiple to the transaction layer (cyclical). A single blended revenue multiple misleads
+     by averaging the two. Report `net_interest_income_pct` of total revenue in the schema.
+     **Regulatory capital / collateral stress**: self-clearing platforms must hold capital
+     against customer positions. In volatile markets, intraday collateral calls can require
+     billions on short notice (the 2021 meme-stock episode created a collateral call that
+     nearly collapsed Robinhood). Stress-test the capital position for a tail-risk market
+     dislocation before assigning a high-quality, low-risk label to a self-clearing platform.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS and
      a P/E exit multiple as the primary metric. P/E exit multiple calibration:
      Exceptional pricing-power / irreplaceable brand (Hermès, LVMH, Ferrari): 35-45x

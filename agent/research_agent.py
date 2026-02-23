@@ -98,6 +98,16 @@ Work through these in order:
      customers cannot defer replacement without safety or compliance violations. In valuation,
      weight captive aftermarket revenue far more heavily than OEM revenue — it is recurring,
      non-deferrable, and structurally immune to competition.
+     *Financial ecosystem / "financial home" lock-in*: when a subscription or bundle causes
+     customers to migrate core financial assets (IRA, savings, credit card) onto a platform,
+     the switching cost is qualitatively different from canceling a software subscription.
+     Migrating an IRA requires form fills, SIPC transfers, re-establishing beneficiaries, and
+     waiting periods; redirecting direct deposit and losing accrued credit card rewards add
+     further friction. Assess: (a) what % of the customer's financial life is on-platform;
+     (b) whether the subscription explicitly incentivises balance migration (IRA match, HYSA
+     yield bonus); (c) whether each additional product added deepens rather than adds to the
+     switching cost. Report this in `moat_type` as "switching_costs"; flag the financial-home
+     dynamic specifically in `full_thesis` as it compounds over time with account balance growth.
    - *Network effects*: Does the product get more valuable as users grow?
    - *Cost advantage*: Structural scale, process, or geography advantage over competitors?
    - *Intangible assets*: Proprietary data, brands, patents, regulatory licences?
@@ -149,6 +159,14 @@ Work through these in order:
    revenue deterioration. Quantify: "1 North American user (~$X ARPU) requires Y international
    users just to maintain flat revenue." Growing users + shrinking blended ARPU = quality
    degradation. Check regional ARPU disclosures; absence of regional data is itself a warning.
+   **Demographic cohort lifetime value vs. current metrics**: low current ARPU or balance is
+   not inherently a quality concern if the customer is early in wealth accumulation. A platform
+   dominating the financial services relationship of a 25-year-old with $5,000 today may have
+   the highest-LTV customer base in the industry if income, savings, and inheritance are on
+   an upward trajectory. Signals: (a) customer age skew toward 20s-30s in a product with
+   natural balance growth; (b) cohort-level balance doubling over 2-3 years; (c) a documented
+   generational wealth transfer flowing to current low-balance users. Apply this before
+   dismissing low current ARPU as a structural weakness in consumer fintech contexts.
    **Ad format friction**: platforms requiring bespoke, platform-specific creative (unique aspect
    ratios, custom workflows, non-standard ad units) impose higher production costs on advertisers,
    reducing ROI per dollar spent. Lower advertiser ROI → less budget allocation → lower CPMs
@@ -276,6 +294,27 @@ Work through these in order:
      density leader in a city has structurally superior unit economics to a global challenger
      with lower local density. Check whether the company holds local density leadership in its
      core markets before awarding a cost-advantage or network-effects moat classification.
+   - *Fintech / brokerage / neobank* (Robinhood, SoFi, Nubank, Block/Square-type): model
+     three distinct revenue layers with different cyclicality and terminal multiples:
+     (a) *Transaction revenue* (PFOF, options routing, crypto spread, interchange): cyclical,
+         correlated with market volumes — can fall 30-50% in bear markets. Understand as a
+         **customer acquisition funnel**: free/cheap trading lowers onboarding barriers, and
+         attracted users then deposit balances that generate NII. Normalise through the cycle.
+     (b) *Net interest income (NII)*: spread between what the platform earns on customer assets
+         and what it credits to depositors. This is the primary, durable profit driver — it
+         scales with AUC (assets under custody) and is largely volume-insensitive. Stress-test
+         with 100-150bp rate compression. High-cost acquisition programs (IRA matches, bonus
+         HYSA yields, cashback) can be ROI-positive when they attract sticky balances: the
+         platform pays a one-time marketing cost and earns a multi-year NII spread.
+     (c) *Subscription/fee revenue*: most predictable; model subscriber count and ARPU
+         separately. Subscription is the **behavioral anchor** — upgrading shifts customers
+         from occasional user to "financial home," driving IRA, savings, and credit migration.
+     Assign the highest terminal multiple to NII (annuity-like), lowest to transaction revenue
+     (cyclical). Report `net_interest_income_pct` of total revenue in the JSON output.
+     **Regulatory capital stress**: self-clearing platforms must hold capital against customer
+     positions. In volatile markets, intraday collateral calls can require billions on short
+     notice (Robinhood 2021). Stress-test the capital adequacy position for a tail-risk
+     market dislocation before assigning "low earnings_risk" to any self-clearing platform.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type) and
      *luxury / exceptional pricing-power* (Hermès, Ferrari, LVMH-type): use EPS and a P/E
      exit multiple. P/E calibration:
@@ -450,6 +489,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "take_rate_pct": <number or null>,
   "goodwill_adjusted_roic_pct": <number or null>,
   "direct_traffic_pct": <number 0-100 or null>,
+  "net_interest_income_pct": <number 0-100 or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "governance_risk": "low" | "medium" | "high",
   "sbc_pct_of_revenue": <number or null>,
