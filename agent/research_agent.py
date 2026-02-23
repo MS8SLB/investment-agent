@@ -100,16 +100,35 @@ Work through these in order:
    - Stable (±1%): predictable but no operating leverage bonus
    - Contracting: competitive pressure or rising costs — increase discount rate, reduce multiple
 
-   **d) Two-stage DCF with calibrated terminal multiple**:
-   - Stage 1 (years 1-5): project FCF2S using conservative growth — use the lower end of
-     management's guidance range, not the midpoint
-   - Stage 2 terminal multiple — calibrate by moat quality:
-     * Wide moat + long reinvestment runway (CSU, Visa, MSCI-type): 22-25x FCF
-     * Wide moat + limited reinvestment (mature compounder): 17-20x FCF
-     * Narrow moat + moderate growth: 13-16x FCF
-     * No clear moat: 8-12x FCF (and reconsider whether to buy at all)
-   - Discount at 8% for high-predictability businesses; 10% for cyclical or uncertain ones
-   - Arrive at per-share intrinsic value
+   **d) Choose the right primary metric and build a probability-weighted exit range**:
+
+   First, select the primary valuation metric based on business type:
+   - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
+     and an FCF exit multiple. Terminal multiple tiers by moat quality:
+     Wide moat + long reinvestment runway: 22-25x | Wide moat + limited reinvestment: 17-20x
+     Narrow moat: 13-16x | No clear moat: 8-12x
+   - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS
+     and a P/E exit multiple. Also model: (a) year-by-year operating margin expansion — this
+     is often the dominant value driver in margin-expansion stories; (b) buyback-driven share
+     count reduction — model shares declining annually; EPS then grows faster than net income,
+     which is shareholder-friendly capital allocation.
+
+   Stage 1 (years 1-5): project the primary metric conservatively. For margin-expansion
+   stories, model margins year-by-year rather than assuming they arrive immediately.
+
+   Stage 2: use a **probability-weighted exit multiple range** rather than a single terminal
+   multiple. Define a plausible range, assign probability weights (must sum to 1.0), and
+   compute the probability-weighted fair value. Example for a consumer franchise:
+     15x: 5% | 20x: 8% | 25x: 12% | 29x: 20% | 32x: 25% | 36x: 18% | 40x: 12%
+   This produces a more honest fair value than anchoring to one number, and captures the full
+   distribution of possible exit conditions. Use this as your `estimated_intrinsic_value_per_share`.
+
+   Discount at 8% for high-predictability; 10% for cyclical or uncertain businesses.
+
+   Variable margin of safety by uncertainty:
+   - High predictability (B2B recurring, essential infrastructure): 20% required
+   - Consumer / media / platform (competitive, macro-sensitive): 30% required
+   - Cyclical, turnaround, or unclear thesis: 40% required
 
    **e) IRR sensitivity** — compute expected IRR at current price AND at target entry price:
    - IRR = annualised return if you buy today and sell at terminal value in year 5
@@ -156,6 +175,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "ai_disruption_risk": "low" | "medium" | "high",
   "estimated_intrinsic_value_per_share": <number or null>,
   "margin_of_safety_pct": <number or null>,
+  "valuation_primary_metric": "fcf" | "earnings" | "revenue",
   "terminal_multiple_used": <number or null>,
   "irr_at_current_price": <number or null>,
   "irr_at_target_entry": <number or null>,

@@ -96,22 +96,44 @@ When considering a buy:
    than revenue — a compounding machine. Contracting margins signal competitive pressure;
    increase your discount rate and reduce the terminal multiple accordingly.
 
-   **Two-stage DCF**:
-   - Stage 1 (years 1-5): project FCF2S conservatively — use the low end of the growth range
-   - Stage 2 terminal multiple — calibrate by moat quality:
-     * Wide moat + long reinvestment runway (Constellation Software, Visa, MSCI-type): 22-25x
-     * Wide moat + limited reinvestment (mature, cash-returning compounder): 17-20x
-     * Narrow moat + moderate growth: 13-16x
-     * No clear moat: 8-12x (and question whether to buy at all)
+   **Choose the right primary metric for the business type**:
+   - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
+     multiple as the primary exit value. Terminal multiple tiers:
+     Wide moat + long reinvestment runway: 22-25x FCF | Wide moat + limited reinvestment: 17-20x
+     Narrow moat: 13-16x | No clear moat: 8-12x
+   - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS and
+     a P/E exit multiple as the primary metric. Also model:
+     (a) operating margin expansion — margin trajectory is often the single biggest value driver
+         (e.g. 20% → 35% operating margin over 5 years doubles earnings faster than revenue)
+     (b) buyback impact — model share count reduction separately; EPS growth > net income growth
+         when a company repurchases 5-10% of shares annually. A declining share count at a fair
+         price is shareholder-friendly capital allocation.
+
+   **Two-stage model**:
+   - Stage 1 (years 1-5): project the primary metric (FCF2S or EPS) conservatively, using the
+     low end of management guidance. For margin-expansion stories, model the margin trajectory
+     explicitly year-by-year rather than assuming it arrives immediately.
+   - Stage 2: apply a **probability-weighted exit multiple range** — do not rely on a single
+     terminal multiple. Instead, define a plausible range (e.g. 15x to 40x P/E or 12x to 28x FCF),
+     assign a probability weight to each scenario (weights must sum to 1.0), and calculate the
+     probability-weighted expected fair value. This is more honest than picking one number and
+     captures the full distribution of outcomes. Example for a quality consumer franchise:
+       15x P/E: 5% weight | 22x: 10% | 27x: 15% | 31x: 25% | 34x: 20% | 38x: 15% | 42x: 10%
+     The weighted average of the resulting per-share values is your fair value estimate.
    - Discount at 8% for high-predictability businesses; 10% for cyclical or uncertain ones
-   - Arrive at per-share fair value
+   - Arrive at probability-weighted per-share fair value
+
+   **Variable margin of safety by uncertainty level**:
+   - High predictability (B2B recurring revenue, essential infrastructure): 20% discount required
+   - Consumer / media / platform (competitive, macro-sensitive): 30% discount required
+   - Cyclical, turnaround, or early-stage: 40% discount required
 
    **IRR check**: Estimate the annualised IRR if you buy today and the business reaches your
    terminal value in 5 years. Target ≥15% IRR at the purchase price for a wide-moat business;
    12-15% means the price needs to come down (add to watchlist). Below 12% = pass.
-   The intrinsic value target (20% margin of safety) should deliver ~13-15% IRR.
+   The intrinsic value target (after margin of safety) should deliver ~13-15% IRR.
 
-   **Maximum entry price** = fair value × 0.80 (20% margin of safety). Write this number
+   **Maximum entry price** = fair value × (1 − margin of safety %). Write this number
    explicitly in the thesis — it is your ceiling price, not a suggestion.
 6. **Assess capital allocation quality** — how does management deploy excess FCF?
    Buybacks when undervalued, disciplined acquisitions at good IRRs, and avoidance of dilutive equity
