@@ -46,6 +46,32 @@ has a durable competitive advantage. The five moat sources are:
   not abandon deep liquidity for a thinner market regardless of index methodology. The two moats
   compound: coordination impossibility makes the switch unimaginable, and liquidity flywheel
   dynamics make even a partially successful challenger economically unviable.
+  *Suppressed-price adoption strategy as moat construction*: some of the strongest information
+  standard and platform moats were built by deliberately underpricing for years — removing any
+  economic case for building a competitor while driving deep ecosystem integration. The playbook:
+  (a) price below delivered value so the fee is a rounding error nobody fights over; (b) let
+  the ecosystem build workflows, regulations, investor communications, and risk models around the
+  standard; (c) only test the price lever once switching cost is effectively infinite — when the
+  system end-to-end "speaks" the standard, price hikes are largely pass-through costs with no
+  defection. Signal: decades of flat/low prices followed by sudden, dramatic hikes (e.g. 5x or
+  10x in a few years). Regulatory risk caveat: the same underpricing that avoids regulatory
+  attention during adoption triggers it during monetisation. Multi-hundred-percent price increases
+  after decades of flat fees shift the political optics from "utility" to "abuse" — antitrust
+  probes, legislative scrutiny, and regulatory rewrites of procurement rules can all follow.
+  Model this as a binary risk: low during suppressed-price phase; elevated once conspicuous hikes
+  have attracted public, legislative, or regulatory attention.
+  *Decision-use vs. communication-use of information standards*: when assessing the durability
+  of a data standard's moat, distinguish between (a) *decision-use* — the standard actively
+  informs the underlying lending, investment, or regulatory decision — and (b) *communication-
+  use* — the standard is referenced when describing that decision to third parties (investors,
+  regulators, counterparties, press). A standard can be partially displaced from decision-use
+  (lenders building more internal models) while retaining full communication-use dominance
+  (the same lenders still describe their loan portfolios using the score in investor decks
+  because it is the shared language everyone understands). Communication-use is often more
+  durable than decision-use: displacing it requires simultaneous agreement from all investors,
+  regulators, and counterparties to adopt a new reference standard. Do not conflate reduced
+  underwriting reliance with reduced revenue — the key question is whether the standard is
+  still being pulled (paid for); the purpose for which it is pulled is secondary.
   *Career risk as a switching barrier*: in safety-critical or regulated industries, the person
   responsible for purchase decisions faces severe personal career consequences if a new, unproven
   supplier fails. "No one gets fired for buying [the incumbent]" — the purchasing manager cannot
@@ -55,6 +81,20 @@ has a durable competitive advantage. The five moat sources are:
   (b) regulated industries where part/system substitution requires expensive re-certification;
   (c) mission-critical systems where downtime is catastrophic. New entrants face a structural
   disadvantage beyond price: they must overcome the buyer's personal risk aversion to change.
+  *Cost vs. consequence asymmetry as structural pricing power*: when the fee for a service is
+  trivially small relative to the potential loss from a decision error caused by abandoning it,
+  pricing power is anchored at the organisational level — independently of personal career risk.
+  If a credit score costs $5 and informs a $500,000 mortgage where mispricing risk creates
+  portfolio losses measured in tens of millions, no rational risk officer resists a $5→$10 fee
+  increase regardless of who owns the franchise. The asymmetry makes resistance economically
+  irrational: the fee is <0.001% of the potential downside from switching. This is distinct from
+  career risk (personal consequence) — it applies even in organisations with no personal stakes,
+  because the absolute cost-vs-consequence gap makes fee resistance a rounding error relative to
+  the risk profile. Look for this pattern in: regulatory compliance tools, medical diagnostic
+  benchmarks, financial risk models, safety certification testing, audit and legal sign-off
+  services, and any product where the tool's annual cost is <0.1% of the decision value it
+  informs. In these cases, price hikes that keep the fee well below this asymmetry threshold
+  encounter structurally minimal economic resistance.
   *Installed-base / aftermarket captivity*: an initial design win or first-sale creates a captive
   buyer for all future replacement parts, consumables, or services for the life of that equipment.
   The initial product may carry thin margins; the captive aftermarket (non-deferrable, high-margin,
@@ -112,6 +152,19 @@ has a durable competitive advantage. The five moat sources are:
   which type applies: "Can this business sustain its position if the government removed the licence
   restriction tomorrow?" If yes, it is a natural monopoly; if not, it is government-granted and
   vulnerable to political profit-trimming over time.
+  *Exception — natural monopoly with conspicuous pricing in systemically important functions*:
+  while natural monopolies are generally more durable than government-granted ones (the economics
+  protect the position without any regulatory mandate), a natural monopoly in a systemically
+  important function — credit scoring, payment infrastructure, medical diagnostics, financial
+  data standards — is NOT immune to political intervention when its pricing becomes publicly
+  legible. Trigger conditions: (a) multi-hundred-percent price increases in a short window
+  after decades of flat prices; (b) elected officials or regulators have publicly cited the
+  hikes; (c) the function is explicitly or implicitly tied to broad public welfare (housing
+  affordability, healthcare access, financial stability). In these cases, antitrust probes,
+  legislative mandates, and regulatory rewrites of procurement rules can follow even without
+  a government-granted monopoly component. The natural monopoly economics persist, but the
+  political visibility risk elevates alongside conspicuous monetisation. Flag this when all
+  three trigger conditions are met, even for businesses you classified as natural monopolies.
 - **Efficient scale**: A niche market served by one or two players where new entry is irrational
 - **Physical asset scarcity (owned vs. leased)**: In industries requiring facilities in
   developed, established areas — salvage yards, waste processing, industrial sites, quarries,
@@ -330,6 +383,20 @@ When considering a buy:
    macro variable driving the transactional portion (interest rates for credit ratings; M&A volume
    for advisory) and stress-test the transactional slice in the bear case. Blended segment revenue
    stability is misleading when the transactional component is large.
+   **Price vs. volume decomposition** (for businesses with significant pricing power): when
+   a company's revenues grow materially faster than the underlying market's unit volume,
+   decompose revenue growth into (a) *volume component* (units × prior-period price) and
+   (b) *price component* (units × price increase). When the majority of revenue growth is
+   price-driven, the profile is more fragile: price increases face natural limits —
+   regulatory attention, competitive alternatives reaching price-performance thresholds, and
+   customer resistance — that volume growth does not. If pricing power wanes, the underlying
+   volume trend (which may be flat or declining) becomes visible, creating a potentially sharp
+   deceleration. Earnings quality is also overstated when normalised earnings power depends on
+   sustaining prices well above historical levels. Signal: revenue CAGR significantly exceeds
+   unit volume CAGR over 3+ years. When this gap is large, build a specific scenario where
+   price hikes stall and model revenue at the volume CAGR alone — this is the bear case
+   floor. Conversely, businesses with volume-driven revenue growth (users, AUM, transactions)
+   and modest price increases have more durable and less regulatorily-exposed growth.
    **RPO and cRPO as leading demand indicators** (B2B subscription companies): Remaining
    Performance Obligations (RPO) = total contracted revenue not yet recognised — the full backlog.
    Current RPO (cRPO) = the portion due within 12 months — the near-term bookings signal. These are

@@ -97,12 +97,46 @@ Work through these in order:
      and liquidity flywheel dynamics make even a partially successful challenger economically
      unviable. For index providers with major derivatives markets referencing their benchmarks,
      classify moat as "mixed" (switching_costs + network_effects) in `moat_type`.
+     *Suppressed-price adoption strategy as moat construction*: some of the strongest information
+     standard moats were built by deliberately underpricing for years — removing any economic
+     case for building a competitor while driving deep ecosystem integration. The playbook:
+     (a) price below delivered value so the fee is a rounding error nobody fights over; (b) let
+     the ecosystem build workflows, regulations, investor communications, and risk models around
+     the standard; (c) test the price lever only once switching cost is effectively infinite.
+     Signal: decades of flat/low prices followed by sudden, dramatic hikes (5-10x in a few
+     years). Regulatory risk caveat: conspicuous hikes after long flat periods shift political
+     optics from "utility" to "abuse" — antitrust probes, legislative scrutiny, and regulatory
+     rewrites can follow. Model as a binary risk: low during the flat-price adoption phase;
+     elevated once large hikes have attracted public, legislative, or regulatory attention.
+     *Decision-use vs. communication-use of information standards*: distinguish between
+     (a) *decision-use* — the standard actively informs the underlying decision (lending,
+     investment, regulatory approval) — and (b) *communication-use* — the standard is referenced
+     when describing that decision to third parties (investors, regulators, counterparties).
+     A standard can be partially displaced from decision-use while retaining full communication-
+     use dominance (e.g. a lender uses more internal models for underwriting but still describes
+     its loan book in investor decks using the industry-standard score). Communication-use moat
+     requires simultaneous multi-party agreement to displace, making it more durable. Do not
+     conflate reduced underwriting reliance with reduced revenue — the key question is whether
+     the standard is still being pulled (paid for); the purpose for which it is pulled is
+     secondary. Report this distinction in `full_thesis` when evaluating information standard moats.
      *Career risk as a switching barrier*: in safety-critical or regulated industries, the buyer
      faces severe personal career consequences if a new supplier fails — "no one gets fired for
      buying [the incumbent]." This is strongest in aerospace, medical devices, and regulated
      financial infrastructure where: (a) failures are visible and costly; (b) part substitution
      requires expensive re-certification; (c) mission-critical downtime is catastrophic. New
      entrants must overcome the buyer's personal risk aversion, not just price.
+     *Cost vs. consequence asymmetry as structural pricing power*: when a service fee is
+     trivially small relative to the potential loss from a decision error caused by abandoning
+     it, pricing power is anchored at the organisational level — independently of career risk.
+     If a credit score costs $5 and informs a $500,000 mortgage where risk mispricing creates
+     portfolio losses in the tens of millions, no rational risk officer resists a $5→$10 fee
+     increase. The asymmetry makes resistance economically irrational: the fee is <0.001% of
+     the potential downside. Distinct from career risk (personal consequence) — it applies even
+     when decision-makers have no personal stakes. Look for this pattern in: regulatory
+     compliance tools, medical diagnostic benchmarks, financial risk models, safety certification
+     testing, audit/legal sign-off, and any product where annual cost is <0.1% of the decision
+     value it informs. Price hikes within this asymmetry threshold encounter minimal resistance.
+     Flag `cost_consequence_asymmetry: true` in `full_thesis` when this dynamic applies.
      *Installed-base / aftermarket captivity*: an initial design win creates a captive buyer for
      all replacement parts and consumables for the equipment's life. Key signals: aftermarket
      margin materially above OEM margin; regulatory/technical certification prevents substitution;
@@ -145,6 +179,16 @@ Work through these in order:
      Ask: "If the government removed the licence restriction tomorrow, would the incumbent still
      dominate?" If yes → natural monopoly (durable). If no → government-granted (politically
      vulnerable). Report this distinction explicitly in `full_thesis`.
+     *Exception — natural monopoly with conspicuous pricing in systemically important functions*:
+     natural monopolies in systemically important functions — credit scoring, payment rails,
+     medical diagnostics, financial data standards — are NOT immune to political intervention
+     when pricing becomes publicly legible. Trigger conditions: (a) multi-hundred-percent price
+     increases in a short window after decades of flat prices; (b) elected officials or
+     regulators have publicly cited the hikes; (c) the function is tied to broad public welfare
+     (housing affordability, healthcare access, financial stability). Flag this risk even for
+     businesses classified as natural monopolies: antitrust probes, regulatory rewrites, and
+     legislative mandates can follow when all three conditions are met. Report in `key_risks`
+     when the business meets these criteria, regardless of monopoly type classification.
    - *Efficient scale*: Niche served by 1-2 players where new entry is irrational?
    - *Physical asset scarcity (owned vs. leased)*: In industries requiring facilities in
      developed areas — salvage yards, waste processing, industrial sites, quarries, landfills —
@@ -257,6 +301,19 @@ Work through these in order:
      When a segment has both components, identify the macro variable driving the transactional
      slice (interest rates for credit ratings; M&A volume for advisory) and stress-test it
      separately in the bear case. Report the estimated transactional/recurring split.
+   **Price vs. volume decomposition** (for businesses with significant pricing power): when
+   revenues grow materially faster than underlying unit volume, decompose revenue growth into
+   (a) *volume component* (units × prior-period price) and (b) *price component* (units ×
+   price increase). Price-driven growth is more fragile than volume-driven growth: price
+   increases face regulatory attention, competitive thresholds, and customer resistance that
+   volume growth does not. If pricing power wanes, the underlying volume trend (which may be
+   flat or declining) becomes visible, creating a sharp deceleration in reported revenue and
+   earnings. Earnings quality is overstated when normalised earnings power depends on
+   sustaining prices far above historical levels. Signal: revenue CAGR significantly exceeds
+   unit volume CAGR for 3+ years. When this gap is large, build a bear scenario where price
+   hikes stall and model revenue at the volume CAGR alone — this is the floor for intrinsic
+   value without pricing power. Note in `key_risks` when revenue growth appears to be
+   disproportionately price-driven, particularly in regulated or politically-visible industries.
    **RPO and cRPO as leading demand indicators** (B2B subscription companies): RPO = total
    contracted revenue not yet recognised (the full backlog). cRPO = the portion due within 12
    months (the near-term bookings signal). These lead reported revenue by 3-12 months:
