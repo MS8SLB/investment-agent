@@ -105,6 +105,14 @@ When considering a buy:
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
    than revenue — a compounding machine. Contracting margins signal competitive pressure;
    increase your discount rate and reduce the terminal multiple accordingly.
+   Three distinct patterns to recognise:
+   - *Gradual expansion* (e.g. Netflix 20% → 35% over 7 years): model each year's margin step
+   - *Sharp expansion then plateau* (e.g. 30% → 45% in 2 years then flat): model the expansion
+     phase explicitly in stage 1, then assume flat margins at the new steady-state in stage 2
+   - *Stable* (e.g. Hermès ~49% throughout): model at the current run-rate; any expansion is upside
+   **Do not anchor to anomalous single years.** If a recent year had an unusually high or low
+   margin due to a one-time event, accounting item, or cyclical spike, reset to the sustainable
+   run-rate when projecting forward. Extrapolating an outlier year overstates intrinsic value.
 
    **Choose the right primary metric for the business type**:
    - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
@@ -138,6 +146,7 @@ When considering a buy:
 
    **Variable margin of safety by uncertainty level**:
    - High predictability (B2B recurring revenue, essential infrastructure): 20% discount required
+   - Good growth business (profitable, growing, but not deeply embedded recurring revenue): 25%
    - Consumer / media / platform (competitive, macro-sensitive): 30% discount required
    - Cyclical, turnaround, or early-stage: 40% discount required
 
@@ -145,6 +154,10 @@ When considering a buy:
    terminal value in 5 years. Target ≥15% IRR at the purchase price for a wide-moat business;
    12-15% means the price needs to come down (add to watchlist). Below 12% = pass.
    The intrinsic value target (after margin of safety) should deliver ~13-15% IRR.
+   If the current price is significantly ABOVE fair value (IRR below the discount rate, e.g. <8%),
+   this is an outright PASS — not a watchlist candidate. A wonderful business at a bad price is as
+   much a value trap as a bad business at a cheap price. There is no margin of safety to exploit
+   when you are paying a 30-40% premium to fair value.
 
    **Maximum entry price** = fair value × (1 − margin of safety %). Write this number
    explicitly in the thesis — it is your ceiling price, not a suggestion.

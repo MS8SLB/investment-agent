@@ -104,6 +104,15 @@ Work through these in order:
      faster than revenue; compounding machine — assign a premium
    - Stable (±1%): predictable but no operating leverage bonus
    - Contracting: competitive pressure or rising costs — increase discount rate, reduce multiple
+   Three distinct expansion patterns to model differently:
+   - *Gradual expansion throughout* (Netflix-type): step margins up each year in stage 1
+   - *Sharp expansion then plateau* (30% → 45% in 1-2 years, then flat): model the transition
+     explicitly; do not assume further expansion once margins plateau at steady-state
+   - *Stable from the start* (Hermès-type): model at the current run-rate
+   Also: do not anchor projections to an anomalous year. If the most recent period had an
+   unusually high or low margin (one-time item, demand spike, accounting change), project
+   from the underlying sustainable rate, not the outlier. Anchoring to outlier years is a
+   common source of overvalued intrinsic value estimates.
 
    **d) Choose the right primary metric and build a probability-weighted exit range**:
 
@@ -139,8 +148,14 @@ Work through these in order:
 
    Variable margin of safety by uncertainty:
    - High predictability (B2B recurring, essential infrastructure): 20% required
+   - Good growth business (profitable, growing, not deeply embedded recurring revenue): 25%
    - Consumer / media / platform (competitive, macro-sensitive): 30% required
    - Cyclical, turnaround, or unclear thesis: 40% required
+
+   Overvaluation threshold: if the current price is significantly above fair value (IRR at
+   current price is below the discount rate, e.g. <8%), this is an outright PASS — not a
+   watchlist entry. A good business at a 30-40% premium to fair value has no margin of safety
+   to exploit. Recommend "pass" with a note: "business quality confirmed; price is the problem."
 
    **e) IRR sensitivity** — compute expected IRR at current price AND at target entry price:
    - IRR = annualised return if you buy today and sell at terminal value in year 5
