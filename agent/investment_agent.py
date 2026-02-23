@@ -36,6 +36,23 @@ has a durable competitive advantage. The five moat sources are:
   equity benchmark; Platts/OPIS as oil pricing benchmarks; LIBOR successors in rates markets).
   Industry-wide coordination requirements make the switching cost effectively infinite — no
   single participant can unilaterally switch, even if they wanted to.
+  *Career risk as a switching barrier*: in safety-critical or regulated industries, the person
+  responsible for purchase decisions faces severe personal career consequences if a new, unproven
+  supplier fails. "No one gets fired for buying [the incumbent]" — the purchasing manager cannot
+  be blamed for staying with the known-quality supplier, but could be personally liable for any
+  failure caused by switching. This is strongest in: (a) safety-critical applications (aerospace
+  components, medical devices, financial infrastructure) where failures are visible and costly;
+  (b) regulated industries where part/system substitution requires expensive re-certification;
+  (c) mission-critical systems where downtime is catastrophic. New entrants face a structural
+  disadvantage beyond price: they must overcome the buyer's personal risk aversion to change.
+  *Installed-base / aftermarket captivity*: an initial design win or first-sale creates a captive
+  buyer for all future replacement parts, consumables, or services for the life of that equipment.
+  The initial product may carry thin margins; the captive aftermarket (non-deferrable, high-margin,
+  structurally immune to competition) generates most of the lifetime value. Key signals: aftermarket
+  margin materially above OEM margin; regulatory or technical certification prevents part substitution;
+  customers cannot defer replacement without safety or compliance violations. In valuation, weight
+  the captive aftermarket revenue stream far more heavily than OEM/initial-sale revenue — it is
+  more predictable, recurring, and defensible.
 - **Network effects**: The product becomes more valuable as more people use it
   (e.g. marketplaces, payment networks, social platforms)
 - **Cost advantages**: Structural cost edge from scale, proprietary processes, or geography
@@ -45,6 +62,17 @@ has a durable competitive advantage. The five moat sources are:
   decades to challenge. The *relationship* with regulators — being a trusted operator with a long
   track record — matters as much as the piece of paper. Governments rarely revoke licences from
   incumbents who operate responsibly, but they do restrict new entrants.
+  *Government-granted vs. natural monopoly*: a government-granted monopoly (where regulation
+  explicitly prohibits or severely restricts new entry) differs critically from a natural monopoly
+  (where market economics make new entry irrational even without regulatory protection). Government-
+  granted profits are politically visible and therefore vulnerable: when margins become conspicuous,
+  regulators can and do impose price caps, rate reviews, or mandatory access regimes. Natural
+  monopolies — where scale advantages, network effects, or capital requirements make entry
+  economically irrational without any regulatory mandate — are more durable because no regulatory
+  action is required to eliminate them. When assessing a regulated-industry moat, explicitly identify
+  which type applies: "Can this business sustain its position if the government removed the licence
+  restriction tomorrow?" If yes, it is a natural monopoly; if not, it is government-granted and
+  vulnerable to political profit-trimming over time.
 - **Efficient scale**: A niche market served by one or two players where new entry is irrational
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
@@ -419,6 +447,37 @@ When considering a buy:
    earnings per share, the incentive is to optimise the adjustments, not the underlying business.
    Prefer companies where incentive metrics are hard to manipulate: FCF, ROIC, or absolute
    shareholder return on a fixed, independently-verified basis.
+   **CAGR-threshold option vesting**: the strongest incentive structure is one where management
+   options vest only if the stock compounds at or above a minimum annual rate (e.g. options only
+   become exercisable if the share price has grown at ≥15% per year since grant). This directly
+   aligns management upside with shareholder compounding — management cannot profit unless
+   shareholders have first earned an acceptable return. Contrast with standard time-vested options,
+   where management benefits from any price recovery regardless of whether shareholders have been
+   made whole. When evaluating incentive structures, specifically look for CAGR hurdles on option
+   grants as a tier-1 alignment signal — they are rare but represent the gold standard of
+   management-shareholder alignment.
+   **Leverage appropriateness by cash flow predictability**: the safety of a given debt level
+   depends entirely on the predictability and non-deferability of the cash flows servicing it.
+   6× EBITDA leverage that would be reckless for a cyclical industrial (revenue can fall 40% in
+   a downturn) is rational for a business with captive, non-deferrable aftermarket revenue (where
+   customers legally cannot avoid replacement purchases and revenue is structurally immune to
+   recession). Before dismissing a highly-levered balance sheet as dangerous, ask: "Is the cash
+   flow servicing this debt captive and non-deferrable?" If the answer is yes — regulatory
+   compliance, safety-critical replacement, or long-term contracted subscription revenue —
+   then leverage is a rational capital efficiency choice, not a solvency risk. If the cash flow
+   is deferrable or cyclical, standard leverage warnings apply.
+   **Acquisition anti-pattern screen**: quality serial acquirers describe acquisitions in terms
+   of standalone IRR, ROIC, and return of capital to shareholders. Red-flag language for
+   empire-building vs. value creation: (a) *"synergies"* as the primary justification — synergies
+   are notoriously overestimated pre-close, rarely verified post-close, and often used to
+   retrospectively justify an overprice; (b) *"market share"* as the primary goal — buying
+   competitors primarily to grow market share concentrates risk rather than buying compounding
+   cash flows; (c) *"diversification"* as the stated rationale — shareholders can diversify
+   themselves cheaply; management diversifying the business usually signals a lack of reinvestment
+   opportunity in the core business. When a company announces an acquisition using these
+   framings prominently, treat it as a capital allocation warning. The inverse is also true:
+   acquirers who describe deals in standalone IRR terms, disclose post-close ROIC targets, and
+   hold management accountable for meeting them are demonstrating disciplined capital allocation.
 7. Check price history to understand where the current price sits vs. intrinsic value estimate
 8. Check `get_earnings_calendar` — know when earnings are due. Timing risk matters for entry;
    if an uncertain earnings event is imminent, add to watchlist with a target entry price instead.

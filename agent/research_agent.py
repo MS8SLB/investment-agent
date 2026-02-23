@@ -86,12 +86,33 @@ Work through these in order:
      pricing benchmark would require simultaneous agreement from every counterparty, regulator, and
      exchange in the industry (e.g. S&P 500 as the equity benchmark; Platts for oil pricing), the
      switching cost is effectively infinite — no single participant can unilaterally move away.
+     *Career risk as a switching barrier*: in safety-critical or regulated industries, the buyer
+     faces severe personal career consequences if a new supplier fails — "no one gets fired for
+     buying [the incumbent]." This is strongest in aerospace, medical devices, and regulated
+     financial infrastructure where: (a) failures are visible and costly; (b) part substitution
+     requires expensive re-certification; (c) mission-critical downtime is catastrophic. New
+     entrants must overcome the buyer's personal risk aversion, not just price.
+     *Installed-base / aftermarket captivity*: an initial design win creates a captive buyer for
+     all replacement parts and consumables for the equipment's life. Key signals: aftermarket
+     margin materially above OEM margin; regulatory/technical certification prevents substitution;
+     customers cannot defer replacement without safety or compliance violations. In valuation,
+     weight captive aftermarket revenue far more heavily than OEM revenue — it is recurring,
+     non-deferrable, and structurally immune to competition.
    - *Network effects*: Does the product get more valuable as users grow?
    - *Cost advantage*: Structural scale, process, or geography advantage over competitors?
    - *Intangible assets*: Proprietary data, brands, patents, regulatory licences?
    - *Regulatory licence / relationship*: In regulated industries (gambling, spectrum, utilities,
      credit ratings), the licence is the moat. Incumbency built over years of being a trusted
      operator is a genuine competitive advantage that new entrants cannot buy or replicate quickly.
+     *Government-granted vs. natural monopoly*: explicitly classify which type applies.
+     A government-granted monopoly (regulation explicitly limits or prohibits new entry) is
+     politically visible and vulnerable — when profits become conspicuous, regulators can impose
+     price caps, rate reviews, or mandatory access regimes. A natural monopoly (market economics
+     make new entry irrational even without regulatory protection, due to scale, network effects,
+     or capital requirements) is more durable because no regulatory action is required to end it.
+     Ask: "If the government removed the licence restriction tomorrow, would the incumbent still
+     dominate?" If yes → natural monopoly (durable). If no → government-granted (politically
+     vulnerable). Report this distinction explicitly in `full_thesis`.
    - *Efficient scale*: Niche served by 1-2 players where new entry is irrational?
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
@@ -352,6 +373,32 @@ Work through these in order:
    **Adjusted EBITDA as incentive metric**: non-standardised; each company defines "adjustments"
    differently and the adjusted line can be manipulated to hit targets. When management is
    compensated on adjusted EBITDA rather than FCF, ROIC, or EPS, flag as a governance concern.
+   **CAGR-threshold option vesting**: the gold standard incentive structure. Options vest only if
+   the stock compounds at or above a minimum annual rate (e.g. ≥15%/yr since grant) — management
+   cannot profit unless shareholders have first earned an acceptable compounding return. Contrast
+   with standard time-vested options where management benefits from any price recovery regardless
+   of whether shareholders were made whole. Flag CAGR-hurdle option grants as a tier-1 alignment
+   signal; note their absence (replaced by pure tenure vesting) as a governance concern.
+   **Leverage appropriateness by cash flow predictability**: do not apply standard leverage
+   warnings uniformly. 6× EBITDA debt that would be reckless for a cyclical industrial
+   (where revenue can fall 40% in a downturn) may be rational for a business with captive,
+   non-deferrable aftermarket revenue (where customers legally cannot avoid replacement purchases
+   and cash flows are structurally recession-resistant). Before flagging high leverage, ask:
+   "Is the cash flow servicing this debt captive and non-deferrable?" If yes (regulatory
+   compliance, safety-critical replacement, long-term contracted subscriptions) — leverage is
+   a rational capital efficiency choice. If the cash flow is deferrable or cyclical — standard
+   solvency warnings apply. Calibrate `earnings_risk` accordingly: high leverage on captive
+   cash flows is lower risk than moderate leverage on cyclical cash flows.
+   **Acquisition anti-pattern screen**: quality acquirers describe acquisitions in terms of
+   standalone IRR, return on invested capital, and capital returned to shareholders. Red-flag
+   language for empire-building: (a) *"synergies"* as primary justification — rarely verified
+   post-close; often used to retrospectively justify an overprice; (b) *"market share"* as
+   primary goal — concentrates risk rather than buying compounding cash flows; (c)
+   *"diversification"* as the stated rationale — shareholders can diversify themselves cheaply;
+   management diversifying the business usually signals a lack of reinvestment opportunity in
+   the core. When these framings dominate deal announcements, flag in `capital_allocation_quality`
+   and note in `key_risks`. The inverse — acquirers disclosing post-close IRR targets and
+   holding management accountable — signals disciplined capital allocation.
 6. **Price context** — `get_price_history` (1y): is the current price near a historic low
    relative to your intrinsic value estimate? Understand the setup.
 7. **Earnings risk** — `get_earnings_calendar`: next date, consensus, beat/miss history
