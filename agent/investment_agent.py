@@ -113,6 +113,23 @@ has a durable competitive advantage. The five moat sources are:
   restriction tomorrow?" If yes, it is a natural monopoly; if not, it is government-granted and
   vulnerable to political profit-trimming over time.
 - **Efficient scale**: A niche market served by one or two players where new entry is irrational
+- **Physical asset scarcity (owned vs. leased)**: In industries requiring facilities in
+  developed, established areas — salvage yards, waste processing, industrial sites, quarries,
+  landfills, certain data centre locations — the combination of (a) legacy asset ownership
+  at historical cost (often 3-10x below current market value in major metropolitan areas),
+  (b) NIMBY/community opposition making new facility permits virtually impossible ("everyone
+  wants the service, no one wants the facility next door"), and (c) ongoing land appreciation
+  creates a non-replicable physical moat invisible in standard financial ratios. Assessment:
+  - Book value is systematically understated — assets at historical cost, not market value;
+    replacement cost moat is hidden from ratio analysis
+  - ROIC appears superior to competitors, but this understates the true advantage: competitors
+    face full replacement cost plus regulatory impossibility, not just economic hurdles
+  - Owned facilities offer structural stability (no rent escalation, no lease termination risk,
+    no displacement by higher-value redevelopment); leased competitors face all three risks
+  - Check: can a well-capitalised new entrant actually obtain the necessary permits/zoning
+    approvals in the relevant geography? If no, the moat height is effectively infinite.
+  - Explicit signal: if the incumbent's main competitor leases rather than owns, model the
+    diverging cost trajectories: the incumbent's cost is fixed; the competitor's is rising.
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.
@@ -184,6 +201,21 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
 - Would customers face catastrophic operational risk from switching? (strong protection)
 - Is the software cost <1% of customer revenue? (makes cost-saving from AI switching unattractive)
 - Could AI-native startups enter from below with smaller teams and lower prices? (real risk to assess)
+- **Physical installed base fleet replacement as disruption timeline buffer**: for businesses
+  that serve or depend on a large installed base of long-lived physical assets (vehicles,
+  aircraft, industrial equipment, medical devices, infrastructure), quantify the disruption
+  timeline explicitly rather than treating it as a binary present risk. Even if a disruptive
+  technology captures 100% of new asset purchases immediately (an extreme assumption), the
+  existing fleet turns over at its natural replacement rate. Formula: "If disruption reaches
+  X% of new sales by Year Y and asset average life is N years, the disrupted share of the
+  installed base at Year Z = X% × (Z − Y) / N." A 15-year average vehicle life means the
+  current fleet takes ~15 years to fully transition even with complete new-sale disruption.
+  Use this to bound the bear case with a defensible timeline. Second-order effect to model:
+  increasing technological complexity in new assets often raises per-incident repair costs
+  even as incident rates fall (e.g. camera/sensor-equipped vehicles are far more expensive
+  to repair than simple combustion cars), potentially supporting service volumes through the
+  transition period. Never treat fleet-transition disruption as an immediate binary risk;
+  model the ramp explicitly and check whether current business can compound through it.
 - Is the business an intermediary whose core value is *being the place where transactions happen*,
   rather than owning proprietary supply or adding deep operational value? (e.g. OTAs, travel agents,
   insurance brokers, real-estate portals) If so, assess **AI agent disintermediation risk**
@@ -373,7 +405,7 @@ When considering a buy:
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
    than revenue — a compounding machine. Contracting margins signal competitive pressure;
    increase your discount rate and reduce the terminal multiple accordingly.
-   Four distinct patterns to recognise:
+   Five distinct patterns to recognise:
    - *Gradual expansion* (e.g. Netflix 20% → 35% over 7 years): model each year's margin step
    - *Sharp expansion then plateau* (e.g. 30% → 45% in 2 years then flat): model the expansion
      phase explicitly in stage 1, then assume flat margins at the new steady-state in stage 2
@@ -384,6 +416,16 @@ When considering a buy:
      and the expansion in period 2 (harvest phase). When this pattern is present, operating
      income CAGR will significantly exceed revenue CAGR — that divergence is a key value driver
      worth quantifying explicitly in summary stats (e.g. "21% revenue CAGR, 32% op income CAGR").
+   - *Business model conversion step-change* (e.g. Copart international markets): when a company
+     is transitioning geographic markets from a capital-intensive ownership model to a capital-
+     light fee/service model, this creates a discrete, permanent, predictable structural margin
+     uplift — often 800-1,200bps of gross margin at the moment of conversion. This is distinct
+     from J-curve (which is investment then harvest) and gradual expansion (which is operating
+     leverage). The trigger is a deliberate strategic decision with a known template from markets
+     that have already converted. Model it as an explicit step-change, not gradual improvement:
+     identify which markets are pre-conversion, estimate conversion timing, and model the post-
+     conversion margin as a known, bounded future event. The pipeline of unconverted markets
+     represents a semi-contractual source of future margin expansion — value it accordingly.
    **Do not anchor to anomalous single years.** If a recent year had an unusually high or low
    margin due to a one-time event, accounting item, or cyclical spike, reset to the sustainable
    run-rate when projecting forward. Extrapolating an outlier year overstates intrinsic value.

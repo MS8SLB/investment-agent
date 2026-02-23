@@ -146,12 +146,38 @@ Work through these in order:
      dominate?" If yes → natural monopoly (durable). If no → government-granted (politically
      vulnerable). Report this distinction explicitly in `full_thesis`.
    - *Efficient scale*: Niche served by 1-2 players where new entry is irrational?
+   - *Physical asset scarcity (owned vs. leased)*: In industries requiring facilities in
+     developed areas — salvage yards, waste processing, industrial sites, quarries, landfills —
+     the combination of (a) legacy asset ownership at historical cost (often 3-10x below current
+     market value), (b) NIMBY/community opposition making new facility permits virtually
+     impossible, and (c) ongoing land appreciation creates a non-replicable physical moat
+     invisible in standard financial ratios. Key checks: (i) book value is systematically
+     understated — historical cost, not market value — so ROIC appears superior to replacement-
+     cost reality, but the moat is even stronger because competitors face regulatory impossibility
+     on top of capital requirements; (ii) owned facilities have no rent escalation or lease
+     termination risk, while leased competitors face both; (iii) ask whether a well-capitalised
+     new entrant could actually obtain the necessary permits/zoning approvals — if no, the moat
+     height is effectively infinite. When one incumbent owns and one leases, model their diverging
+     long-run cost trajectories. Report in `moat_type` as "intangible_assets" and note the
+     physical scarcity component explicitly in `full_thesis`.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
    - Is the product mission-critical with compliance/chain-of-custody requirements? (protective)
    - Are customers highly cost-sensitive and AI alternatives nearly ready? (risky)
    - Could AI-native startups enter from below with small teams at lower prices? (assess honestly)
+   - **Physical installed base fleet replacement as disruption timeline buffer**: for businesses
+     serving or depending on long-lived physical assets (vehicles, aircraft, industrial equipment,
+     medical devices), quantify the disruption timeline rather than treating it as a binary present
+     risk. Even if a disruptive technology captures 100% of new asset purchases immediately, the
+     installed base turns over at its natural replacement rate. Formula: disrupted share of
+     installed base at Year Z = X% new-sale adoption × (Z − Year of widespread adoption) / N-year
+     asset life. A 15-year average vehicle life means ~15 years for full fleet transition even
+     under extreme adoption assumptions. Use this to bound the bear case with a defensible timeline.
+     Second-order effect: increasing technological complexity in new assets often raises per-
+     incident repair costs even as incident frequency falls (sensor/camera-equipped vehicles cost
+     far more to repair), potentially sustaining service volumes through the transition. Never
+     model fleet-transition disruption as an immediate binary event; model the ramp explicitly.
    - Is the business an intermediary whose value is *being the place where transactions happen*,
      rather than owning proprietary supply or adding deep operational value post-discovery?
      (OTAs, brokers, aggregators) If so, assess **AI agent disintermediation risk**: AI agents
@@ -291,7 +317,7 @@ Work through these in order:
      faster than revenue; compounding machine — assign a premium
    - Stable (±1%): predictable but no operating leverage bonus
    - Contracting: competitive pressure or rising costs — increase discount rate, reduce multiple
-   Four distinct expansion patterns to model differently:
+   Five distinct expansion patterns to model differently:
    - *Gradual expansion throughout* (Netflix-type): step margins up each year in stage 1
    - *Sharp expansion then plateau* (30% → 45% in 1-2 years, then flat): model the transition
      explicitly; do not assume further expansion once margins plateau at steady-state
@@ -301,6 +327,16 @@ Work through these in order:
      mature. Model period 1 as contraction (e.g. -0.5%/yr for 3 years) and period 2 as
      expansion (e.g. +2.5%/yr for 3 years). When present, flag that operating income CAGR
      will substantially exceed revenue CAGR — quantify this explicitly in the summary output.
+   - *Business model conversion step-change* (e.g. Copart international markets): when a company
+     is transitioning geographic markets from a capital-intensive ownership model to a capital-
+     light fee/service model, this delivers a discrete, permanent, predictable structural margin
+     uplift — often 800-1,200bps of gross margin at the moment of conversion. Distinct from
+     J-curve (investment then harvest) and gradual operating leverage. The trigger is a deliberate
+     strategic decision with a proven template from already-converted markets. Model as an explicit
+     step-change, not gradual improvement: identify which markets are pre-conversion, estimate
+     conversion timing, and assign the post-conversion margin as a known, bounded future event.
+     Report the pipeline of unconverted markets in `full_thesis` — it is a semi-contractual source
+     of future margin expansion that should be valued explicitly, not as organic improvement.
    Also: do not anchor projections to an anomalous year. If the most recent period had an
    unusually high or low margin (one-time item, demand spike, accounting change), project
    from the underlying sustainable rate, not the outlier. Anchoring to outlier years is a
