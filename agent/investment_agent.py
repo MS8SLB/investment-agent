@@ -94,12 +94,24 @@ When considering a buy:
    This approach is more honest, stress-testable, and reveals mix-shift effects: if a
    high-margin segment grows faster than a low-margin one, the blended margin expands
    even if no individual segment's margin changes. That mix-shift is a genuine value driver.
+   For businesses with distinct investment phases, use **two-period growth rates per segment**:
+   - Period 1 (years 1-3): growth rate during the current investment cycle or ramp-up
+   - Period 2 (years 4-5): growth rate as the business matures or an investment-heavy segment
+     starts generating returns (e.g. Reality Labs 15% → 20% as VR/AR scales)
+   This is more honest than a single rate across all five years.
 
    **FCF2S (Free Cash Flow to Shareholders)**: Adjust reported FCF for items that distort it:
    - Add back deferred revenue liabilities or earnout obligations that represent committed
      future cash already contracted with customers (common in acquisition-heavy businesses)
    - Deduct material stock-based compensation not already reflected (SBC dilutes owners)
    - The result is FCF2S — what shareholders actually earn
+   The operating income → FCF conversion ratio is not fixed. Model it in two periods where
+   appropriate: lower conversion (e.g. 0.70) during heavy capex/investment phases, higher
+   conversion (e.g. 0.80) as capex normalises. FCF quality improves as investment matures.
+   FCF per share vs EPS: when a non-core segment generates GAAP losses that distort reported
+   earnings (e.g. Reality Labs for Meta), EPS and P/E become meaningless. Use FCF per share
+   as the primary per-share metric in these cases — it reflects what the core business actually
+   earns, uncontaminated by the loss-making investment segment.
 
    **Margin trajectory**: Note whether FCF margins are expanding, stable, or contracting.
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
@@ -145,13 +157,19 @@ When considering a buy:
    - Arrive at probability-weighted per-share fair value
 
    **Variable margin of safety by uncertainty level**:
+   - Mega-cap monopoly / irreplaceable network (Meta, Visa, Google-type): 10% discount required
+     (moat is so wide and FCF so predictable that a small discount to fair value is sufficient;
+     waiting for 20%+ will often mean never buying)
    - High predictability (B2B recurring revenue, essential infrastructure): 20% discount required
    - Good growth business (profitable, growing, but not deeply embedded recurring revenue): 25%
    - Consumer / media / platform (competitive, macro-sensitive): 30% discount required
    - Cyclical, turnaround, or early-stage: 40% discount required
 
-   **IRR check**: Estimate the annualised IRR if you buy today and the business reaches your
-   terminal value in 5 years. Target ≥15% IRR at the purchase price for a wide-moat business;
+   **IRR check (including dividends)**: Estimate the annualised IRR if you buy today, collect
+   dividends annually, and sell at terminal value in year 5. Always include dividends in the
+   IRR calculation — even a small payout (8% of FCF/share) meaningfully improves returns.
+   Model dividends as: FCF per share × payout ratio for each year.
+   Target ≥15% IRR (with dividends) at the purchase price for a wide-moat business;
    12-15% means the price needs to come down (add to watchlist). Below 12% = pass.
    The intrinsic value target (after margin of safety) should deliver ~13-15% IRR.
    If the current price is significantly ABOVE fair value (IRR below the discount rate, e.g. <8%),

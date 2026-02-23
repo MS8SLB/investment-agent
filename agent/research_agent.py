@@ -90,6 +90,10 @@ Work through these in order:
      blended operating margin emerge from the segment mix — do not assume a blended margin.
      This reveals mix-shift effects: a high-margin segment growing faster than a low-margin
      one drives margin expansion even if no individual segment's margin changes.
+   - For businesses with distinct investment phases, use two-period growth rates per segment:
+     period 1 (years 1-3) at the current investment-cycle rate; period 2 (years 4-5) at the
+     maturation rate. An investment-heavy segment (e.g. Reality Labs) may accelerate in
+     period 2 as returns start flowing; a mature segment may decelerate.
    - Estimate the recurring revenue % for reporting in the JSON output.
 
    **b) FCF2S (Free Cash Flow to Shareholders)** — use adjusted FCF, not just reported FCF:
@@ -98,6 +102,11 @@ Work through these in order:
      but represent genuine future cash flows already committed by customers
    - Deduct meaningful stock-based compensation not already expensed (SBC dilutes owners)
    - The result is what owners actually earn; this is the base for your DCF
+   - Model the operating income → FCF conversion ratio in two periods where applicable:
+     lower (e.g. 0.70) during heavy capex phases; higher (e.g. 0.80) as capex normalises.
+   - When a non-core segment generates GAAP losses that make P/E meaningless (e.g. Reality
+     Labs for Meta), use FCF per share as the primary per-share metric instead of EPS.
+     FCF/share reflects what the core business earns, uncontaminated by investment losses.
 
    **c) FCF margin trajectory** — is the margin expanding, stable, or contracting?
    - Expanding (e.g. 15% → 18% over 3 years): business has operating leverage; IV growing
@@ -147,6 +156,7 @@ Work through these in order:
    Discount at 8% for high-predictability; 10% for cyclical or uncertain businesses.
 
    Variable margin of safety by uncertainty:
+   - Mega-cap monopoly / irreplaceable network (Meta, Visa, Google-type): 10% required
    - High predictability (B2B recurring, essential infrastructure): 20% required
    - Good growth business (profitable, growing, not deeply embedded recurring revenue): 25%
    - Consumer / media / platform (competitive, macro-sensitive): 30% required
@@ -157,12 +167,14 @@ Work through these in order:
    watchlist entry. A good business at a 30-40% premium to fair value has no margin of safety
    to exploit. Recommend "pass" with a note: "business quality confirmed; price is the problem."
 
-   **e) IRR sensitivity** — compute expected IRR at current price AND at target entry price:
-   - IRR = annualised return if you buy today and sell at terminal value in year 5
-   - IRR ≥ 15% at current price → strong buy candidate
+   **e) IRR sensitivity (including dividends)** — compute expected IRR at current price AND
+   at target entry price, including any dividend income in the cash flow stream:
+   - Cash flows: -entry price, then annual dividends (FCF per share × payout ratio),
+     then terminal value + final dividend at year 5
+   - IRR ≥ 15% (with dividends) at current price → strong buy candidate
    - IRR 12-15% at current price → watchlist (price needs to come down)
    - IRR < 12% at current price → pass unless moat quality is exceptional
-   - The target entry price (20% margin of safety) should deliver ~13-15% IRR
+   - The target entry price (after margin of safety) should deliver ~13-15% IRR
 
    - Calculate margin of safety: (intrinsic value - current price) / intrinsic value × 100
 5. **Capital allocation quality** — `analyze_earnings_call` + `analyze_sec_filing`:
@@ -218,6 +230,8 @@ After completing your research, output ONLY a JSON object with this exact struct
     "pe_ratio": <number or null>,
     "peg_ratio": <number or null>,
     "fcf_yield_pct": <number or null>,
+    "fcf_per_share": <number or null>,
+    "dividend_yield_pct": <number or null>,
     "revenue_growth_pct": <number or null>,
     "profit_margin_pct": <number or null>,
     "roe_pct": <number or null>,
