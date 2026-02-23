@@ -471,6 +471,15 @@ Work through these in order:
      **Dominant holding check**: if one holding > 50% of NAV, compute it as % of *market cap*.
      If ≥ 100%: the market is pricing all other assets at ≤ 0. Flag this explicitly — it is
      the single most important data point in a holding company investment case.
+     **Deferred tax liability on unrealized portfolio gains**: when a holding company's equity
+     portfolio carries material unrealized gains, subtract the deferred tax liability from the
+     portfolio's market value when computing NAV. If the portfolio were liquidated, the company
+     would owe corporate taxes on those gains (21% U.S. rate; local equivalents elsewhere).
+     Formula: net equity portfolio value = market value − (unrealized gains × tax rate). At
+     scale this liability can reach tens of billions and omitting it systematically overstates
+     NAV. Also applies to real estate conglomerates with large embedded property gains. Verify
+     the unrealized gain balance from balance sheet notes; report the deferred tax adjustment
+     in `full_thesis` whenever it is material (>2% of NAV).
    - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
      and an FCF exit multiple. Terminal multiple tiers by moat quality:
      Wide moat + long reinvestment runway: 22-25x | Wide moat + limited reinvestment: 17-20x
@@ -548,6 +557,23 @@ Work through these in order:
      Report `aum_based_fee_pct` (% of total revenue from AUM-linked fees) in the JSON output;
      the higher this percentage, the more the business benefits from automatic wealth compounding
      but the more exposed it is to take-rate compression and passive-investing fee wars.
+   - *Insurance / P&C underwriting* (Berkshire, Progressive, Markel-type): the primary value
+     driver is **insurance float** — premiums collected upfront before claims are paid create
+     a pool of investable capital that compounds under management. Model in two parts:
+     (a) *Underwriting profitability* via **combined ratio** = (incurred losses + operating
+         expenses) / net earned premiums. Below 100% = underwriting profit (float costs nothing
+         and earns a positive spread); above 100% = underwriting loss (float has a cost equal
+         to the loss %). Normalise over a 3-5 year cycle — one anomalously low-loss year (e.g.
+         80% combined ratio after aggressive rate hikes) is not a steady-state assumption;
+         mid-cycle combined ratios of 95-100% are more realistic for most P&C lines.
+     (b) *Float investment returns*: the float is invested in fixed income and equities,
+         generating interest, dividends, and capital gains. This is often the dominant profit
+         driver at scale, dwarfing underwriting profit. Full insurance business value =
+         underwriting earnings + investment income on float. Standard earnings analysis on
+         underwriting alone systematically understates insurance value.
+     Key quality signals: (i) float growing over time; (ii) combined ratio ≤ 100% through
+     the cycle; (iii) investment portfolio quality. Report combined ratio (3-year average)
+     in `full_thesis` when evaluating insurance businesses; flag if persistently >100%.
    - *Sports franchises / trophy assets*: distinguish league structure before applying any
      valuation multiple or framework.
      **Open vs. closed league economics**: franchise valuation is structurally different in

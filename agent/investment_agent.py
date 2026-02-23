@@ -567,6 +567,14 @@ When considering a buy:
      ≥100% of the total market cap, the market is pricing the rest of the portfolio at ≤0. This is
      an objective measure of deep value — you are getting all other assets for free. Flag this
      explicitly; it is the single most important data point for a holding company investment case.
+     **Deferred tax liability on unrealized portfolio gains**: when computing NAV for a holding
+     company with a large equity portfolio, subtract the deferred tax liability on unrealized
+     gains from the portfolio's market value. If the portfolio were liquidated, the company
+     would owe corporate taxes on those gains (21% U.S. corporate rate). Formula: net equity
+     portfolio value = market value − (unrealized gains × tax rate). At scale this can total
+     tens of billions — omitting it systematically overstates NAV. Also applies to real estate
+     conglomerates with large embedded property gains. Report the deferred tax adjustment
+     explicitly in the thesis whenever it is material (>2% of NAV).
    - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
      multiple as the primary exit value. Terminal multiple tiers:
      Wide moat + long reinvestment runway: 22-25x FCF | Wide moat + limited reinvestment: 17-20x
@@ -672,6 +680,20 @@ When considering a buy:
        and enterprise risk management demand.
      Report the split between AUM-linked fees and flat subscription revenue, as the two layers
      have fundamentally different growth dynamics and risk profiles.
+   - *Insurance / P&C underwriting* (Berkshire, Progressive, Markel-type): the primary value
+     driver is **insurance float** — premiums collected upfront before claims are paid create
+     a pool of investable capital that compounds under management. Model in two parts:
+     (a) *Underwriting profitability* via the **combined ratio** = (incurred losses + operating
+         expenses) / net earned premiums. <100% = underwriting profit (float is free or better);
+         >100% = underwriting loss (float has a cost equal to the loss %). Normalise over a full
+         cycle (3-5 years) — one anomalously low-loss year is not a steady-state assumption.
+     (b) *Float investment returns*: interest, dividends, and capital gains on the investable
+         float pool — often the dominant profit driver at scale, dwarfing underwriting profit.
+         Full insurance business value = underwriting earnings + float investment income.
+         Standard earnings analysis on underwriting alone systematically understates value.
+     Quality signals: float growing over time; combined ratio ≤ 100% through the cycle;
+     investment portfolio quality and duration. Always normalise the combined ratio before
+     assigning a multiple to insurance underwriting earnings.
    - *Sports franchises / trophy assets*: distinguish league structure before applying any
      valuation framework.
      **Open vs. closed league economics**: franchise value is structurally different in
