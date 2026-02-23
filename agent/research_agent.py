@@ -81,11 +81,16 @@ Work through these in order:
    - Could AI-native startups enter from below with small teams at lower prices? (assess honestly)
 4. **Intrinsic value estimate** — build a segment-aware, FCF2S-based valuation:
 
-   **a) Revenue quality segmentation** — break revenue into recurring vs non-recurring:
-   - *Recurring* (maintenance, subscription, SaaS): sticky, high-retention, deserves a premium
-   - *Non-recurring* (licence, professional services, hardware): variable, lower quality
-   - Estimate the recurring revenue % — a business >60% recurring is far more predictable
-     than one driven by licence deals or project revenues
+   **a) Revenue quality and segment modelling** — break revenue into its natural segments:
+   - For simple businesses: separate recurring (maintenance, subscription, SaaS) from
+     non-recurring (licence, services, hardware). A business >60% recurring is far more
+     predictable and deserves a higher multiple.
+   - For diversified businesses (luxury groups, industrials, conglomerates): model each
+     segment with its own growth rate and its own operating margin. Total revenue and
+     blended operating margin emerge from the segment mix — do not assume a blended margin.
+     This reveals mix-shift effects: a high-margin segment growing faster than a low-margin
+     one drives margin expansion even if no individual segment's margin changes.
+   - Estimate the recurring revenue % for reporting in the JSON output.
 
    **b) FCF2S (Free Cash Flow to Shareholders)** — use adjusted FCF, not just reported FCF:
    - Start with operating FCF from the 10-K or earnings release
@@ -107,11 +112,18 @@ Work through these in order:
      and an FCF exit multiple. Terminal multiple tiers by moat quality:
      Wide moat + long reinvestment runway: 22-25x | Wide moat + limited reinvestment: 17-20x
      Narrow moat: 13-16x | No clear moat: 8-12x
-   - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS
-     and a P/E exit multiple. Also model: (a) year-by-year operating margin expansion — this
-     is often the dominant value driver in margin-expansion stories; (b) buyback-driven share
-     count reduction — model shares declining annually; EPS then grows faster than net income,
-     which is shareholder-friendly capital allocation.
+   - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type) and
+     *luxury / exceptional pricing-power* (Hermès, Ferrari, LVMH-type): use EPS and a P/E
+     exit multiple. P/E calibration:
+       Exceptional pricing power / irreplaceable brand: 35-45x
+       Quality consumer franchise / wide-moat platform: 25-35x
+       Good consumer brand / narrower moat: 18-25x
+       Commodity-like / no pricing power: 10-18x
+     Also model: (a) year-by-year operating margin expansion — often the dominant value
+     driver in margin-expansion stories; (b) buyback-driven share count reduction — model
+     shares declining annually; EPS then grows faster than net income. Note that some
+     family-controlled or luxury businesses do NOT do buybacks (flat share count); model
+     this explicitly with 0% share count change where applicable.
 
    Stage 1 (years 1-5): project the primary metric conservatively. For margin-expansion
    stories, model margins year-by-year rather than assuming they arrive immediately.
@@ -176,6 +188,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "estimated_intrinsic_value_per_share": <number or null>,
   "margin_of_safety_pct": <number or null>,
   "valuation_primary_metric": "fcf" | "earnings" | "revenue",
+  "segment_model_used": true | false,
   "terminal_multiple_used": <number or null>,
   "irr_at_current_price": <number or null>,
   "irr_at_target_entry": <number or null>,

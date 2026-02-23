@@ -80,10 +80,20 @@ When considering a buy:
    P/E and PEG are secondary; FCF and ROIC are primary.
 5. **Estimate intrinsic value** — use a segment-aware, FCF2S-based two-stage model:
 
-   **Revenue quality**: Break revenue into recurring (maintenance, subscription, SaaS) vs
-   non-recurring (licence, services, hardware). A business >60% recurring is far more
-   predictable. Apply higher growth assumptions and a higher exit multiple to the recurring
-   portion. Model each segment separately where data is available.
+   **Revenue quality and segment modelling**: Break revenue into its distinct business lines.
+   For simple businesses, separate recurring (maintenance, subscription, SaaS) from
+   non-recurring (licence, services, hardware) — a business >60% recurring is far more
+   predictable and deserves a higher multiple. For diversified businesses (luxury groups,
+   industrials, healthcare conglomerates), go further and model each segment separately:
+   - Assign each segment its own organic growth rate based on its specific market position
+     (e.g. leather goods at 9%, watches at 4%, beauty at 8%)
+   - Assign each segment its own operating margin reflecting its economics
+     (e.g. core luxury goods at 50%, watches at 13%, beauty at 20%)
+   - Derive total revenue and blended operating margin as emergent outputs — don't assume
+     the blended margin; let it arise from the segment mix
+   This approach is more honest, stress-testable, and reveals mix-shift effects: if a
+   high-margin segment grows faster than a low-margin one, the blended margin expands
+   even if no individual segment's margin changes. That mix-shift is a genuine value driver.
 
    **FCF2S (Free Cash Flow to Shareholders)**: Adjust reported FCF for items that distort it:
    - Add back deferred revenue liabilities or earnout obligations that represent committed
@@ -102,12 +112,15 @@ When considering a buy:
      Wide moat + long reinvestment runway: 22-25x FCF | Wide moat + limited reinvestment: 17-20x
      Narrow moat: 13-16x | No clear moat: 8-12x
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS and
-     a P/E exit multiple as the primary metric. Also model:
-     (a) operating margin expansion — margin trajectory is often the single biggest value driver
-         (e.g. 20% → 35% operating margin over 5 years doubles earnings faster than revenue)
-     (b) buyback impact — model share count reduction separately; EPS growth > net income growth
-         when a company repurchases 5-10% of shares annually. A declining share count at a fair
-         price is shareholder-friendly capital allocation.
+     a P/E exit multiple as the primary metric. P/E exit multiple calibration:
+     Exceptional pricing-power / irreplaceable brand (Hermès, LVMH, Ferrari): 35-45x
+     Quality consumer franchise / wide-moat platform: 25-35x
+     Good consumer brand / narrower moat: 18-25x
+     Commodity-like / no pricing power: 10-18x
+     Also model: (a) operating margin expansion — margin trajectory is often the single biggest
+     value driver (e.g. 20% → 35% operating margin over 5 years doubles earnings faster than
+     revenue); (b) buyback impact — model share count reduction separately; EPS growth > net
+     income growth when a company repurchases 5-10% of shares annually.
 
    **Two-stage model**:
    - Stage 1 (years 1-5): project the primary metric (FCF2S or EPS) conservatively, using the
