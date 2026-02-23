@@ -113,11 +113,16 @@ Work through these in order:
      faster than revenue; compounding machine — assign a premium
    - Stable (±1%): predictable but no operating leverage bonus
    - Contracting: competitive pressure or rising costs — increase discount rate, reduce multiple
-   Three distinct expansion patterns to model differently:
+   Four distinct expansion patterns to model differently:
    - *Gradual expansion throughout* (Netflix-type): step margins up each year in stage 1
    - *Sharp expansion then plateau* (30% → 45% in 1-2 years, then flat): model the transition
      explicitly; do not assume further expansion once margins plateau at steady-state
    - *Stable from the start* (Hermès-type): model at the current run-rate
+   - *Deliberate J-curve* (Mercado Libre-type): margins compress intentionally during an
+     infrastructure build-out (logistics, fintech capex), then recover sharply as investments
+     mature. Model period 1 as contraction (e.g. -0.5%/yr for 3 years) and period 2 as
+     expansion (e.g. +2.5%/yr for 3 years). When present, flag that operating income CAGR
+     will substantially exceed revenue CAGR — quantify this explicitly in the summary output.
    Also: do not anchor projections to an anomalous year. If the most recent period had an
    unusually high or low margin (one-time item, demand spike, accounting change), project
    from the underlying sustainable rate, not the outlier. Anchoring to outlier years is a
@@ -138,10 +143,12 @@ Work through these in order:
        Good consumer brand / narrower moat: 18-25x
        Commodity-like / no pricing power: 10-18x
      Also model: (a) year-by-year operating margin expansion — often the dominant value
-     driver in margin-expansion stories; (b) buyback-driven share count reduction — model
-     shares declining annually; EPS then grows faster than net income. Note that some
-     family-controlled or luxury businesses do NOT do buybacks (flat share count); model
-     this explicitly with 0% share count change where applicable.
+     driver; in J-curve businesses, EPS CAGR can exceed revenue CAGR by 8-12ppt — flag
+     this divergence explicitly in the JSON output as it is itself a key value driver;
+     (b) buyback-driven share count reduction — model shares declining annually; EPS then
+     grows faster than net income. Capital-intensive growers that reinvest all FCF into
+     market expansion (EM logistics, fintech) typically do NOT buy back stock; model their
+     share count as flat. Family-controlled or luxury businesses also rarely buy back shares.
 
    Stage 1 (years 1-5): project the primary metric conservatively. For margin-expansion
    stories, model margins year-by-year rather than assuming they arrive immediately.
@@ -153,7 +160,10 @@ Work through these in order:
    This produces a more honest fair value than anchoring to one number, and captures the full
    distribution of possible exit conditions. Use this as your `estimated_intrinsic_value_per_share`.
 
-   Discount at 8% for high-predictability; 10% for cyclical or uncertain businesses.
+   Discount at 8% for high-predictability businesses in stable, developed markets.
+   Discount at 10% for cyclical, uncertain, or businesses with significant emerging-market
+   exposure (LATAM, SE Asia, Africa): EM risk adds currency volatility, political uncertainty,
+   and regulatory unpredictability that an 8% rate does not adequately price.
 
    Variable margin of safety by uncertainty:
    - Mega-cap monopoly / irreplaceable network (Meta, Visa, Google-type): 10% required
@@ -220,7 +230,10 @@ After completing your research, output ONLY a JSON object with this exact struct
   "irr_at_current_price": <number or null>,
   "irr_at_target_entry": <number or null>,
   "recurring_revenue_pct": <number 0-100 or null>,
-  "fcf_margin_direction": "expanding" | "stable" | "contracting" | null,
+  "fcf_margin_direction": "expanding" | "stable" | "contracting" | "j_curve" | null,
+  "revenue_cagr_5yr_pct": <number or null>,
+  "op_income_cagr_5yr_pct": <number or null>,
+  "em_discount_applied": true | false,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "earnings_risk": "low" | "medium" | "high",
   "insider_signal": "bullish" | "neutral" | "bearish",

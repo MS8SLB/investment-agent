@@ -117,11 +117,17 @@ When considering a buy:
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
    than revenue — a compounding machine. Contracting margins signal competitive pressure;
    increase your discount rate and reduce the terminal multiple accordingly.
-   Three distinct patterns to recognise:
+   Four distinct patterns to recognise:
    - *Gradual expansion* (e.g. Netflix 20% → 35% over 7 years): model each year's margin step
    - *Sharp expansion then plateau* (e.g. 30% → 45% in 2 years then flat): model the expansion
      phase explicitly in stage 1, then assume flat margins at the new steady-state in stage 2
    - *Stable* (e.g. Hermès ~49% throughout): model at the current run-rate; any expansion is upside
+   - *Deliberate J-curve* (e.g. Mercado Libre): margins intentionally compressed during an
+     infrastructure/investment build-out (logistics, fintech, capex), then recovering sharply
+     as those investments mature. Model the contraction explicitly in period 1 (investment phase)
+     and the expansion in period 2 (harvest phase). When this pattern is present, operating
+     income CAGR will significantly exceed revenue CAGR — that divergence is a key value driver
+     worth quantifying explicitly in summary stats (e.g. "21% revenue CAGR, 32% op income CAGR").
    **Do not anchor to anomalous single years.** If a recent year had an unusually high or low
    margin due to a one-time event, accounting item, or cyclical spike, reset to the sustainable
    run-rate when projecting forward. Extrapolating an outlier year overstates intrinsic value.
@@ -139,8 +145,11 @@ When considering a buy:
      Commodity-like / no pricing power: 10-18x
      Also model: (a) operating margin expansion — margin trajectory is often the single biggest
      value driver (e.g. 20% → 35% operating margin over 5 years doubles earnings faster than
-     revenue); (b) buyback impact — model share count reduction separately; EPS growth > net
-     income growth when a company repurchases 5-10% of shares annually.
+     revenue; in J-curve businesses, EPS CAGR can exceed revenue CAGR by 8-12ppt);
+     (b) buyback impact — model share count reduction separately; EPS growth > net income
+     growth when a company repurchases stock. Capital-intensive growers that reinvest all FCF
+     into market expansion (EM logistics, fintech build-outs) typically do NOT buy back stock —
+     model their share count as flat, not declining.
 
    **Two-stage model**:
    - Stage 1 (years 1-5): project the primary metric (FCF2S or EPS) conservatively, using the
@@ -153,7 +162,10 @@ When considering a buy:
      captures the full distribution of outcomes. Example for a quality consumer franchise:
        15x P/E: 5% weight | 22x: 10% | 27x: 15% | 31x: 25% | 34x: 20% | 38x: 15% | 42x: 10%
      The weighted average of the resulting per-share values is your fair value estimate.
-   - Discount at 8% for high-predictability businesses; 10% for cyclical or uncertain ones
+   - Discount at 8% for high-predictability businesses in stable, developed markets
+   - Discount at 10% for cyclical, uncertain, or businesses with significant emerging-market
+     exposure (e.g. LATAM, SE Asia, Africa): EM risk adds currency volatility, political
+     uncertainty, and regulatory unpredictability that 8% does not adequately price
    - Arrive at probability-weighted per-share fair value
 
    **Variable margin of safety by uncertainty level**:
