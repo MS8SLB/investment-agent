@@ -204,6 +204,29 @@ Work through these in order:
      height is effectively infinite. When one incumbent owns and one leases, model their diverging
      long-run cost trajectories. Report in `moat_type` as "intangible_assets" and note the
      physical scarcity component explicitly in `full_thesis`.
+   - *IP catalog / archive asset appreciation*: well-curated IP catalogs (music masters,
+     film libraries, franchise characters, archival content) have a non-standard depreciation
+     curve. Dormant IP can be rediscovered through social media algorithms, cultural moments,
+     or new distribution channels at near-zero cost to the IP owner (e.g. a viral social media
+     moment returning a decades-old track to the top streaming charts). Do NOT apply linear
+     age-based haircuts to catalog IP: (a) treat catalog as a stable-to-appreciating royalty
+     stream; (b) recognise asymmetric upside optionality from viral rediscovery events,
+     remakes, or anniversary releases; (c) assess catalog "discoverability" — breadth across
+     eras, genres, and geographies creates more surface area for future viral events than a
+     narrow catalog of one era. Streaming's near-zero marginal discovery cost has expanded
+     rather than compressed long-run catalog value. Report as a positive moat characteristic
+     in `full_thesis` for IP catalog businesses.
+     *Essential content / bilateral dependency asymmetry*: where platforms distribute content
+     and rights-holders license to platforms, negotiating power depends on which party's users
+     would leave if the relationship ended. The test: "If Platform X could no longer offer
+     Content Owner's IP, would a material share of Platform X's users migrate elsewhere?" If
+     yes — the content owner holds structural leverage regardless of the platform's scale;
+     users come for the content, not the infrastructure. Strongest when: (a) the content owner
+     controls a must-have category with no viable substitute; (b) the content owner has
+     multiple alternative distribution channels; (c) the platform cannot credibly build
+     competing first-party content at scale. A public dispute triggering user outrage directed
+     at the platform confirms content-side dominance. Report in `moat_type` as
+     "intangible_assets"; describe the bilateral dependency balance explicitly in `full_thesis`.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
@@ -330,6 +353,23 @@ Work through these in order:
    outcome. The bear case is a cascading collapse across streams, not a single-stream miss.
    Flag in `key_risks` when a significant share of revenue is performance-contingent via
    multiple independent mechanisms.
+   **Dual-vector TAM expansion** (consumption-based IP and media businesses): for businesses
+   whose revenue is a function of both (a) the number of paying users (penetration) and
+   (b) per-user consumption intensity (hours/streams/plays), model both vectors separately.
+   - *Penetration vector*: in emerging markets, paid subscription penetration for premium
+     media is often <5-10% of the population. As per-capita income rises, habits migrate
+     toward the developed-market norm (30-50%+ paid penetration) — a structural decade-long
+     growth runway requiring no pricing power or market share gain.
+   - *Consumption intensity vector*: digital distribution lowers the marginal cost of
+     content discovery to near-zero, increasing per-capita consumption of catalog and new
+     content alike. In developed markets, per-capita listening/viewing hours rise steadily
+     even at full penetration.
+   The two vectors are largely independent: an economic slowdown may pause penetration
+   growth but can increase consumption intensity (people stream more media when they cannot
+   afford concerts or live events). Both vectors compound IP royalty revenue at near-zero
+   marginal cost. Flag this dual-vector compounding structure as a quality signal in
+   `full_thesis` when evaluating IP catalog businesses, streaming services, and any
+   consumption-based media business.
    **RPO and cRPO as leading demand indicators** (B2B subscription companies): RPO = total
    contracted revenue not yet recognised (the full backlog). cRPO = the portion due within 12
    months (the near-term bookings signal). These lead reported revenue by 3-12 months:
