@@ -117,6 +117,15 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
 - Would customers face catastrophic operational risk from switching? (strong protection)
 - Is the software cost <1% of customer revenue? (makes cost-saving from AI switching unattractive)
 - Could AI-native startups enter from below with smaller teams and lower prices? (real risk to assess)
+- Is the business an intermediary whose core value is *being the place where transactions happen*,
+  rather than owning proprietary supply or adding deep operational value? (e.g. OTAs, travel agents,
+  insurance brokers, real-estate portals) If so, assess **AI agent disintermediation risk**
+  specifically: AI agents acting on behalf of users can bypass marketplace intermediaries entirely
+  by connecting directly with supply via APIs (booking hotels directly, buying insurance from the
+  carrier). Unlike general AI risk, this does not require AI to replicate the company's data — it
+  only requires AI to make the intermediary step *unnecessary* for the end user. The more a business
+  relies on being a discovery/aggregation layer vs. owning proprietary supply or providing deep
+  post-booking operational value, the higher this specific risk.
 
 **Platform engagement check** (for any business monetising a user base):
 - Require *active* user metrics, not just *registered* totals. "Registered users" without
@@ -146,6 +155,16 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
   facing higher creative production costs allocate less budget, bidding pressure falls, and
   monetisation per user is compressed relative to frictionless platforms. Platforms that cannot be
   incorporated into standard media-buying workflows face a structural ARPU ceiling regardless of user count.
+- **Paid acquisition dependency**: for marketplace, OTA, and discovery-layer businesses, track the
+  share of traffic/users arriving *directly* (loyalty app, organic, repeat) vs. via *paid channels*
+  (Google ads, affiliate, metasearch). When the majority of new users arrive via paid channels, the
+  business is playing an arbitrage — paying for traffic at one price and earning commissions at a
+  higher price. If the paid channel becomes more expensive or reduces organic reach, unit economics
+  deteriorate immediately. Businesses with >50% direct traffic have structurally lower customer
+  acquisition costs and more resilient margins. Businesses with <30% direct traffic are exposed to
+  the pricing power of whoever controls the paid channel (typically Google). Check whether the
+  company is actively building direct/loyalty moats (apps with saved credentials, loyalty tiers)
+  to reduce paid dependency over time — this is a meaningful quality improvement trajectory.
 
 ## Decision Framework
 
@@ -387,6 +406,19 @@ When considering a buy:
        employee stays. When >90% of long-term management compensation is tenure-based RSUs with
        no performance component, treat capital allocation incentives with scepticism — management
        does not lose alongside shareholders when they get it wrong.
+   **Performance peer group quality**: when executive compensation uses relative performance metrics
+   (e.g. total shareholder return vs. a peer group), scrutinise who defines the peer group and
+   whether the comparator companies are genuinely similar. A board that selects weak, capital-heavy,
+   or fundamentally different peers creates a "layup" benchmark — management earns large performance
+   bonuses by beating bad companies rather than by creating real shareholder value. This signals weak
+   board oversight and poor shareholder advocacy. Prefer companies where performance metrics are
+   absolute (FCF per share growth, ROIC), not relative to a board-selected peer group.
+   **Adjusted EBITDA as an incentive metric**: EBITDA is not a standardised measure — each company
+   defines its "adjustments" differently, and the adjusted line can be manipulated to hit bonus
+   targets. When management compensation is tied to adjusted EBITDA rather than FCF, ROIC, or
+   earnings per share, the incentive is to optimise the adjustments, not the underlying business.
+   Prefer companies where incentive metrics are hard to manipulate: FCF, ROIC, or absolute
+   shareholder return on a fixed, independently-verified basis.
 7. Check price history to understand where the current price sits vs. intrinsic value estimate
 8. Check `get_earnings_calendar` — know when earnings are due. Timing risk matters for entry;
    if an uncertain earnings event is imminent, add to watchlist with a target entry price instead.

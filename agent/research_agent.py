@@ -99,6 +99,15 @@ Work through these in order:
    - Is the product mission-critical with compliance/chain-of-custody requirements? (protective)
    - Are customers highly cost-sensitive and AI alternatives nearly ready? (risky)
    - Could AI-native startups enter from below with small teams at lower prices? (assess honestly)
+   - Is the business an intermediary whose value is *being the place where transactions happen*,
+     rather than owning proprietary supply or adding deep operational value post-discovery?
+     (OTAs, brokers, aggregators) If so, assess **AI agent disintermediation risk**: AI agents
+     can bypass marketplace intermediaries entirely by connecting directly with supply via APIs.
+     This risk does not require AI to replicate the company's data — it only requires AI to make
+     the intermediary step unnecessary. The higher the proportion of value from aggregation/discovery
+     vs. proprietary supply or post-booking operations, the higher this specific risk. Flag in
+     `ai_disruption_risk` as "high" if the business is a thin-margin discovery/aggregation layer
+     with no proprietary supply.
    **Platform engagement check** (for any business monetising users or physicians or any audience):
    - Require *active* engagement metrics (MAU, DAU, time-on-platform), not just registered totals.
      "Registered users" without engagement data cannot be reliably monetised.
@@ -124,6 +133,14 @@ Work through these in order:
    reducing ROI per dollar spent. Lower advertiser ROI → less budget allocation → lower CPMs
    and monetisation per user. Platforms incompatible with standard media-buying workflows
    face a structural ARPU ceiling regardless of user count.
+   **Paid acquisition dependency**: for marketplace and OTA businesses, estimate the share of
+   traffic/users arriving directly (loyalty app, organic, repeat) vs. via paid channels (Google ads,
+   affiliate, metasearch). Heavy paid-channel dependence means the business is playing an arbitrage
+   — if the paid channel gets more expensive (Google CPCs rise, organic reach falls), margins
+   compress immediately. >50% direct traffic = strong unit economics; <30% direct = exposed to
+   the pricing power of whoever controls the paid channel. Check whether the company is actively
+   reducing paid dependency through loyalty programs and app adoption. Report `direct_traffic_pct`
+   in JSON where disclosed.
 4. **Intrinsic value estimate** — build a segment-aware, FCF2S-based valuation:
 
    **a) Revenue quality and segment modelling** — break revenue into its natural segments:
@@ -326,6 +343,15 @@ Work through these in order:
        ("participation trophies"). When >90% of long-term management comp is tenure-based RSUs with
        no performance component, management does not lose alongside shareholders. Flag this in
        `capital_allocation_quality` and note it as a governance concern in `key_risks`.
+   **Performance peer group quality**: when executive comp uses relative performance metrics, check
+   who defines the peer group. A board that selects weak, capital-intensive, or fundamentally
+   different peers creates a "layup" benchmark — management earns bonuses by beating bad companies
+   rather than creating real shareholder value. Flag as a governance concern if: (a) the peer group
+   is populated with lower-quality or unrelated businesses, or (b) the board has discretion to
+   redefine it annually. Prefer absolute metrics (FCF/share growth, ROIC) over relative ones.
+   **Adjusted EBITDA as incentive metric**: non-standardised; each company defines "adjustments"
+   differently and the adjusted line can be manipulated to hit targets. When management is
+   compensated on adjusted EBITDA rather than FCF, ROIC, or EPS, flag as a governance concern.
 6. **Price context** — `get_price_history` (1y): is the current price near a historic low
    relative to your intrinsic value estimate? Understand the setup.
 7. **Earnings risk** — `get_earnings_calendar`: next date, consensus, beat/miss history
@@ -376,6 +402,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "capex_to_da_ratio": <number or null>,
   "take_rate_pct": <number or null>,
   "goodwill_adjusted_roic_pct": <number or null>,
+  "direct_traffic_pct": <number 0-100 or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "governance_risk": "low" | "medium" | "high",
   "sbc_pct_of_revenue": <number or null>,
