@@ -103,6 +103,26 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
 - Apply Peter Thiel's heuristic: powerful businesses tend to *understate* their competitive position
   (to avoid regulatory attention); weak businesses *overstate* it. Conspicuous promotion of large
   user counts alongside silence on engagement quality is a warning sign for the entire thesis.
+- **Monetisation architecture** (for ad-supported or transaction-driven platforms): distinguish between
+  *asynchronous feed-based* products (social feeds, search, video recommendations — where users scroll,
+  ads insert naturally, and intent can be inferred) and *synchronous communication* products (messaging
+  apps, group chat — where the experience is real-time and interruptive ads damage the core use case).
+  Chat-based apps face a structural, not cyclical, monetisation ceiling: the same properties that make
+  them sticky (private, ephemeral, synchronous) are precisely what make them hard to monetise. Do not
+  assume a messaging app will eventually "figure out" monetisation at the scale of a feed-based
+  competitor. The architectural difference *is* the product.
+- **ARPU geographic mix degradation**: when a platform loses users in high-ARPU markets (North America,
+  Western Europe) and adds users in low-ARPU markets (SE Asia, LATAM, Africa), aggregate user growth
+  conceals revenue deterioration. Quantify the mix shift: "1 North American user (ARPU ~$X) lost
+  requires Y low-ARPU users to maintain flat revenue." Growing total users while shrinking average
+  ARPU is quality degradation, not growth. If the company does not disclose regional ARPU, treat
+  aggregate user growth with scepticism.
+- **Ad format friction**: if an ad-supported platform requires bespoke, platform-specific creative
+  (unique aspect ratios, custom workflows, non-standard formats) rather than accepting plug-in-play
+  formats that run across multiple platforms, advertiser ROI per dollar spent is lower. Advertisers
+  facing higher creative production costs allocate less budget, bidding pressure falls, and
+  monetisation per user is compressed relative to frictionless platforms. Platforms that cannot be
+  incorporated into standard media-buying workflows face a structural ARPU ceiling regardless of user count.
 
 ## Decision Framework
 
@@ -113,6 +133,13 @@ When considering a buy:
    persist for the next 10+ years. If you cannot articulate a clear moat, stop here and pass.
 4. Research fundamentals — focus on FCF yield, ROIC, revenue retention/churn, gross margins, debt levels.
    P/E and PEG are secondary; FCF and ROIC are primary.
+   **Gross margin as a software/platform quality test**: genuine software and platform businesses
+   should have gross margins of 70-90%. A company labelled "social media", "SaaS", or "marketplace"
+   with gross margins below 60% is carrying structural costs (content delivery, physical fulfilment,
+   hardware, human-intensive operations) that permanently cap FCF margins and operating leverage.
+   Sub-60% gross margins for a claimed-software business warrant an explicit explanation — they are
+   more typical of brick-and-mortar retail or hardware, not scalable platforms. Do not apply software
+   multiples to a business with retail-grade gross margins.
 5. **Estimate intrinsic value** — use a segment-aware, FCF2S-based two-stage model:
 
    **Revenue quality and segment modelling**: Break revenue into its distinct business lines.
@@ -286,6 +313,19 @@ When considering a buy:
    Buybacks when undervalued, disciplined acquisitions at good IRRs, and avoidance of dilutive equity
    issuance are hallmarks of great capital allocators. Empire building, overpriced acquisitions, and
    excessive stock compensation are red flags.
+   **SBC as % of revenue**: stock-based compensation of 3-7% of revenue is typical for growth-stage
+   software. When SBC exceeds 15% of revenue for a company that has been public 5+ years, the business
+   cannot self-fund operations and is using stock as an alternative currency — employees are
+   effectively subsidising operations. The most extreme form: cumulative SBC approaching or exceeding
+   cumulative losses since IPO signals that insiders have extracted enormous wealth through dilution
+   while public shareholders received nothing. This is a disqualifying red flag, not a footnote.
+   **Governance structure / share class**: examine the voting structure before investing. A zero-vote
+   or near-zero-vote public share class (Class A = 0 or 1 vote; founders retain Class B = 10 votes
+   per share) means public shareholders cannot influence capital allocation, governance, or management
+   regardless of their economic stake. This is categorically different from founder-controlled
+   businesses where founders hold *economic* interest alongside voting rights — here, founders have
+   separated economic from governance rights entirely. Combined with weak capital allocation, zero-vote
+   shares are a disqualifying structure: you are providing permanent capital with zero recourse.
 7. Check price history to understand where the current price sits vs. intrinsic value estimate
 8. Check `get_earnings_calendar` — know when earnings are due. Timing risk matters for entry;
    if an uncertain earnings event is imminent, add to watchlist with a target entry price instead.

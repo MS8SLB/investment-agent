@@ -66,6 +66,13 @@ Work through these in order:
 
 1. **Fundamentals** — `get_stock_fundamentals`: focus on FCF yield, ROE, ROIC (use ROE as proxy),
    gross margins, debt-to-equity, revenue growth. P/E is secondary to FCF.
+   **Gross margin software/platform quality test**: genuine software and platform businesses carry
+   70-90% gross margins. A company labelled "social media", "SaaS", or "marketplace" with gross
+   margins below 60% is carrying structural costs (content delivery, hardware, physical fulfilment,
+   or human-intensive operations) that permanently cap FCF margins and operating leverage. Sub-60%
+   gross margins for a claimed-software business resemble brick-and-mortar retail economics — do
+   not apply software-grade multiples. Report `gross_margin_pct` in the JSON output; flag if <60%
+   for a "software/platform" business.
 2. **Moat identification** — based on fundamentals and SEC filings, classify the moat:
    - *Switching costs*: Are customers deeply embedded? Would switching disrupt critical operations?
      Is software <1-2% of customer revenue (makes cost-saving from switching unattractive)?
@@ -90,6 +97,23 @@ Work through these in order:
    - Apply the Thiel heuristic: powerful businesses tend to understate their competitive position
      (to avoid regulatory scrutiny); weak businesses overstate theirs. Heavy promotion of large
      "user count" alongside silence on engagement quality is a yellow flag for the entire thesis.
+   **Monetisation architecture** (for ad-supported or transaction-driven platforms): distinguish
+   between *asynchronous feed-based* products (social feeds, search, video — where ads insert
+   naturally and user intent can be inferred) and *synchronous communication* products (messaging,
+   group chat — real-time, ephemeral, private). Chat-based apps face a structural, not cyclical,
+   monetisation ceiling; the properties that create stickiness are the same ones that make
+   advertising intrusive and ineffective. Do not apply feed-based monetisation multiples to
+   a chat-first product.
+   **ARPU geographic mix degradation**: when a platform loses high-ARPU users (North America,
+   Western Europe) and adds low-ARPU users (SE Asia, LATAM, Africa), aggregate user growth masks
+   revenue deterioration. Quantify: "1 North American user (~$X ARPU) requires Y international
+   users just to maintain flat revenue." Growing users + shrinking blended ARPU = quality
+   degradation. Check regional ARPU disclosures; absence of regional data is itself a warning.
+   **Ad format friction**: platforms requiring bespoke, platform-specific creative (unique aspect
+   ratios, custom workflows, non-standard ad units) impose higher production costs on advertisers,
+   reducing ROI per dollar spent. Lower advertiser ROI → less budget allocation → lower CPMs
+   and monetisation per user. Platforms incompatible with standard media-buying workflows
+   face a structural ARPU ceiling regardless of user count.
 4. **Intrinsic value estimate** — build a segment-aware, FCF2S-based valuation:
 
    **a) Revenue quality and segment modelling** — break revenue into its natural segments:
@@ -244,6 +268,18 @@ Work through these in order:
 5. **Capital allocation quality** — `analyze_earnings_call` + `analyze_sec_filing`:
    How does management deploy FCF? Disciplined buybacks when undervalued, acquisitions at high IRRs,
    and low stock dilution = excellent. Empire building, overpriced deals, excessive SBC = poor.
+   **SBC as % of revenue**: 3-7% is typical for growth-stage software. >15% for a company 5+ years
+   public signals the business cannot self-fund and is using stock as an alternative currency.
+   The extreme red flag: cumulative SBC approaching or exceeding cumulative net losses since IPO —
+   insiders have extracted wealth via dilution while shareholders received nothing in return. Report
+   `sbc_pct_of_revenue` in JSON; flag as a disqualifying red flag if >15% at a mature company.
+   **Governance structure / share class**: examine voting rights before investing. A zero-vote or
+   near-zero-vote public share class (Class A = 0 or 1 vote; founders Class B = 10 votes) means
+   public shareholders have no influence on capital allocation or governance regardless of economic
+   ownership. This is not the same as founder-led businesses where founders retain economic exposure
+   alongside their votes — here, economic and governance rights have been fully separated. Combined
+   with weak capital allocation, this is a disqualifying governance structure. Report `governance_risk`
+   in JSON as "high" when a multi-class / zero-vote structure exists.
 6. **Price context** — `get_price_history` (1y): is the current price near a historic low
    relative to your intrinsic value estimate? Understand the setup.
 7. **Earnings risk** — `get_earnings_calendar`: next date, consensus, beat/miss history
@@ -293,6 +329,8 @@ After completing your research, output ONLY a JSON object with this exact struct
   "em_discount_applied": true | false,
   "capex_to_da_ratio": <number or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
+  "governance_risk": "low" | "medium" | "high",
+  "sbc_pct_of_revenue": <number or null>,
   "earnings_risk": "low" | "medium" | "high",
   "insider_signal": "bullish" | "neutral" | "bearish",
   "superinvestor_backing": true | false,
@@ -304,6 +342,7 @@ After completing your research, output ONLY a JSON object with this exact struct
     "fcf_per_share": <number or null>,
     "dividend_yield_pct": <number or null>,
     "revenue_growth_pct": <number or null>,
+    "gross_margin_pct": <number or null>,
     "profit_margin_pct": <number or null>,
     "roe_pct": <number or null>,
     "next_earnings_date": "<date string or null>"
