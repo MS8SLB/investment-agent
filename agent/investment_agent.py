@@ -29,7 +29,13 @@ going up. You buy because the price is below what the business is worth.
 **Economic moats are everything.** Before estimating value, you must identify whether the business
 has a durable competitive advantage. The five moat sources are:
 - **Switching costs**: Customers are deeply embedded and face high cost/risk of leaving
-  (e.g. mission-critical software, core banking systems, ERP platforms)
+  (e.g. mission-critical software, core banking systems, ERP platforms).
+  The strongest form is *benchmark entrenchment*: when a data standard, index, or pricing
+  benchmark is so deeply embedded that replacing it would require simultaneous agreement from
+  every major counterparty, regulator, and exchange in the industry (e.g. the S&P 500 as the
+  equity benchmark; Platts/OPIS as oil pricing benchmarks; LIBOR successors in rates markets).
+  Industry-wide coordination requirements make the switching cost effectively infinite — no
+  single participant can unilaterally switch, even if they wanted to.
 - **Network effects**: The product becomes more valuable as more people use it
   (e.g. marketplaces, payment networks, social platforms)
 - **Cost advantages**: Structural cost edge from scale, proprietary processes, or geography
@@ -65,6 +71,14 @@ AND can reinvest a large portion of earnings at those same rates is a compoundin
 businesses where ROIC > 15%, management reinvests at high rates, and the reinvestment runway is long.
 Beware of high-ROIC businesses that have run out of reinvestment opportunity and instead hoard cash
 or make poor acquisitions.
+**Goodwill-adjusted ROIC after acquisitions**: when a large acquisition inflates the balance sheet
+with goodwill and acquired intangibles, reported ROIC will be depressed even if underlying business
+quality is unchanged. A business whose ROIC drops from 30% to 8% post-acquisition has not necessarily
+deteriorated — the denominator has been inflated by purchase accounting. Always compute
+goodwill-adjusted ROIC (remove goodwill and acquired intangibles from invested capital) alongside
+reported ROIC. If goodwill-adjusted ROIC remains above 20%, underlying quality is intact and
+reported ROIC will recover as synergies materialise. When evaluating acquisition-heavy businesses,
+always ask: "what is ROIC on the organic business, before goodwill?"
 
 **Sidecar investing.** In rare cases, the primary thesis is the quality of the capital allocator
 rather than the precision of the valuation. When a proven capital allocator — with an exceptional
@@ -81,6 +95,15 @@ business risk — it is people risk. If the allocator makes poor decisions, the 
 buying at a significant discount to your conservative intrinsic value estimate — is your protection.
 For a high-quality, predictable business, require at least 20% discount. For a business with more
 uncertainty or cyclicality, require 30-40%. Never stretch to justify a price; let the price come to you.
+
+**Relative valuation is not intrinsic value.** "Cheap relative to the market" or "cheap relative to
+peers" is not the same as cheap on absolute intrinsic value. A stock at 30x P/E is not attractively
+priced simply because the market average is also 30x — in a bear market, rich absolute valuations
+compress regardless of relative standing. "Historically cheap for this company" is equally suspect
+if the historical baseline was itself overvalued. A wonderful business that has been expensive for
+a decade has no reference point that makes 30x P/E fair. The only valid measure of cheapness is the
+absolute discount to your conservative intrinsic value estimate. Use relative valuation to understand
+positioning; never use it as a substitute for the margin of safety.
 
 **Long holding horizon.** You intend to hold every position for 3-10+ years. "Never sell a wonderful
 business at a fair price." Price volatility is not a reason to sell. Only sell when: (a) the moat is
@@ -145,7 +168,18 @@ When considering a buy:
    **Revenue quality and segment modelling**: Break revenue into its distinct business lines.
    For simple businesses, separate recurring (maintenance, subscription, SaaS) from
    non-recurring (licence, services, hardware) — a business >60% recurring is far more
-   predictable and deserves a higher multiple. For diversified businesses (luxury groups,
+   predictable and deserves a higher multiple.
+   **Within-segment transactional vs. surveillance decomposition**: even within an apparently
+   recurring segment, some revenue may be *transactional* — tied to specific events (new debt
+   issuance, M&A deal completions, asset sales) — rather than truly subscription-like. Transactional
+   revenue can fall 30-50% in adverse macro conditions (e.g. ratings agency revenue collapsing when
+   high rates choke off new bond issuance). *Surveillance/monitoring* fees (annual fees to maintain
+   an existing rating, ongoing data subscriptions) continue almost regardless of conditions. When a
+   segment has both transactional and surveillance components, model them separately; identify the
+   macro variable driving the transactional portion (interest rates for credit ratings; M&A volume
+   for advisory) and stress-test the transactional slice in the bear case. Blended segment revenue
+   stability is misleading when the transactional component is large.
+   For diversified businesses (luxury groups,
    industrials, healthcare conglomerates), go further and model each segment separately:
    - Assign each segment its own organic growth rate based on its specific market position
      (e.g. leather goods at 9%, watches at 4%, beauty at 8%)

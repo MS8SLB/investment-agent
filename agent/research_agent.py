@@ -66,6 +66,12 @@ Work through these in order:
 
 1. **Fundamentals** — `get_stock_fundamentals`: focus on FCF yield, ROE, ROIC (use ROE as proxy),
    gross margins, debt-to-equity, revenue growth. P/E is secondary to FCF.
+   **Goodwill-adjusted ROIC**: for acquisition-heavy companies, reported ROIC is depressed by the
+   goodwill and intangibles added to the balance sheet via purchase accounting. A business whose
+   ROIC dropped from 30% to 8% after a major deal has not necessarily deteriorated — the denominator
+   was inflated overnight. Always compute goodwill-adjusted ROIC (remove goodwill and acquired
+   intangibles from invested capital) alongside reported ROIC. If goodwill-adjusted ROIC remains
+   >20%, underlying quality is intact. Report both in JSON output where applicable.
    **Gross margin software/platform quality test**: genuine software and platform businesses carry
    70-90% gross margins. A company labelled "social media", "SaaS", or "marketplace" with gross
    margins below 60% is carrying structural costs (content delivery, hardware, physical fulfilment,
@@ -76,6 +82,10 @@ Work through these in order:
 2. **Moat identification** — based on fundamentals and SEC filings, classify the moat:
    - *Switching costs*: Are customers deeply embedded? Would switching disrupt critical operations?
      Is software <1-2% of customer revenue (makes cost-saving from switching unattractive)?
+     The strongest form is *benchmark entrenchment*: when replacing a data standard, index, or
+     pricing benchmark would require simultaneous agreement from every counterparty, regulator, and
+     exchange in the industry (e.g. S&P 500 as the equity benchmark; Platts for oil pricing), the
+     switching cost is effectively infinite — no single participant can unilaterally move away.
    - *Network effects*: Does the product get more valuable as users grow?
    - *Cost advantage*: Structural scale, process, or geography advantage over competitors?
    - *Intangible assets*: Proprietary data, brands, patents, regulatory licences?
@@ -120,6 +130,14 @@ Work through these in order:
    - For simple businesses: separate recurring (maintenance, subscription, SaaS) from
      non-recurring (licence, services, hardware). A business >60% recurring is far more
      predictable and deserves a higher multiple.
+   - **Within-segment transactional vs. surveillance decomposition**: even within an apparently
+     recurring segment, some revenue may be *transactional* — tied to specific events (new debt
+     issuance, M&A completions, asset sales) — rather than truly subscription-like. Transactional
+     revenue can fall 30-50% in adverse macro conditions. *Surveillance/monitoring* revenue
+     (ongoing annual fees to maintain a rating, data subscriptions) continues regardless.
+     When a segment has both components, identify the macro variable driving the transactional
+     slice (interest rates for credit ratings; M&A volume for advisory) and stress-test it
+     separately in the bear case. Report the estimated transactional/recurring split.
    - For diversified businesses (luxury groups, industrials, conglomerates): model each
      segment with its own growth rate and its own operating margin. Total revenue and
      blended operating margin emerge from the segment mix — do not assume a blended margin.
@@ -268,6 +286,13 @@ Work through these in order:
    current price is below the discount rate, e.g. <8%), this is an outright PASS — not a
    watchlist entry. A good business at a 30-40% premium to fair value has no margin of safety
    to exploit. Recommend "pass" with a note: "business quality confirmed; price is the problem."
+   **Relative valuation is not intrinsic value**: "cheap vs. the market" or "cheap vs. peers" is
+   not a margin of safety. A stock at 30x P/E is not attractive simply because the market trades
+   at 30x — in a bear market, absolute valuations compress regardless of relative positioning.
+   "Historically cheap for this company" is equally suspect if the historical baseline was itself
+   overvalued. The only valid cheapness test is the absolute discount to your conservative
+   intrinsic value estimate. Flag explicitly in `full_thesis` if the investment case rests on
+   relative rather than absolute valuation — this is a red flag, not a mitigant.
 
    **e) IRR sensitivity (including dividends)** — compute expected IRR at current price AND
    at target entry price, including any dividend income in the cash flow stream:
@@ -350,6 +375,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "em_discount_applied": true | false,
   "capex_to_da_ratio": <number or null>,
   "take_rate_pct": <number or null>,
+  "goodwill_adjusted_roic_pct": <number or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "governance_risk": "low" | "medium" | "high",
   "sbc_pct_of_revenue": <number or null>,
