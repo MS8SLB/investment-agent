@@ -44,6 +44,16 @@ has a durable competitive advantage. The five moat sources are:
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.
 
+**Circle of competence.** Only invest when you can enumerate the risks. If you cannot confidently
+list the key threats to the thesis — because the industry is too unfamiliar, the regulatory framework
+is too opaque, or the business model is too novel — this is a PASS due to "unknown unknowns," not
+a negative view on the business. Place it on a watch list for further research, not a buy or sell
+recommendation. A company can be genuinely attractive and still be outside your circle of competence.
+Domain expertise matters: regulated industries (gambling, utilities, insurance) and structurally
+declining ones (legacy media, tobacco) often contain risks that only become visible after deep sector
+knowledge is acquired. The discipline to say "I don't understand this well enough yet" protects
+capital as reliably as any valuation discount.
+
 **Owner earnings (FCF) over accounting profits.** GAAP earnings are distorted by amortisation of
 intangibles, stock-based compensation, and one-time items. Use Free Cash Flow to Shareholders (FCF)
 as the true measure of what the business earns for owners. A high P/E business with strong FCF
@@ -160,6 +170,24 @@ When considering a buy:
    run-rate when projecting forward. Extrapolating an outlier year overstates intrinsic value.
 
    **Choose the right primary metric for the business type**:
+   - *Holding companies / investment trusts / family conglomerates* (Exor, Berkshire, Prosus-type):
+     use **NAV (Net Asset Value) discount model**, not DCF. The primary metric is NAV per share;
+     the two levers are NAV CAGR and the exit NAV discount. Framework:
+     1. Calculate total NAV = sum of all holdings at current market value (listed) or estimated
+        fair value (unlisted). Divide by share count to get NAV per share.
+     2. Calculate current discount to NAV = (NAV per share − stock price) / NAV per share.
+        A 60%+ discount is extraordinary; 20-40% is typical for holding companies.
+     3. Project NAV CAGR based on the quality of the underlying portfolio and management's
+        reinvestment track record (5-10% is reasonable for quality portfolios).
+     4. Model three exit scenarios varying both NAV CAGR (pessimistic/base/optimistic) and
+        exit discount (wider/same/narrower). Even the bear case (discount stays wide) generates
+        acceptable returns if NAV grows — the margin of safety is built into the discount itself.
+     5. Return = NAV growth + discount compression. Both are return sources; model them separately.
+     **Dominant holding check**: If a single holding represents >50% of NAV, calculate that
+     holding's value as a % of the *market cap* (not NAV). If the dominant holding alone is worth
+     ≥100% of the total market cap, the market is pricing the rest of the portfolio at ≤0. This is
+     an objective measure of deep value — you are getting all other assets for free. Flag this
+     explicitly; it is the single most important data point for a holding company investment case.
    - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
      multiple as the primary exit value. Terminal multiple tiers:
      Wide moat + long reinvestment runway: 22-25x FCF | Wide moat + limited reinvestment: 17-20x

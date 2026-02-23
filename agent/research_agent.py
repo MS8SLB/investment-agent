@@ -153,6 +153,19 @@ Work through these in order:
    **d) Choose the right primary metric and build a probability-weighted exit range**:
 
    First, select the primary valuation metric based on business type:
+   - *Holding companies / investment trusts / family conglomerates* (Exor, Berkshire, Prosus-type):
+     use **NAV discount model**. Steps:
+     1. Sum all holdings at current market value (listed) or estimated fair value (unlisted).
+        Divide by share count → NAV per share.
+     2. Current discount to NAV = (NAV/share − price) / NAV/share.
+     3. Project NAV CAGR (5-10% typical for quality portfolios).
+     4. Three scenarios varying NAV CAGR (pessimistic/base/optimistic) and exit discount
+        (wider/same/narrower). Even the bear case can generate acceptable returns when the
+        current discount is large — the discount IS the margin of safety.
+     5. Return = NAV growth + discount compression. Both are explicit return sources.
+     **Dominant holding check**: if one holding > 50% of NAV, compute it as % of *market cap*.
+     If ≥ 100%: the market is pricing all other assets at ≤ 0. Flag this explicitly — it is
+     the single most important data point in a holding company investment case.
    - *B2B / recurring revenue / acquisition-compounders* (CSU, Roper, Danaher-type): use FCF2S
      and an FCF exit multiple. Terminal multiple tiers by moat quality:
      Wide moat + long reinvestment runway: 22-25x | Wide moat + limited reinvestment: 17-20x
@@ -253,7 +266,9 @@ After completing your research, output ONLY a JSON object with this exact struct
   "ai_disruption_risk": "low" | "medium" | "high",
   "estimated_intrinsic_value_per_share": <number or null>,
   "margin_of_safety_pct": <number or null>,
-  "valuation_primary_metric": "fcf" | "earnings" | "revenue",
+  "valuation_primary_metric": "fcf" | "earnings" | "revenue" | "nav",
+  "nav_discount_to_market_pct": <number or null>,
+  "dominant_holding_pct_of_market_cap": <number or null>,
   "segment_model_used": true | false,
   "terminal_multiple_used": <number or null>,
   "irr_at_current_price": <number or null>,
@@ -294,6 +309,13 @@ Recommendation guide:
 - "pass": no identifiable moat, or fundamentals are too weak, or the thesis is unclear,
   or serious red flags (governance, fraud risk, balance sheet distress), or IRR < 10% even
   at a 20% discount to current price.
+- "pass (circle of competence)": the business may be attractive but you cannot confidently
+  enumerate the key risks — the industry is too unfamiliar, the regulatory framework is too
+  opaque, or the business model is too novel. Output "watchlist" for further research rather
+  than forcing a buy/sell verdict. Regulated industries (gambling, utilities, insurance) and
+  structurally declining ones (legacy media) often require deep sector knowledge before the
+  true risk profile becomes visible. Never confuse "I don't understand the risks" with
+  "the risks are low." Explicitly note in full_thesis when this criterion applies.
 
 Be rigorous and honest. A "pass" because no moat exists is better than a weak "buy".
 Never inflate conviction. The most dangerous recommendation is a high-conviction buy on a moatless business."""
