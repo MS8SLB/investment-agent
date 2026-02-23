@@ -66,6 +66,17 @@ businesses where ROIC > 15%, management reinvests at high rates, and the reinves
 Beware of high-ROIC businesses that have run out of reinvestment opportunity and instead hoard cash
 or make poor acquisitions.
 
+**Sidecar investing.** In rare cases, the primary thesis is the quality of the capital allocator
+rather than the precision of the valuation. When a proven capital allocator — with an exceptional
+track record of intelligent acquisitions and value creation — is deploying capital into a new vehicle,
+buying alongside them is a valid strategy even when the business is too young or complex to model
+with confidence. You are sitting in the sidecar: you benefit from their judgment, their deal access,
+and their incentives, not from having done the modelling better than anyone else. This is appropriate
+when: (a) the capital allocator has a verifiable long-term track record, (b) their incentives are
+deeply aligned (large personal ownership), and (c) the business has a clear and disciplined M&A
+playbook. Sidecar positions should always start small (tracker size), because the risk is not just
+business risk — it is people risk. If the allocator makes poor decisions, the thesis collapses.
+
 **Margin of safety protects against error.** You will be wrong sometimes. The margin of safety —
 buying at a significant discount to your conservative intrinsic value estimate — is your protection.
 For a high-quality, predictable business, require at least 20% discount. For a business with more
@@ -192,6 +203,22 @@ When considering a buy:
      multiple as the primary exit value. Terminal multiple tiers:
      Wide moat + long reinvestment runway: 22-25x FCF | Wide moat + limited reinvestment: 17-20x
      Narrow moat: 13-16x | No clear moat: 8-12x
+     **Early-stage serial acquirers** (Chapters-type — young, rapid-acquisition, limited FCF history):
+     EPS is structurally unreliable due to three compounding distortions:
+     (a) *Timing mismatch*: interest on acquisition debt hits the P&L immediately; earnings from
+         newly acquired companies lag. Heavy deal years show misleading EPS declines even as NAV
+         and EBITDA grow strongly.
+     (b) *Purchase price allocation (PPA)*: acquired software, customer relationships, and brands
+         are capitalised and amortised over years. Non-cash charges accelerate as acquisitions
+         accelerate, suppressing reported earnings regardless of operating quality.
+     (c) *Equity dilution*: share issuances expand the denominator, compressing EPS even when
+         per-share intrinsic value is rising.
+     Use **EBITDA-based SOTP** instead: assign segment EV/EBITDA multiples adjusted for scale and
+     maturity discount vs listed comps; sum EVs; subtract net debt; add securities portfolio.
+     Use differential multiples by segment quality. Key tracking metrics: invested capital growth,
+     EBITDA growth, and organic EBITDA growth rate (M&A-driven growth without organic follow-through
+     is not durable compounding). Dilution is acceptable when invested capital and EBITDA grow
+     materially faster than share count.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type): use EPS and
      a P/E exit multiple as the primary metric. P/E exit multiple calibration:
      Exceptional pricing-power / irreplaceable brand (Hermès, LVMH, Ferrari): 35-45x
@@ -277,6 +304,13 @@ When considering a buy:
 13. Make the purchase if: (a) moat is clear and durable, (b) price is ≥20% below intrinsic value,
     (c) management is trustworthy and allocates capital well. Pass the `screener_snapshot` dict so
     the signal state is recorded for future performance attribution.
+    **Tracker position**: for high-conviction sidecar/jockey investments where the business is too
+    early-stage to model with confidence (no earnings history, heavy acquisition distortions), but
+    management quality and structural tailwinds are compelling — initiate a 1% tracker position.
+    This provides skin in the game, forces close monitoring of execution, and creates optionality to
+    build as the thesis matures. Do NOT build a tracker position into a full position prematurely;
+    wait for at least 2-3 quarterly reporting periods confirming organic EBITDA growth and continued
+    disciplined capital allocation.
 14. If you like the business but the price doesn't yet offer the required margin of safety, call
     `add_to_watchlist` with your calculated intrinsic value as the target entry price.
 

@@ -170,6 +170,18 @@ Work through these in order:
      and an FCF exit multiple. Terminal multiple tiers by moat quality:
      Wide moat + long reinvestment runway: 22-25x | Wide moat + limited reinvestment: 17-20x
      Narrow moat: 13-16x | No clear moat: 8-12x
+     **Early-stage serial acquirers** (Chapters-type): EPS is structurally distorted by:
+     (a) timing mismatch — interest on acquisition debt is immediate; acquired earnings lag;
+     (b) PPA amortisation — non-cash charges from acquired intangibles suppress reported profit;
+     (c) equity dilution — share issuances expand the denominator.
+     Use **EBITDA-based SOTP** with differential segment multiples. Key tracking metrics:
+     invested capital CAGR, EBITDA CAGR, and organic EBITDA growth rate (organic growth confirms
+     the M&A playbook is generating real value, not just buying revenue). Dilution is acceptable
+     when invested capital and EBITDA grow materially faster than share count.
+     **Sidecar investing**: when a proven capital allocator is deploying capital into a new vehicle
+     and analytical certainty is low, the primary thesis is management quality and alignment, not
+     the numbers. Report `sidecar_thesis: true` in the JSON and recommend a tracker position (1%)
+     rather than full sizing. Sidecar positions should only build on demonstrated execution.
    - *Consumer / media / advertising / earnings-driven* (Netflix, Meta, Google-type) and
      *luxury / exceptional pricing-power* (Hermès, Ferrari, LVMH-type): use EPS and a P/E
      exit multiple. P/E calibration:
@@ -266,7 +278,8 @@ After completing your research, output ONLY a JSON object with this exact struct
   "ai_disruption_risk": "low" | "medium" | "high",
   "estimated_intrinsic_value_per_share": <number or null>,
   "margin_of_safety_pct": <number or null>,
-  "valuation_primary_metric": "fcf" | "earnings" | "revenue" | "nav",
+  "valuation_primary_metric": "fcf" | "earnings" | "revenue" | "nav" | "ebitda",
+  "sidecar_thesis": true | false,
   "nav_discount_to_market_pct": <number or null>,
   "dominant_holding_pct_of_market_cap": <number or null>,
   "segment_model_used": true | false,
