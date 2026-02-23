@@ -34,6 +34,11 @@ has a durable competitive advantage. The five moat sources are:
   (e.g. marketplaces, payment networks, social platforms)
 - **Cost advantages**: Structural cost edge from scale, proprietary processes, or geography
 - **Intangible assets**: Brands, patents, licenses, or proprietary data competitors cannot replicate
+- **Regulatory licence / relationship**: In regulated industries (gambling, spectrum, utilities,
+  credit ratings), the *licence itself* is the moat. Existing operators have incumbency that takes
+  decades to challenge. The *relationship* with regulators — being a trusted operator with a long
+  track record — matters as much as the piece of paper. Governments rarely revoke licences from
+  incumbents who operate responsibly, but they do restrict new entrants.
 - **Efficient scale**: A niche market served by one or two players where new entry is irrational
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
@@ -69,6 +74,15 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
 - Is the software cost <1% of customer revenue? (makes cost-saving from AI switching unattractive)
 - Could AI-native startups enter from below with smaller teams and lower prices? (real risk to assess)
 
+**Platform engagement check** (for any business monetising a user base):
+- Require *active* user metrics, not just *registered* totals. "Registered users" without
+  engagement data is a red flag — a registered user who never opens the app cannot be monetised.
+- If a company reports registered/total users but refuses to disclose MAU, DAU, or time-on-platform,
+  treat the user base metric with deep scepticism.
+- Apply Peter Thiel's heuristic: powerful businesses tend to *understate* their competitive position
+  (to avoid regulatory attention); weak businesses *overstate* it. Conspicuous promotion of large
+  user counts alongside silence on engagement quality is a warning sign for the entire thesis.
+
 ## Decision Framework
 
 When considering a buy:
@@ -99,6 +113,12 @@ When considering a buy:
    - Period 2 (years 4-5): growth rate as the business matures or an investment-heavy segment
      starts generating returns (e.g. Reality Labs 15% → 20% as VR/AR scales)
    This is more honest than a single rate across all five years.
+   **Unit economics bottoms-up check**: For asset-heavy businesses (retail, gaming venues,
+   restaurants, cinemas, hotels), sanity-check top-down revenue with per-unit economics:
+   (revenue per store/venue/unit/day) × (unit count) = expected annual revenue. If the top-down
+   model implies per-unit economics dramatically above current run rates, flag this explicitly.
+   For example: $470 win/unit/day × 1,200 HRM machines = ~$200M annual venue revenue. This
+   cross-check catches overoptimistic roll-out assumptions and anchors the model to observable data.
 
    **FCF2S (Free Cash Flow to Shareholders)**: Adjust reported FCF for items that distort it:
    - Add back deferred revenue liabilities or earnout obligations that represent committed
@@ -112,6 +132,13 @@ When considering a buy:
    earnings (e.g. Reality Labs for Meta), EPS and P/E become meaningless. Use FCF per share
    as the primary per-share metric in these cases — it reflects what the core business actually
    earns, uncontaminated by the loss-making investment segment.
+
+   **CapEx/D&A ratio as a forward earnings quality signal**: When CapEx significantly exceeds D&A
+   (ratio >2x, and especially >3-4x), the asset base is growing faster than it is being expensed.
+   Future depreciation charges have not arrived yet — current operating margins are *overstated*
+   relative to where they will be once the capital cycle normalises. A ratio of 3-4x means a
+   multi-year D&A surge is coming that will compress reported margins even if the business itself
+   is performing well. Model this forward D&A headwind explicitly when projecting earnings.
 
    **Margin trajectory**: Note whether FCF margins are expanding, stable, or contracting.
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
@@ -188,6 +215,15 @@ When considering a buy:
    this is an outright PASS — not a watchlist candidate. A wonderful business at a bad price is as
    much a value trap as a bad business at a cheap price. There is no margin of safety to exploit
    when you are paying a 30-40% premium to fair value.
+
+   **Multiple compression bear case** (mandatory for stocks trading at >35x P/E or >25x FCF):
+   Model explicitly: "What happens if the multiple simply halves, with earnings flat?" At 50x P/E,
+   a compression to 25x with unchanged earnings means a -50% price decline before any fundamental
+   deterioration. This is not a thesis about the business quality — the business can remain
+   excellent and still deliver poor returns from an extreme starting multiple. A wonderful business
+   at too high a price is not a safe investment. When the multiple compression scenario produces
+   a -40% or worse outcome, this is a PASS unless the IRR at a more moderate entry price (e.g.
+   after a 30%+ drawdown) is compelling.
 
    **Maximum entry price** = fair value × (1 − margin of safety %). Write this number
    explicitly in the thesis — it is your ceiling price, not a suggestion.

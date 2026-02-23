@@ -72,6 +72,9 @@ Work through these in order:
    - *Network effects*: Does the product get more valuable as users grow?
    - *Cost advantage*: Structural scale, process, or geography advantage over competitors?
    - *Intangible assets*: Proprietary data, brands, patents, regulatory licences?
+   - *Regulatory licence / relationship*: In regulated industries (gambling, spectrum, utilities,
+     credit ratings), the licence is the moat. Incumbency built over years of being a trusted
+     operator is a genuine competitive advantage that new entrants cannot buy or replicate quickly.
    - *Efficient scale*: Niche served by 1-2 players where new entry is irrational?
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
@@ -79,6 +82,14 @@ Work through these in order:
    - Is the product mission-critical with compliance/chain-of-custody requirements? (protective)
    - Are customers highly cost-sensitive and AI alternatives nearly ready? (risky)
    - Could AI-native startups enter from below with small teams at lower prices? (assess honestly)
+   **Platform engagement check** (for any business monetising users or physicians or any audience):
+   - Require *active* engagement metrics (MAU, DAU, time-on-platform), not just registered totals.
+     "Registered users" without engagement data cannot be reliably monetised.
+   - If the company reports registered/member counts but refuses to disclose engagement, treat
+     the user base claim with deep scepticism and increase the weight on the bear case.
+   - Apply the Thiel heuristic: powerful businesses tend to understate their competitive position
+     (to avoid regulatory scrutiny); weak businesses overstate theirs. Heavy promotion of large
+     "user count" alongside silence on engagement quality is a yellow flag for the entire thesis.
 4. **Intrinsic value estimate** — build a segment-aware, FCF2S-based valuation:
 
    **a) Revenue quality and segment modelling** — break revenue into its natural segments:
@@ -95,6 +106,11 @@ Work through these in order:
      maturation rate. An investment-heavy segment (e.g. Reality Labs) may accelerate in
      period 2 as returns start flowing; a mature segment may decelerate.
    - Estimate the recurring revenue % for reporting in the JSON output.
+   - **Unit economics bottoms-up check** (for asset-heavy businesses — retail, gaming venues,
+     restaurants, hotels): sanity-check top-down revenue with: (revenue/unit/day) × (unit count).
+     Example: $470 win/unit/day × 1,200 HRMs = ~$200M annual venue revenue. Cross-check this
+     against top-down projections. If the top-down model implies per-unit economics well above
+     current run rates, flag this as an assumption requiring specific justification.
 
    **b) FCF2S (Free Cash Flow to Shareholders)** — use adjusted FCF, not just reported FCF:
    - Start with operating FCF from the 10-K or earnings release
@@ -107,6 +123,12 @@ Work through these in order:
    - When a non-core segment generates GAAP losses that make P/E meaningless (e.g. Reality
      Labs for Meta), use FCF per share as the primary per-share metric instead of EPS.
      FCF/share reflects what the core business earns, uncontaminated by investment losses.
+
+   **CapEx/D&A ratio as forward earnings quality signal**: When CapEx significantly exceeds D&A
+   (ratio >2x), the asset base is growing faster than it is being expensed. Current margins are
+   overstated — future D&A will surge and compress reported earnings even if operations are healthy.
+   A ratio >3-4x (e.g. Meta's AI build-out) means a multi-year depreciation headwind is coming.
+   Report `capex_to_da_ratio` in the JSON output. If >2.5x, flag as an earnings quality risk.
 
    **c) FCF margin trajectory** — is the margin expanding, stable, or contracting?
    - Expanding (e.g. 15% → 18% over 3 years): business has operating leverage; IV growing
@@ -172,6 +194,13 @@ Work through these in order:
    - Consumer / media / platform (competitive, macro-sensitive): 30% required
    - Cyclical, turnaround, or unclear thesis: 40% required
 
+   **Multiple compression bear case** (required for stocks trading at >35x P/E or >25x FCF):
+   Model explicitly: "What happens if the multiple halves, with earnings unchanged?" At 50x P/E,
+   a compression to 25x with flat earnings = -50% price decline before any fundamental deterioration.
+   A wonderful business remains wonderful; the problem is the entry price. When this scenario
+   produces a -40%+ outcome, output a PASS unless the IRR at a more moderate future entry price
+   (after a 30%+ drawdown) would be compelling. Report this scenario explicitly in `key_risks`.
+
    Overvaluation threshold: if the current price is significantly above fair value (IRR at
    current price is below the discount rate, e.g. <8%), this is an outright PASS — not a
    watchlist entry. A good business at a 30-40% premium to fair value has no margin of safety
@@ -219,7 +248,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "key_positives": ["<point 1>", "<point 2>", "<point 3>"],
   "key_risks": ["<risk 1>", "<risk 2>"],
   "full_thesis": "<2-3 sentences covering: moat type, intrinsic value basis, margin of safety, what would cause a sell>",
-  "moat_type": "switching_costs" | "network_effects" | "cost_advantage" | "intangible_assets" | "efficient_scale" | "mixed" | "none",
+  "moat_type": "switching_costs" | "network_effects" | "cost_advantage" | "intangible_assets" | "regulatory_license" | "efficient_scale" | "mixed" | "none",
   "moat_durability": "strong" | "moderate" | "weak" | "none",
   "ai_disruption_risk": "low" | "medium" | "high",
   "estimated_intrinsic_value_per_share": <number or null>,
@@ -234,6 +263,7 @@ After completing your research, output ONLY a JSON object with this exact struct
   "revenue_cagr_5yr_pct": <number or null>,
   "op_income_cagr_5yr_pct": <number or null>,
   "em_discount_applied": true | false,
+  "capex_to_da_ratio": <number or null>,
   "capital_allocation_quality": "excellent" | "good" | "average" | "poor",
   "earnings_risk": "low" | "medium" | "high",
   "insider_signal": "bullish" | "neutral" | "bearish",
