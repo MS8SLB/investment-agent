@@ -305,6 +305,15 @@ Work through these in order:
      at <50% of industry marketing spend, record this as a moat signal in `full_thesis`. If
      marketing spend is rising abruptly toward peer levels, flag in `key_risks` as a signal
      that organic pull may be fading and paid demand is compensating — moat deterioration.
+   - *Competitor segmentation by average transaction size and customer job-to-be-done*: before
+     crediting a competitive threat, verify the apparent competitor's customers genuinely overlap
+     with the subject company's. Test: (a) average transaction size — a 5-10x+ divergence implies
+     distinct customer bases; (b) primary job-to-be-done — superficially similar products can
+     serve fundamentally different needs; (c) strategic direction — is the competitor moving
+     up-market (B2B, larger ticket) while the subject serves a lower-market niche? If all three
+     diverge, classify as "non-overlapping competitor" in `full_thesis` and note that the market
+     may be pricing a phantom competitive threat. Do not apply a competitive-threat discount to
+     the valuation when this analysis shows non-overlap.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
@@ -549,6 +558,18 @@ Work through these in order:
    compounds the signal. Flag in `key_risks` if inventory turnover has declined for 2+ consecutive
    quarters, and note whether management has initiated promotions that could accelerate brand erosion.
 
+   **Maintenance marketing / steady-state profitability analysis**: for customer acquisition-
+   driven businesses with high marketing spend (>20% of revenue), compute underlying steady-
+   state profitability by replacing actual marketing with maintenance-only spend: (1) estimate
+   churn rate from disclosed retention rate (e.g., 90% retention → 10% churn); (2) churn rate
+   × active customers = customers to replace annually; (3) replacements × CAC = maintenance
+   marketing spend; (4) rebuild the P&L with maintenance marketing in place of total marketing.
+   Result = earnings the business would generate if it stopped growing. Report this steady-state
+   P/E or P/FCF multiple alongside the GAAP multiple in `valuation_inputs` — the gap between
+   the two shows how much of current marketing spend is growth investment (not cost) and reveals
+   hidden earnings power. Flag: "growth investment intensity = (total marketing − maintenance
+   marketing) / net income" — higher intensity = more optionality if growth slows.
+
    **d) Pricing-led vs. volume-led operating leverage**: before modeling margin trajectory,
    identify whether revenue growth is primarily *price-driven* (rising ASP per unit) or
    *volume-driven* (more units at stable prices). Price-driven growth has superior leverage:
@@ -560,6 +581,18 @@ Work through these in order:
    as a structural, mechanically earned outcome. If volume dominates: stress-test costs at scale
    and be sceptical of margin expansion projections. Note in `full_thesis` whether margin
    expansion is price-driven (credible) or volume-driven (execution-dependent).
+
+   **Marketing spend trajectory as FCF inflection signal**: for customer acquisition-driven
+   businesses, identify the current stage of the marketing flywheel — Stage 1 (marketing
+   >30% of revenue, building from scratch), Stage 2 (marketing/revenue declining for 2+
+   consecutive years, flywheel becoming self-reinforcing), Stage 3 (marketing 15-25% of
+   revenue, normalized FCF conversion). The Stage 1 → Stage 2 transition is typically the
+   best entry point: the stock looks expensive on current earnings, but marketing spend above
+   the Stage 3 normalized rate is more accurately classified as capex (investment in future
+   customer cash flows) than a current-period cost. Model Stage 3 marketing/revenue (15-25%)
+   to estimate normalized FCF alongside reported FCF in `valuation_inputs`. Note current stage
+   in `full_thesis`. Signal that Stage 2 has begun: 2+ years of declining marketing/revenue
+   from >30% peak, with no simultaneous deceleration in customer growth metrics.
 
    **e) FCF margin trajectory** — is the margin expanding, stable, or contracting?
    - Expanding (e.g. 15% → 18% over 3 years): business has operating leverage; IV growing

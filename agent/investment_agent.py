@@ -272,6 +272,19 @@ has a durable competitive advantage. The five moat sources are:
   merely cost efficiency. Conversely, if marketing spend rises abruptly toward peer levels, it
   may signal the grassroots engine is losing traction and the brand is substituting paid
   advertising for organic pull — a moat deterioration warning.
+  *Competitor segmentation by average transaction size and customer job-to-be-done*: before
+  crediting a competitive threat, verify that the apparent competitor's customers are actually
+  the same customers. Two companies in the same broad category often serve entirely different
+  markets. Test with: (a) average transaction size — a 5-10x+ divergence strongly implies
+  distinct customer bases and non-overlapping competitive dynamics (e.g., $300 migrant-worker
+  remittance vs. $3,000 expat business transfer); (b) primary customer job-to-be-done — "send
+  money home monthly to support family" is fundamentally different from "manage my own money
+  across borders," even if both products move money internationally; (c) strategic direction
+  — is the apparent competitor moving up-market (larger ticket, B2B) while your company serves
+  a lower-market niche? If all three diverge, classify as non-overlapping competitors: the
+  market may be pricing in a competitive threat that does not materially exist, creating a
+  mispricing opportunity. Apply this test before building any competitive-threat discount into
+  the valuation.
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.
@@ -629,6 +642,22 @@ When considering a buy:
    concentration) or a structural change (permanently elevated working capital from expansion),
    and size the impact on intrinsic value.
 
+   **Maintenance marketing / steady-state profitability analysis**: for customer acquisition-
+   driven growth businesses with high marketing spend, reveal hidden underlying earnings power
+   by replacing actual marketing spend with the theoretical cost of merely maintaining the
+   current customer base — analogous to maintenance capex for capital-intensive businesses.
+   Method: (1) estimate churn rate from disclosed customer retention rate (e.g., 90% retention
+   → 10% churn); (2) churn rate × current active customers = gross customers to replace per
+   year; (3) gross replacements × customer acquisition cost (CAC) = "maintenance marketing"
+   spend; (4) rebuild the P&L replacing total marketing spend with maintenance marketing spend.
+   The resulting earnings is the steady-state profitability — what the business earns if it
+   stops investing in growth and sustains its current base. Use this to: (a) compute bear-case
+   intrinsic value on a steady-state P/E basis; (b) reveal whether a stock that looks expensive
+   on reported GAAP earnings is cheap on maintenance earnings; (c) establish that marketing
+   above the maintenance level is an investment decision (economic capex), not a current-period
+   operating cost. Flag the gap between GAAP earnings and steady-state earnings as "growth
+   investment intensity" — the higher it is, the more optionality exists if growth slows.
+
    **Retail brand deterioration — inventory early-warning chain**: for consumer goods, apparel,
    and footwear companies, financial deterioration almost always follows the same causal sequence:
    (1) demand softening → (2) inventory builds as reorder rates outpace sell-through → (3) falling
@@ -657,6 +686,22 @@ When considering a buy:
    the company has demonstrated it can scale operations efficiently, and be sceptical of margin
    expansion assumptions. Note explicitly in the thesis whether margin expansion is price-driven
    (credible, mechanically earned) or volume-driven (execution-dependent).
+
+   **Marketing spend trajectory as FCF inflection signal**: high-growth customer acquisition-
+   driven businesses that invest 30-40% of revenue in marketing during scale-up exhibit a
+   predictable FCF inflection when marketing normalizes. The three-stage pattern: Stage 1 —
+   marketing/revenue >30% as the company builds from scratch, spending ahead of the flywheel
+   (appears highly unprofitable on any standard earnings measure); Stage 2 — marketing/revenue
+   begins declining consistently for 2+ years as the flywheel becomes partially self-reinforcing
+   (organic/word-of-mouth supplements paid spend, CAC begins falling per unit); Stage 3 —
+   marketing/revenue settles at 15-25% and FCF conversion improves dramatically. The transition
+   from Stage 1 → Stage 2 is typically the optimal entry point: the stock appears expensive on
+   current reported earnings but is cheap on normalized forward FCF, since marketing above the
+   Stage 3 normalized rate is more accurately classified as capex (investment in future customer
+   cash flows) than a current-period cost. Explicitly model Stage 3 marketing/revenue (15-25%)
+   to estimate normalized FCF and report alongside reported FCF. Inflection signal: 2+ consecutive
+   years of declining marketing/revenue from a peak of >30%, with no simultaneous deceleration
+   in customer growth or engagement metrics.
 
    **Margin trajectory**: Note whether FCF margins are expanding, stable, or contracting.
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
