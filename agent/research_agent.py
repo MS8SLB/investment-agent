@@ -79,6 +79,21 @@ Work through these in order:
    gross margins for a claimed-software business resemble brick-and-mortar retail economics — do
    not apply software-grade multiples. Report `gross_margin_pct` in the JSON output; flag if <60%
    for a "software/platform" business.
+   **App store fee exposure as structural margin constraint**: for digital subscription
+   businesses distributed through iOS and Android app stores, Apple and Google charge
+   15-30% on in-app purchase revenue. Unlike physical-world businesses (ride-hailing, food
+   delivery, restaurant ordering) that are often exempt because the transaction is ancillary
+   to a real-world service, pure digital subscriptions (dating apps, streaming, productivity,
+   gaming) typically cannot avoid these fees. Impact: (a) for a business transacting 60%+
+   of subscriptions through app stores, the gross margin ceiling is permanently compressed —
+   the fee appears in COGS, invisible in operating margin discussions; (b) as users migrate
+   from web/desktop to mobile, app store exposure rises, reversing the operating leverage
+   normally expected from scale; (c) any regulatory fee reduction (Epic v. Apple precedent,
+   EU Digital Markets Act) is an immediate high-quality margin windfall with no offsetting
+   costs. When modelling: (i) estimate what share of revenue transacts through app stores
+   vs. direct web billing; (ii) quantify the gross margin impact; (iii) treat fee reduction
+   as an identified upside catalyst, not organic improvement. Flag in `key_risks` when app
+   store fee exposure exceeds 15% of total revenue.
 2. **Moat identification** — based on fundamentals and SEC filings, classify the moat:
    - *Switching costs*: Are customers deeply embedded? Would switching disrupt critical operations?
      Is software <1-2% of customer revenue (makes cost-saving from switching unattractive)?
@@ -165,6 +180,17 @@ Work through these in order:
      When a services segment runs at breakeven yet the subscription business shows 90%+ retention,
      the services segment is an unrecognised moat-strengthening investment, not a drag.
    - *Network effects*: Does the product get more valuable as users grow?
+     *Network effect reversal risk*: network effects can invert. When a platform loses
+     quality users — through successful outcomes (dating apps: users find partners), competitive
+     displacement, or degraded experience (spam, harassment, low match/reply rates) — the
+     remaining network becomes less valuable, accelerating further quality exodus in a self-
+     reinforcing spiral. Signal: MAU decline concurrent with engagement quality decline (fewer
+     matches, lower reply rates, rising fake-profile ratio, shorter session lengths). For any
+     business claiming a network-effects moat, explicitly assess current direction: is the
+     flywheel spinning normally (growth compounding value) or in reverse (decline compounding
+     further decline)? A network in reverse is not a moat — it actively accelerates
+     deterioration. Flag as `moat_durability: "weak"` and note reversal risk in `key_risks`
+     when sustained user decline coexists with engagement quality deterioration.
    - *Cost advantage*: Structural scale, process, or geography advantage over competitors?
    - *Intangible assets*: Proprietary data, brands, patents, regulatory licences?
    - *Regulatory licence / relationship*: In regulated industries (gambling, spectrum, utilities,
@@ -269,6 +295,20 @@ Work through these in order:
    count + growing ARR — a quality improvement, not a warning. Always decompose customer metrics
    by segment when assessing AI disruption. Report `ai_disruption_risk` at the customer-segment
    level in `key_risks`; do not apply a single risk rating to a heterogeneous customer base.
+   **Success-driven churn ceiling** (businesses where the product works by eliminating the
+   customer's need for it): distinguish between (a) *failure-driven churn* — product
+   disappointed and customer left; (b) *competitive churn* — customer switched to a rival;
+   and (c) *success-driven churn* — product worked so well the customer no longer needs it
+   (dating apps: user found a partner; weight loss app: goal achieved; one-time legal/financial
+   event: resolved). Success-driven churn creates a structural tension between product quality
+   and business durability — improving the product accelerates churn. Consequences: (a) customer
+   acquisition cost is permanently high relative to LTV; the funnel must constantly refill with
+   new users rather than compounding an installed base; (b) NRR is structurally capped below
+   100% by design — the product cannot cross-sell into a customer who has exited; (c) terminal
+   multiples should be materially lower than for sticky SaaS businesses with equivalent current
+   FCF margins. Test: "Does the product work *because* the customer eventually leaves?" If yes,
+   apply a multiple discount vs. sticky-subscription comparables, verify unit economics are
+   sustainable at the cohort level, and flag this dynamic explicitly in `full_thesis`.
    **Platform engagement check** (for any business monetising users or physicians or any audience):
    - Require *active* engagement metrics (MAU, DAU, time-on-platform), not just registered totals.
      "Registered users" without engagement data cannot be reliably monetised.

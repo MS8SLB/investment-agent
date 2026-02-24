@@ -134,6 +134,15 @@ has a durable competitive advantage. The five moat sources are:
   the multi-year subscription revenue it locks in, not its own P&L contribution.
 - **Network effects**: The product becomes more valuable as more people use it
   (e.g. marketplaces, payment networks, social platforms)
+  *Network effect reversal risk*: network effects can invert. When a platform loses quality
+  users — through successful outcomes (dating apps: users who found partners), competitive
+  displacement, or degraded experience (spam, harassment, poor match quality) — the remaining
+  network becomes less valuable, accelerating further quality exodus in a self-reinforcing
+  spiral. Signal: sustained MAU decline concurrent with engagement quality decline (fewer
+  matches, lower reply rates, rising fake-profile ratio). For any business claiming a network-
+  effects moat, assess current direction: is the flywheel spinning normally or in reverse?
+  A network in reverse actively accelerates deterioration. Downgrade moat durability to "weak"
+  when sustained user decline + engagement quality decline coexist.
 - **Cost advantages**: Structural cost edge from scale, proprietary processes, or geography
 - **Intangible assets**: Brands, patents, licenses, or proprietary data competitors cannot replicate
 - **Regulatory licence / relationship**: In regulated industries (gambling, spectrum, utilities,
@@ -321,6 +330,18 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
   toward higher-value, stickier customers, not a warning signal. Always decompose customer count
   trends by customer size/complexity when assessing AI disruption for a multi-tier software business.
 
+**Success-driven churn ceiling** (businesses where the product works by eliminating the
+customer's need for it): distinguish three churn types: (a) *failure-driven* — product
+disappointed; (b) *competitive* — customer switched to a rival; (c) *success-driven* —
+product worked so well the customer no longer needs it (dating app: partner found; weight
+loss app: goal achieved; one-time legal/financial event: resolved). Success-driven churn
+creates a structural tension between product quality and business durability — a better
+product means faster churn. Consequences: (a) CAC is permanently high relative to LTV; the
+funnel must constantly refill rather than compounding an installed base; (b) NRR is
+structurally capped below 100% by design; (c) terminal multiples should be materially lower
+than for sticky SaaS at equivalent current margins. Test: "Does the product work *because*
+the customer eventually leaves?" If yes, apply a multiple discount vs. sticky-subscription
+comparables and do not award wide-moat, high-multiple treatment regardless of current FCF margins.
 **Platform engagement check** (for any business monetising a user base):
 - Require *active* user metrics, not just *registered* totals. "Registered users" without
   engagement data is a red flag — a registered user who never opens the app cannot be monetised.
@@ -390,6 +411,17 @@ When considering a buy:
    Sub-60% gross margins for a claimed-software business warrant an explicit explanation — they are
    more typical of brick-and-mortar retail or hardware, not scalable platforms. Do not apply software
    multiples to a business with retail-grade gross margins.
+   **App store fee exposure as structural margin constraint**: for digital subscription businesses
+   distributed through iOS and Android, Apple and Google charge 15-30% on in-app purchase revenue.
+   Physical-world businesses (ride-hailing, food delivery) are often exempt because the digital
+   transaction is ancillary to a real-world service; pure digital subscriptions are not. Impact:
+   (a) for a business transacting 60%+ of subscriptions through app stores, the gross margin ceiling
+   is permanently compressed — visible in COGS, invisible in operating margin discussions; (b) as
+   users migrate from web/desktop to mobile, app store exposure rises, reversing the operating
+   leverage expected from scale; (c) any regulatory fee reduction is an immediate high-quality margin
+   windfall. When evaluating pure digital subscription businesses: estimate what share of revenue
+   flows through app stores vs. direct web billing, quantify the margin impact, and flag fee
+   reduction as a specific upside catalyst. Do not model this away as "manageable" without quantifying.
 5. **Estimate intrinsic value** — use a segment-aware, FCF2S-based two-stage model:
 
    **Revenue quality and segment modelling**: Break revenue into its distinct business lines.
