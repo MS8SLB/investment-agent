@@ -215,6 +215,17 @@ has a durable competitive advantage. The five moat sources are:
   party content at scale. A public dispute triggering user outrage directed at the platform
   (not the content owner) confirms content-side dominance. Classify as "intangible_assets"
   or "mixed" moat; note the bilateral dependency structure explicitly when present.
+  *Value chain position — component monopolist vs. assembler*: in any technology or industrial
+  supply chain, pricing power and margin accretion concentrate at the layer with genuine IP
+  scarcity, not at the assembly/integration layer. Compare gross margins up and down the supply
+  chain. If a component supplier earns 60-70%+ gross margins while the system assembler earns
+  5-15%, the value accretes to the component; the assembler's revenue is a pass-through of the
+  component's economics. Rapid assembler revenue growth translates into little incremental
+  profit: "dollar accretive, rate dilutive." Applies to: server OEMs assembling GPU clusters,
+  hardware resellers, and any integrator whose differentiation is execution rather than IP.
+  Key test: does the assembler have proprietary IP (software stack, custom design, services
+  layer) that justifies a sustainable margin? If not, classify moat as "none" regardless of
+  market share. Note this explicitly in the investment thesis when it applies.
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.
@@ -310,6 +321,17 @@ capital elsewhere. Boredom, short-term underperformance, and macroeconomic noise
   only requires AI to make the intermediary step *unnecessary* for the end user. The more a business
   relies on being a discovery/aggregation layer vs. owning proprietary supply or providing deep
   post-booking operational value, the higher this specific risk.
+- **Hyperscaler / dominant buyer in-sourcing risk**: If the company derives >25% of revenue
+  from a small number of hyperscale technology buyers (Amazon, Microsoft, Google, Meta), assess
+  vertical integration threat explicitly. These buyers have the engineering resources, capital,
+  and strategic incentive to replicate what they currently purchase externally. The risk is
+  highest for: (a) components with no proprietary IP barrier; (b) products where the supplier's
+  gross margin signals attractive economics worth replicating; (c) categories where the
+  hyperscaler has already announced adjacent internal investments. In-sourcing by even one
+  hyperscaler can trigger a customer concentration cliff. Model a bear case in which 30-50% of
+  hyperscaler volume is in-sourced over 5 years, and evaluate whether the remaining business
+  can sustain the current cost structure. Caps pricing power even before in-sourcing occurs —
+  the threat alone suppresses contract renewal leverage.
 - **AI disruption stratification by customer segment**: for software businesses serving multiple
   customer tiers (SMB through enterprise), AI disruption risk is not uniform — assess each segment
   separately:
@@ -550,6 +572,16 @@ When considering a buy:
    relative to where they will be once the capital cycle normalises. A ratio of 3-4x means a
    multi-year D&A surge is coming that will compress reported margins even if the business itself
    is performing well. Model this forward D&A headwind explicitly when projecting earnings.
+
+   **Working capital normalization for spot FCF**: For hardware, distribution, or large
+   project-based businesses (e.g. server assemblers, EPC contractors, defense primes), spot
+   FCF can swing 2-5x around the true economic earnings rate due to timing of inventory builds,
+   customer prepayments, and project milestone billing. A single year's FCF for these businesses
+   is an unreliable valuation base — always calculate a 3-5 year average FCF to normalise for
+   working capital cycles. If the current year's FCF deviates materially from the 3-5yr average,
+   identify whether it is a timing effect (inventory pre-build ahead of demand surge, prepayment
+   concentration) or a structural change (permanently elevated working capital from expansion),
+   and size the impact on intrinsic value.
 
    **Margin trajectory**: Note whether FCF margins are expanding, stable, or contracting.
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster

@@ -253,6 +253,23 @@ Work through these in order:
      competing first-party content at scale. A public dispute triggering user outrage directed
      at the platform confirms content-side dominance. Report in `moat_type` as
      "intangible_assets"; describe the bilateral dependency balance explicitly in `full_thesis`.
+   - *Value chain position — component monopolist vs. assembler*: in any technology or
+     industrial supply chain, pricing power and margin accretion concentrate at the layer with
+     genuine IP scarcity or proprietary technology, not at the assembly/integration layer. The
+     test: compare gross margins across the value chain. If a component supplier earns 60-70%+
+     gross margins while the system assembler earns 5-15%, the value accretes to the component;
+     the assembler's revenue is largely a pass-through of the component supplier's economics.
+     Even rapid growth in assembler revenue translates into little additional profit: "dollar
+     accretive, rate dilutive." Applies to: server OEMs assembling GPU clusters, smartphone
+     manufacturers using third-party chips, hardware resellers, and any integrator whose
+     differentiation is execution rather than IP. Key checks: (i) what % of COGS flows to a
+     single component supplier whose pricing power exceeds the assembler's own? (ii) could the
+     end customer bypass the assembler and source components directly or in-house? (iii) does
+     the assembler have proprietary IP (software stack, custom design, thermal management,
+     services layer) that justifies a sustainable margin? If no proprietary IP and a component
+     monopolist dominates the supply chain, classify moat as "none" regardless of the
+     assembler's market share. Flag in `full_thesis` when a company occupies the assembler
+     position in a value chain dominated by a component or IP monopolist.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
@@ -280,6 +297,16 @@ Work through these in order:
      vs. proprietary supply or post-booking operations, the higher this specific risk. Flag in
      `ai_disruption_risk` as "high" if the business is a thin-margin discovery/aggregation layer
      with no proprietary supply.
+   **Hyperscaler / dominant buyer in-sourcing risk**: If a company derives >25% of revenue from
+   a small number of hyperscale technology buyers (Amazon, Microsoft, Google, Meta), assess the
+   vertical integration threat explicitly. These buyers have the engineering resources, capital,
+   and strategic incentive to build in-house what they currently purchase. The in-sourcing risk
+   is highest for: (a) components with no proprietary IP barrier; (b) products where the
+   supplier's gross margin signals attractive economics worth replicating; (c) categories where
+   the hyperscaler has already announced adjacent internal investments. Model a bear case in
+   which 30-50% of hyperscaler volume is in-sourced over 5 years. Set `ai_disruption_risk` to
+   "high" if >25% revenue concentration among ≤3 hyperscalers and no proprietary IP moat.
+   Flag the concentration and in-sourcing risk explicitly in `key_risks`.
    **AI disruption by customer segment**: for multi-tier software businesses (SMB through
    enterprise), AI disruption risk is not uniform — assess each segment separately:
    - *SMB / lower-end customers* (price-sensitive, simpler needs, shallower implementation): high
@@ -465,7 +492,16 @@ Work through these in order:
    A ratio >3-4x (e.g. Meta's AI build-out) means a multi-year depreciation headwind is coming.
    Report `capex_to_da_ratio` in the JSON output. If >2.5x, flag as an earnings quality risk.
 
-   **c) FCF margin trajectory** — is the margin expanding, stable, or contracting?
+   **c) Working capital normalization for spot FCF**: For hardware, distribution, or large
+   project-based businesses (e.g. server assemblers, EPC contractors, defense primes), spot
+   FCF can swing 2-5x around the true economic earnings rate due to inventory builds, customer
+   prepayments, and project-milestone billing timing. Never rely on a single year's FCF for
+   these business types. Calculate a 3-5 year average FCF and use that as the normalised base
+   for valuation. If current-year FCF deviates materially from the 3-5yr average, flag the
+   working capital driver in `full_thesis` and explain whether it is a timing effect or a
+   structural change.
+
+   **d) FCF margin trajectory** — is the margin expanding, stable, or contracting?
    - Expanding (e.g. 15% → 18% over 3 years): business has operating leverage; IV growing
      faster than revenue; compounding machine — assign a premium
    - Stable (±1%): predictable but no operating leverage bonus
