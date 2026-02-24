@@ -270,6 +270,19 @@ Work through these in order:
      monopolist dominates the supply chain, classify moat as "none" regardless of the
      assembler's market share. Flag in `full_thesis` when a company occupies the assembler
      position in a value chain dominated by a component or IP monopolist.
+   - *Fashion / consumer brand lifecycle — mainstream adoption ceiling*: consumer and fashion
+     brand moats follow a predictable adoption curve: early adopters → early majority →
+     mainstream → saturation → irrelevance. Most non-luxury brands cannot survive mainstream
+     saturation — the early adopters who built aspirational identity move on. Only a small set
+     transcend (Nike, LVMH maisons, Hermès) through: (a) continuous product innovation;
+     (b) celebrity/athlete cultural anchoring refreshing appeal across generations; (c) true
+     scarcity-based luxury positioning. When evaluating a consumer brand, identify where it sits
+     on the adoption curve and whether multi-cycle transcendence evidence exists. Set
+     `moat_durability` to "weak" for single-cycle fashion brands at mainstream saturation; to
+     "moderate" for brands with transcendence signals (proven repeat cohorts, international
+     expansion, product tier depth); to "strong" only when multi-cycle durability is confirmed.
+     Flag "cyclical peak risk" in `key_risks` when mainstream saturation is evident without
+     proven transcendence mechanisms.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
@@ -500,6 +513,19 @@ Work through these in order:
    for valuation. If current-year FCF deviates materially from the 3-5yr average, flag the
    working capital driver in `full_thesis` and explain whether it is a timing effect or a
    structural change.
+
+   **Retail brand deterioration — inventory early-warning chain**: for consumer goods, apparel,
+   and footwear businesses, financial deterioration almost always follows the same sequence:
+   (1) demand softening → (2) inventory builds as reorder rates exceed sell-through → (3) inventory
+   turnover declines (below prior 2-year average = flag; below 4x/yr for fashion = warning) →
+   (4) promotional discounting to clear stock → (5) gross margin compression → (6) brand equity
+   erosion as customers anchor to sale prices. Once stage 6 occurs, a full brand reset is required.
+   Monitor days inventory outstanding (DIO) and the cash conversion cycle each quarter. A DIO
+   uptick ahead of a revenue shortfall is the earliest visible signal. A single-quarter spike may
+   be a timing anomaly; two consecutive quarters of worsening DIO + flat or falling revenue confirm
+   a structural problem. Rising DSO alongside inventory builds (wholesale partners paying late)
+   compounds the signal. Flag in `key_risks` if inventory turnover has declined for 2+ consecutive
+   quarters, and note whether management has initiated promotions that could accelerate brand erosion.
 
    **d) Pricing-led vs. volume-led operating leverage**: before modeling margin trajectory,
    identify whether revenue growth is primarily *price-driven* (rising ASP per unit) or
@@ -810,6 +836,18 @@ Work through these in order:
    <1% annual share count reduction — the implied buyback yield is negligible. Report the
    effective buyback yield (annual share count % reduction ÷ % earnings allocated) as a capital
    efficiency ratio in the JSON output.
+   **Buyback authorization as % of market cap — downside floor at depressed valuations**: when a
+   stock is severely depressed, a large remaining buyback authorization relative to market cap
+   becomes a quantifiable downside protection mechanism. Compute: remaining buyback authorization
+   ÷ current market cap. If this ratio exceeds 20-25%, management can retire a substantial share
+   of the float at current prices — EPS accretes from share count compression even with flat
+   revenues, creating a soft demand floor. Conditions for this to be genuine protection: (a) FCF
+   covers the authorization without exceeding the target net leverage range; (b) management has
+   executed on prior buyback commitments (verify actual share count reduction vs. stated
+   authorizations); (c) authorization does not depend on a revenue recovery yet to occur. When
+   conditions are met, model buyback EPS accretion explicitly in the bear case. Report the
+   authorization-to-market-cap ratio; flag in `capital_allocation_quality` as a downside cushion
+   when ratio > 20% and the programme is FCF-funded.
    **Governance structure / share class**: examine voting rights before investing. A zero-vote or
    near-zero-vote public share class (Class A = 0 or 1 vote; founders Class B = 10 votes) means
    public shareholders have no influence on capital allocation or governance regardless of economic

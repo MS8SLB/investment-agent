@@ -226,6 +226,20 @@ has a durable competitive advantage. The five moat sources are:
   Key test: does the assembler have proprietary IP (software stack, custom design, services
   layer) that justifies a sustainable margin? If not, classify moat as "none" regardless of
   market share. Note this explicitly in the investment thesis when it applies.
+  *Fashion / consumer brand lifecycle — mainstream adoption ceiling*: for consumer goods
+  and fashion brands, even genuine brand moats are subject to a predictable adoption cycle:
+  early adopters → early majority → mainstream adoption → saturation → irrelevance. Most
+  non-luxury brands cannot survive the transition to full mainstream because once the brand
+  becomes ubiquitous, the early adopters who defined its aspirational identity move on. Very
+  few brands transcend this cycle — those that do demonstrate: (a) continuous product innovation
+  or tier expansion that perpetually regenerates aspiration; (b) celebrity/athlete cultural
+  anchoring that refreshes appeal across successive generations; (c) true scarcity-based luxury
+  positioning (Hermès) where undersupply is a permanent structural feature. When evaluating a
+  consumer brand moat, explicitly identify where the brand sits on the adoption curve and whether
+  it has demonstrated multi-cycle transcendence. Classify the brand moat as "durable" only when
+  cross-cycle evidence exists. Flag as "cyclical peak risk" when the brand has recently reached
+  mainstream saturation without proven transcendence mechanisms, and downgrade `moat_durability`
+  to "weak" or "moderate" accordingly.
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.
@@ -583,6 +597,21 @@ When considering a buy:
    concentration) or a structural change (permanently elevated working capital from expansion),
    and size the impact on intrinsic value.
 
+   **Retail brand deterioration — inventory early-warning chain**: for consumer goods, apparel,
+   and footwear companies, financial deterioration almost always follows the same causal sequence:
+   (1) demand softening → (2) inventory builds as reorder rates outpace sell-through → (3) falling
+   inventory turnover (below the company's prior 2-year average is always a flag; below 4x/year
+   is a warning for fashion/footwear) → (4) management initiates promotional discounting to clear
+   inventory → (5) gross margin compresses → (6) brand equity erodes as customers condition
+   themselves to buy at sale prices, permanently raising the full-price purchase threshold. Once
+   step 6 occurs, recovery requires a complete brand reset. Monitor days inventory outstanding
+   (DIO) and the cash conversion cycle every quarter — an uptick in DIO ahead of a revenue
+   shortfall is typically the first visible signal. A single-quarter spike may be a timing anomaly
+   (tariff pre-build, seasonal); two consecutive quarters of worsening DIO with stable or declining
+   revenues confirm a structural issue. Rising days sales outstanding (DSO) alongside inventory
+   builds can signal simultaneous downstream pressure (wholesale partners paying late due to their
+   own inventory stress), compounding the warning signal.
+
    **Pricing-led vs. volume-led operating leverage**: before modeling the margin trajectory,
    determine whether the company's revenue growth is primarily *price-driven* (rising ASP per
    unit) or *volume-driven* (more units sold at stable prices). Price-driven growth has
@@ -921,6 +950,21 @@ When considering a buy:
    spending similar percentages of earnings on buybacks by their effective per-dollar share count
    retirement, and note that a richly priced stock converts even large buyback programmes into
    negligible EPS accretion.
+   **Buyback authorization as % of market cap — downside floor at depressed valuations**: the
+   inverse of the buyback efficiency problem at high multiples. When a stock is severely depressed,
+   a large remaining buyback authorization relative to market cap becomes a quantifiable downside
+   protection mechanism. Calculate: remaining buyback authorization ÷ current market cap. When
+   this ratio exceeds 20-25%, management can retire a substantial fraction of the float at current
+   prices — even if revenues stagnate, EPS accretes meaningfully from share count compression
+   alone, and the buyback programme sets a soft demand floor. Key conditions for this to be
+   genuine protection rather than a management announcement: (a) FCF generation is sufficient to
+   fund the authorization without increasing net leverage beyond the target range; (b) management
+   has a track record of executing on prior buyback commitments (verify by comparing stated
+   authorization amounts against actual share count reduction over prior periods); (c) the
+   authorization does not depend on a revenue recovery that has not yet occurred. When conditions
+   are met, model buyback EPS accretion explicitly in the bear case: even with flat earnings,
+   declining share count can generate 3-5% annual EPS growth at 20-25% authorization-to-market-
+   cap ratios. Size this as a specific downside cushion, not a qualitative note.
    **Governance structure / share class**: examine the voting structure before investing. A zero-vote
    or near-zero-vote public share class (Class A = 0 or 1 vote; founders retain Class B = 10 votes
    per share) means public shareholders cannot influence capital allocation, governance, or management
