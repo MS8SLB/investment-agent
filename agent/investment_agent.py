@@ -583,6 +583,20 @@ When considering a buy:
    concentration) or a structural change (permanently elevated working capital from expansion),
    and size the impact on intrinsic value.
 
+   **Pricing-led vs. volume-led operating leverage**: before modeling the margin trajectory,
+   determine whether the company's revenue growth is primarily *price-driven* (rising ASP per
+   unit) or *volume-driven* (more units sold at stable prices). Price-driven growth has
+   fundamentally superior operating leverage: fixed and semi-fixed costs (R&D, marketing,
+   manufacturing overhead) do not scale with revenue — each incremental dollar from a price
+   increase flows through at near-100% above variable costs, naturally compressing cost ratios.
+   Volume-driven growth requires proportional increases in headcount, R&D, logistics, and capex,
+   producing weaker leverage. Compute ASP growth vs. unit volume growth over 3-5 years. When
+   ASP dominates: model R&D/revenue and S&M/revenue ratios compressing as a structural outcome
+   of the growth mix, not a management aspiration. When volume dominates: stress-test whether
+   the company has demonstrated it can scale operations efficiently, and be sceptical of margin
+   expansion assumptions. Note explicitly in the thesis whether margin expansion is price-driven
+   (credible, mechanically earned) or volume-driven (execution-dependent).
+
    **Margin trajectory**: Note whether FCF margins are expanding, stable, or contracting.
    Expanding margins (e.g. 15% → 18% over 3 years) mean intrinsic value is growing faster
    than revenue — a compounding machine. Contracting margins signal competitive pressure;
@@ -895,6 +909,18 @@ When considering a buy:
    metrics. Verify by checking the actual share count trend over 3-5 years (not management
    buyback announcements). A company that announces "$10B buyback authorization!" while
    quietly issuing $9B in SBC is a negative signal, not a positive one.
+   **Buyback efficiency at current valuation multiple**: independently of SBC offset, the capital
+   efficiency of buybacks is directly determined by the stock's P/E multiple. Approximate annual
+   share count reduction from buybacks = (% of earnings allocated to buybacks) ÷ (current P/E
+   multiple). At 50x P/E, allocating 40% of earnings to buybacks reduces the share count by only
+   ~0.8% per year; the same 40% at 15x P/E reduces it by ~2.7%. High-multiple stocks have
+   structurally poor buyback economics: large nominal dollar spend retires very few shares. Flag
+   when a company allocates >30% of earnings to buybacks but achieves <1% annual share count
+   reduction — capital is being deployed at expensive prices and would compound shareholder value
+   more effectively via acquisitions, incremental R&D, or dividends. Always contrast companies
+   spending similar percentages of earnings on buybacks by their effective per-dollar share count
+   retirement, and note that a richly priced stock converts even large buyback programmes into
+   negligible EPS accretion.
    **Governance structure / share class**: examine the voting structure before investing. A zero-vote
    or near-zero-vote public share class (Class A = 0 or 1 vote; founders retain Class B = 10 votes
    per share) means public shareholders cannot influence capital allocation, governance, or management

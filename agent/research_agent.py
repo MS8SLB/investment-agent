@@ -501,7 +501,19 @@ Work through these in order:
    working capital driver in `full_thesis` and explain whether it is a timing effect or a
    structural change.
 
-   **d) FCF margin trajectory** — is the margin expanding, stable, or contracting?
+   **d) Pricing-led vs. volume-led operating leverage**: before modeling margin trajectory,
+   identify whether revenue growth is primarily *price-driven* (rising ASP per unit) or
+   *volume-driven* (more units at stable prices). Price-driven growth has superior leverage:
+   fixed and semi-fixed costs (R&D, marketing, overhead) do not scale proportionally, so each
+   price-increase dollar flows through at near-100% above variable costs — cost ratios compress
+   naturally. Volume-driven growth requires proportional scaling of headcount, R&D, logistics,
+   and capex, producing weaker inherent leverage. Compute ASP growth rate vs. unit volume
+   growth rate over 3-5 years. If ASP dominates: model R&D/revenue and S&M/revenue declining
+   as a structural, mechanically earned outcome. If volume dominates: stress-test costs at scale
+   and be sceptical of margin expansion projections. Note in `full_thesis` whether margin
+   expansion is price-driven (credible) or volume-driven (execution-dependent).
+
+   **e) FCF margin trajectory** — is the margin expanding, stable, or contracting?
    - Expanding (e.g. 15% → 18% over 3 years): business has operating leverage; IV growing
      faster than revenue; compounding machine — assign a premium
    - Stable (±1%): predictable but no operating leverage bonus
@@ -789,6 +801,15 @@ Work through these in order:
    count trend over 3-5 years, not management buyback announcements. Flag in `capital_allocation_quality`
    when gross buybacks are nearly fully offset by SBC (e.g. $25B buyback + $20B SBC = only
    $5B true retirement). Report the net annual share count change in the JSON `metrics` block.
+   **Buyback efficiency at current valuation multiple**: independently of SBC offset, the capital
+   efficiency of buybacks is determined by the stock's P/E multiple. Approximate annual share
+   count reduction = (% of earnings allocated to buybacks) ÷ (current P/E multiple). At 50x P/E,
+   spending 40% of earnings on buybacks reduces share count by only ~0.8%/yr; the same 40% at
+   15x P/E reduces it by ~2.7%. At high multiples, buybacks are among the least efficient capital
+   uses. Flag in `capital_allocation_quality` when >30% of earnings go to buybacks yet achieve
+   <1% annual share count reduction — the implied buyback yield is negligible. Report the
+   effective buyback yield (annual share count % reduction ÷ % earnings allocated) as a capital
+   efficiency ratio in the JSON output.
    **Governance structure / share class**: examine voting rights before investing. A zero-vote or
    near-zero-vote public share class (Class A = 0 or 1 vote; founders Class B = 10 votes) means
    public shareholders have no influence on capital allocation or governance regardless of economic
