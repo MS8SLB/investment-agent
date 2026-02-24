@@ -285,6 +285,42 @@ has a durable competitive advantage. The five moat sources are:
   market may be pricing in a competitive threat that does not materially exist, creating a
   mispricing opportunity. Apply this test before building any competitive-threat discount into
   the valuation.
+  *Two-sided marketplace conflict as regulatory fragility and challenger tailwind*: when a
+  dominant incumbent owns both the buyer-side platform, the seller-side platform, AND the
+  exchange connecting them (e.g., DSP + SSP + ad exchange; or brokerage + clearing + exchange),
+  this is a structural fragility, not strength: (a) antitrust exposure — owning every layer of
+  a two-sided transaction market creates textbook market-power abuse claims; (b) participant
+  trust erosion — buyers and sellers both recognise the "judge, jury, and executioner" conflict
+  of interest and over time seek neutral alternatives; (c) creates a structural opening for
+  neutral single-sided specialists. When regulatory enforcement against such an incumbent is
+  underway or already producing revenue decline in a specific segment, quantify the "displaced
+  pie": estimate the incumbent's specific declining segment revenue, model the rate of structural
+  outflow, and identify which neutral challenger is best positioned to capture it. Even modest
+  share shifts from a multi-billion-dollar declining segment can represent years of compounding
+  topline growth for a focused, neutral competitor. Treat verified, ongoing regulatory forced-
+  share-reduction as a structural tailwind — not a one-time event — and model it explicitly.
+  *Neutral intermediary moat and the "creep" erosion risk*: a business that commits exclusively
+  to one side of a two-sided market builds a trust-based moat: participants route more business
+  through it precisely because they know it will never disadvantage them by serving the other
+  side. The neutrality IS the moat. But this moat is uniquely fragile: any strategic move toward
+  the other side of the market — a new product, an initiative, or an acquisition that touches
+  the opposite side — immediately raises questions about whether the neutrality claim is still
+  credible. Test: has the company launched any initiative (direct supply-side access, competing
+  with a customer segment, vertically integrating into previously independent layers) that erodes
+  its single-sided positioning? If yes, flag "neutral intermediary creep" as a moat erosion risk
+  and model the potential loss of partner trust as both churn risk and multiple compression risk.
+  *Open-source industry infrastructure as stealth moat*: when a company builds an industry-wide
+  identity layer, data standard, or protocol as open-source and transfers formal control to an
+  independent nonprofit or consortium — but designs its own commercial platform to be the primary
+  beneficiary of industry-wide adoption — this is a stealth moat-building move. It works because:
+  (a) open control speeds adoption — no participant resists a standard they co-own; (b) it preempts
+  regulatory backlash from appearing as a monopolistic standard-setter; (c) the builder has the
+  deepest integration, the most data, and the most experience with it. Ask: who among all
+  ecosystem participants is most commercially positioned to benefit from widespread adoption of
+  the open standard? That participant holds a durable, hard-to-see moat. Key risk: if a competing
+  closed standard backed by a dominant platform (e.g., browser-enforced by a market-dominant
+  browser owner) wins instead, the stealth moat disappears entirely. Model both standard-wins and
+  standard-fails as explicit bull/bear scenarios in the valuation.
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.
@@ -799,6 +835,18 @@ When considering a buy:
      stacked on top of low-margin core transactions is the primary earnings growth driver. Model
      the take-rate trajectory as carefully as revenue growth: even modest take-rate expansion
      (e.g. 10% → 13%) compounds into large margin improvements at scale.
+     **Take rate defensibility test**: the current take rate is defensible if and only if the
+     platform consistently creates more measurable value for participants than the fee implies.
+     Test: if the platform charges X% and demonstrably delivers Y% improvement in participant
+     outcomes (lower cost per acquisition, higher ROAS, better matching quality, superior data),
+     is Y materially greater than X? If Y/X > 2x, the take rate is very defensible and may even
+     expand as the platform proves its value. If Y/X approaches 1x, pricing pressure from
+     participants (or disintermediation risk) is growing. If Y/X < 1x, the take rate is
+     structurally at risk and should be modeled declining. Note: a high absolute take rate (e.g.,
+     20%) is not inherently problematic if the platform demonstrably creates 30%+ value uplift
+     for customers — the fee is justified by outcome improvement, not merely by switching costs.
+     A platform that cannot articulate this ratio or provide third-party data to support Y/X > 2x
+     is at risk of eventual take rate compression as customers gain alternatives.
      **Variable-cost ceiling**: businesses physically anchored to real-world fulfilment (one driver
      per delivery, one host per booking) cannot achieve software-like operating leverage. Every
      incremental order requires a real person in the real world. Even at full scale, 15-20%

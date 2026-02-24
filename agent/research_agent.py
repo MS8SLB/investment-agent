@@ -314,6 +314,28 @@ Work through these in order:
      diverge, classify as "non-overlapping competitor" in `full_thesis` and note that the market
      may be pricing a phantom competitive threat. Do not apply a competitive-threat discount to
      the valuation when this analysis shows non-overlap.
+   - *Two-sided marketplace conflict as regulatory fragility and challenger tailwind*: when a
+     dominant incumbent owns both sides of a transaction market AND the exchange between them
+     (e.g., DSP + SSP + ad exchange), flag in `key_risks` (for the incumbent) or note in
+     `full_thesis` (for a neutral challenger): (a) the incumbent faces antitrust exposure and
+     participant trust erosion from the "judge, jury, and executioner" conflict; (b) as regulatory
+     enforcement forces structural share reduction, the "displaced pie" creates a structural
+     tailwind for neutral competitors — estimate the declining segment's revenue, the rate of
+     outflow, and the challenger's capture share. Model this as a multi-year compounding tailwind,
+     not a one-time event.
+   - *Neutral intermediary moat and "creep" erosion risk*: a business exclusively serving one
+     side of a two-sided market builds a trust-based moat (neutrality IS the moat). Flag in
+     `key_risks`: has the company launched any initiative moving it toward the other side of the
+     market (OpenPath-type direct supply-side access, vertical integration)? If yes, classify
+     as "neutral intermediary creep" and note this as a moat-erosion signal even if the move
+     benefits short-term revenue. Note in `full_thesis` whether management has credibly committed
+     to maintaining single-side-only positioning.
+   - *Open-source industry infrastructure as stealth moat*: when a company builds an industry-
+     wide protocol/standard as open-source, transfers control to an independent body, but designs
+     its commercial platform as the primary integration point, this is a stealth moat. Flag in
+     `key_strengths`. Key risk: if a competing closed alternative backed by a dominant platform
+     wins instead, the moat disappears. Model both the standard-wins (bull case) and standard-
+     fails (bear case) scenarios explicitly in the valuation range.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
@@ -678,6 +700,13 @@ Work through these in order:
      GMV) is the key margin metric; expansion via high-margin advertising and subscription layers
      on top of low-margin core transactions is the primary earnings growth driver. Model take-rate
      trajectory as carefully as revenue growth.
+     **Take rate defensibility test**: the take rate is defensible only if the platform
+     demonstrably creates more value for participants than the fee implies. Test: if take rate
+     is X% and the platform delivers Y% improvement in participant outcomes (lower CAC, higher
+     ROAS, better matching), is Y/X > 2x? If yes, note as defensible in `full_thesis`. If Y/X
+     approaches 1x, flag take-rate compression risk in `key_risks`. Report in `valuation_inputs`
+     whether the take rate should be modeled flat, expanding, or declining based on this test,
+     and note the supporting evidence (or absence thereof).
      **Variable-cost ceiling**: businesses physically anchored to real-world fulfilment cannot
      achieve software-like operating leverage. Realistic full-scale operating margins for a
      delivery/logistics marketplace are 15-20%, not 30-40%+. Do not apply software-grade
