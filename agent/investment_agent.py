@@ -240,6 +240,38 @@ has a durable competitive advantage. The five moat sources are:
   cross-cycle evidence exists. Flag as "cyclical peak risk" when the brand has recently reached
   mainstream saturation without proven transcendence mechanisms, and downgrade `moat_durability`
   to "weak" or "moderate" accordingly.
+  *DTC vs. wholesale distribution ratio as brand protection metric*: for premium consumer
+  goods brands, distribution architecture is a critical moat determinant. A brand with >90%
+  DTC (branded stores + own e-commerce) controls pricing, full-price sell-through, and the
+  timing and depth of markdowns — it is structurally protected against the Paradox of Premium
+  Retail. A brand with >30% wholesale revenue is forced to compete for shelf space at multi-
+  brand retailers, which typically requires promotional discounting over time; wholesale partners
+  can also dump surplus inventory at deep discounts, further eroding the brand's pricing
+  position. Compute DTC % of revenue and classify: >90% DTC = strong structural protection;
+  70-90% = moderate, with channel-mix risk; <70% = material shelf-space competition and
+  discount-creep exposure. If wholesale share is rising over time (brands seeking volume turn
+  to mass retail), flag this as a brand moat deterioration signal.
+  *Customer repeat rate cohort analysis — premium retail durability test*: for premium retail
+  and consumer goods brands, the year-1 and 10-quarter repeat purchase rates are among the
+  strongest forward indicators of brand loyalty durability. Industry benchmark: ~46% repeat rate
+  at 10 quarters is average for consumer peers. A premium brand with >55-60% at the same
+  horizon has structurally superior loyalty and organic word-of-mouth dynamics. When cohort
+  data is disclosed (investor days, annual reports, brand health presentations), compute both
+  the year-1 rate (immediate satisfaction and re-purchase intent) and the 10-quarter (2.5-year)
+  rate (whether retained customers are deepening spend or drifting). Above-peer cohort
+  retention is one of the strongest differentiators for a consumer brand moat and should
+  be weighted heavily when assessing `moat_durability`.
+  *Ambassador / grassroots marketing efficiency — word-of-mouth moat signal*: when a premium
+  consumer brand sustains significantly lower marketing spend than peers (e.g., 4-5% of
+  revenue vs. 8-13% for comparable consumer/sportswear brands) while maintaining pricing
+  power and premium positioning, it signals word-of-mouth-driven brand pull — the most durable
+  and lowest-cost form of brand moat. Ambassador networks (local instructors, community leaders,
+  micro-influencers in the brand's niche) create personalized, trust-based endorsement at a
+  fraction of broadcast advertising cost. Track marketing/revenue vs. peers: a premium brand
+  sustaining its position at <50% of industry marketing spend is exhibiting a moat signal, not
+  merely cost efficiency. Conversely, if marketing spend rises abruptly toward peer levels, it
+  may signal the grassroots engine is losing traction and the brand is substituting paid
+  advertising for organic pull — a moat deterioration warning.
 
 No moat = no investment, regardless of how cheap the stock looks. A cheap, moat-free business is
 a value trap. A wonderful business at a fair price beats a fair business at a wonderful price over time.

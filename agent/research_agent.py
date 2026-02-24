@@ -283,6 +283,28 @@ Work through these in order:
      expansion, product tier depth); to "strong" only when multi-cycle durability is confirmed.
      Flag "cyclical peak risk" in `key_risks` when mainstream saturation is evident without
      proven transcendence mechanisms.
+   - *DTC vs. wholesale distribution ratio as brand protection metric*: for premium consumer
+     goods brands, distribution architecture is a critical moat determinant. Compute DTC %
+     of revenue (branded stores + own e-commerce). >90% DTC = strong structural protection
+     — the brand controls pricing, full-price sell-through, and markdown timing; >30%
+     wholesale = material shelf-space competition risk, as multi-brand retailers can force
+     promotional discounting and dump surplus inventory. If wholesale share is rising, flag
+     as brand moat deterioration. Report DTC % and its 3-year trend in `full_thesis`.
+   - *Customer repeat rate cohort analysis — premium retail durability test*: year-1 and
+     10-quarter repeat purchase rates are among the strongest forward indicators of consumer
+     brand loyalty durability. Industry benchmark: ~46% at 10 quarters is peer average. A
+     brand with >55-60% at 10 quarters has structurally superior loyalty and word-of-mouth
+     dynamics. When cohort data is available (investor days, brand health presentations),
+     compute and compare to peers. Above-average cohort retention should increase
+     `moat_durability` toward "strong". Report year-1 and 10-quarter rates in `full_thesis`.
+   - *Ambassador / grassroots marketing efficiency — word-of-mouth moat signal*: if a
+     premium consumer brand sustains materially lower marketing spend than peers (e.g.,
+     4-5% of revenue vs. 8-13% for typical consumer/sportswear) while maintaining pricing
+     power, flag this as a word-of-mouth pull signal — the most durable form of brand moat.
+     Track marketing/revenue vs. category peers; if the brand sustains premium positioning
+     at <50% of industry marketing spend, record this as a moat signal in `full_thesis`. If
+     marketing spend is rising abruptly toward peer levels, flag in `key_risks` as a signal
+     that organic pull may be fading and paid demand is compensating — moat deterioration.
    - *None*: Commoditised, easily replicated, or facing direct substitution risk?
 3. **AI disruption assessment** — explicitly assess AI risk:
    - Does the moat rely on proprietary data LLMs cannot access? (protective)
