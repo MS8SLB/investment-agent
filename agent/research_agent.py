@@ -904,6 +904,18 @@ Work through these in order:
    The extreme red flag: cumulative SBC approaching or exceeding cumulative net losses since IPO —
    insiders have extracted wealth via dilution while shareholders received nothing in return. Report
    `sbc_pct_of_revenue` in JSON; flag as a disqualifying red flag if >15% at a mature company.
+   **CEO mega-grant as temporary operating margin distortion**: when historical operating margins
+   show a sharp multi-year decline followed by gradual recovery, check whether the decline
+   coincides with a one-time CEO mega-grant before concluding business deterioration. Mega-grants
+   create a SBC spike that depresses reported operating margins during the vesting period, then
+   normalises as the grant amortizes. Steps: (1) identify the grant year from proxy disclosures;
+   (2) estimate annual SBC expense from the mega-grant specifically; (3) strip it from reported
+   SBC to compute "underlying operating margin" excluding the one-time package; (4) use the pre-
+   grant margin level as the forward baseline — the subsequent apparent "margin expansion" is
+   normalisation, not genuine leverage. Report in `full_thesis` if a mega-grant is distorting
+   historical margins, note when the grant fully amortizes, and flag the Board's approval of the
+   package as a governance data point in `key_risks` (assess whether the package structure was
+   appropriately tied to long-term value creation).
    **Buyback effectiveness — gross spend vs. SBC offset**: a large buyback programme may produce
    negligible net share count reduction when SBC is high. Always compute: (gross buyback spend) −
    (annual SBC expense) = effective net buyback. When gross buybacks ≈ SBC, the programme is a

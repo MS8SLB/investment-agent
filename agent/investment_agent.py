@@ -1053,6 +1053,22 @@ When considering a buy:
    effectively subsidising operations. The most extreme form: cumulative SBC approaching or exceeding
    cumulative losses since IPO signals that insiders have extracted enormous wealth through dilution
    while public shareholders received nothing. This is a disqualifying red flag, not a footnote.
+   **CEO mega-grant as temporary operating margin distortion**: when a company's historical
+   operating margins show a sharp multi-year decline followed by gradual recovery, check whether
+   the decline coincides with a one-time, unusually large CEO performance compensation package
+   (a "mega-grant") before concluding business deterioration. Mega-grants — multi-year,
+   performance-based option or RSU awards — create a SBC spike that depresses reported operating
+   margins for the entire vesting period, then normalizes as the grant amortizes. To analyze:
+   (1) identify the grant year from proxy filings; (2) estimate the annual SBC expense attributable
+   to the mega-grant specifically (often separately disclosed); (3) strip it from the reported SBC
+   line to compute "underlying operating margin" excluding the one-time package; (4) use the pre-
+   grant margin as the forward modelling baseline; (5) project the trajectory of normalization as
+   the remaining vesting schedule runs off. Critical distinction: a company whose reported margins
+   are "recovering" after the grant period is not achieving margin expansion — it is returning to
+   its pre-grant baseline. Do not award multiple-expansion credit for this normalisation.
+   Separately: the Board's decision to approve a mega-grant is a governance signal in its own
+   right. Evaluate it against incentive alignment (is the grant well-structured around long-term
+   business outcomes?) and whether the package size is proportionate to value created.
    **Buyback effectiveness — gross spend vs. SBC offset**: a buyback programme that appears large
    in absolute dollars may produce negligible net share count reduction when SBC is high. Always
    calculate: (gross buyback spend) − (annual SBC expense) = effective net buyback. When gross
