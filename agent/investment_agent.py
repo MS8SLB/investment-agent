@@ -251,6 +251,24 @@ has a durable competitive advantage. The five moat sources are:
   70-90% = moderate, with channel-mix risk; <70% = material shelf-space competition and
   discount-creep exposure. If wholesale share is rising over time (brands seeking volume turn
   to mass retail), flag this as a brand moat deterioration signal.
+  *Competitor-controlled distribution channel erosion*: a distinct and often underappreciated
+  distribution risk: when a company distributes its products (or routes customer acquisition)
+  through a channel owned or heavily influenced by a direct competitor, that competitor
+  possesses structural leverage to erode market share subtly without any direct product
+  inferiority on their part. The erosion mechanism: search result demotion (competitor
+  deprioritises target's products in their marketplace search rankings), shelf placement
+  preference (competitor gives prime physical placement to their own brand), algorithmic
+  recommendation suppression, or bundling incentives that steer customers toward the
+  competitor's alternative. This erosion is slow and hard to detect quarter-by-quarter, but
+  compounds over years. The analytical test: for every primary distribution channel that
+  represents >10% of volume, determine whether the channel owner has a directly competing
+  product. When a significant channel (>20% of volume) is competitor-controlled, model a
+  0.5-1% per year structural market share headwind in the base case — not as a tail risk,
+  but as a persistent, structural friction. The asymmetry: the channel-controlling competitor
+  can accelerate the pressure whenever strategically convenient; the target has no offsetting
+  leverage. Apply to: hardware sold through a competitor's marketplace; devices distributed
+  through a retailer that owns a competing device brand; apps distributed through a competitor's
+  app store that has its own competing app.
   *Customer repeat rate cohort analysis — premium retail durability test*: for premium retail
   and consumer goods brands, the year-1 and 10-quarter repeat purchase rates are among the
   strongest forward indicators of brand loyalty durability. Industry benchmark: ~46% repeat rate
@@ -545,6 +563,21 @@ When considering a buy:
    For simple businesses, separate recurring (maintenance, subscription, SaaS) from
    non-recurring (licence, services, hardware) — a business >60% recurring is far more
    predictable and deserves a higher multiple.
+   **Loss leader hardware → high-margin platform architecture ("device as CAC")**: when a
+   company runs two segments — (a) a hardware/devices segment with consistently negative or
+   near-zero gross margins, and (b) a high-margin platform/software/advertising segment — do
+   not evaluate the hardware segment on its own profitability. It functions as a customer
+   acquisition cost (CAC) mechanism: upfront device subsidies build the installed base that
+   then generates recurring platform revenue. Analytical framework: (1) strip out hardware
+   segment results entirely; compute platform-only gross margin and operating margin as the
+   core business metrics; (2) model lifetime platform ARPU per deployed device; discount it to
+   get platform LTV per device; (3) compare platform LTV against the per-device hardware loss
+   (effective CAC) to assess unit economics — does LTV justify the device subsidy? (4) the
+   primary monitoring question: is platform ARPU per active device growing faster than the per-
+   device hardware loss is widening? If hardware losses grow faster than ARPU improves, the
+   model is deteriorating. Consolidated margins intentionally obscure platform economics — always
+   disaggregate and report platform-only margins separately. Flag when hardware gross losses
+   exceed 15-20% of platform gross profit as a structural concern, not a growth investment.
    **Within-segment transactional vs. surveillance decomposition**: even within an apparently
    recurring segment, some revenue may be *transactional* — tied to specific events (new debt
    issuance, M&A deal completions, asset sales) — rather than truly subscription-like. Transactional
@@ -1089,6 +1122,24 @@ When considering a buy:
    no yield and standalone fundamental value is uncertain or below current price, flag this as
    a key risk and require a larger margin of safety on the catalyst-scenario valuation.
 
+   **Bimodal outcome valuation ("2x or worthless" scenarios)**: when two equally informed
+   analysts can reach polar opposite conclusions about a company — essentially worthless on one
+   hand (chronic unprofitability, competitive displacement, no clear FCF path), 2-3x current
+   price on the other (monetization success, acquisition premium, operational turnaround) —
+   standard DCF with a margin of safety produces false precision. The output depends entirely
+   on which scenario is modelled, and both scenarios can be independently defensible. Analytical
+   discipline: (1) build explicit probability-weighted scenario models — a "zero or near-zero"
+   scenario (equity impairs to acquisition floor or zero) and a "multibagger" scenario (platform
+   value unlocked, turnaround succeeds); (2) assign rough probabilities to each; (3) compute
+   probability-weighted expected value; (4) position sizing must reflect the binary nature — 1-2%
+   is appropriate for a bimodal situation, not a 5%+ concentrated value position; (5) apply a
+   50%+ margin of safety because the bear case is equity impairment, not mild underperformance.
+   The standard "modest margin miss" bear case does not apply when the bear case is "equity is
+   worthless." Red flag: if even the most conservative scenario cannot clearly defend an investment
+   at current prices, the stock belongs in the "too-hard basket" — not because the business
+   quality is poor, but because the outcome range is too wide to underwrite with confidence.
+   Report explicitly: "this is a bimodal outcome situation — speculative position sizing required."
+
    **Maximum entry price** = fair value × (1 − margin of safety %). Write this number
    explicitly in the thesis — it is your ceiling price, not a suggestion.
 6. **Assess capital allocation quality** — how does management deploy excess FCF?
@@ -1246,12 +1297,48 @@ When considering a buy:
    framings prominently, treat it as a capital allocation warning. The inverse is also true:
    acquirers who describe deals in standalone IRR terms, disclose post-close ROIC targets, and
    hold management accountable for meeting them are demonstrating disciplined capital allocation.
+   **Misplaced organic diversification as a capital allocation warning**: distinct from M&A
+   diversification (acquiring unrelated businesses), this pattern involves a company organically
+   launching new product categories with no clear synergy to the core business or installed base
+   — while the core business itself has yet to generate consistent profits. Examples: a TV OS
+   company selling smart-home devices, solar panels, and connected cameras; a payments company
+   building an unrelated cryptocurrency exchange from scratch. Indicators that the new category
+   is misplaced: (a) no obvious data, distribution, or technology advantage from the core
+   business that carries over; (b) the core business has yet to generate consistent profits or
+   reach FCF breakeven; (c) the new category requires meaningful capex or R&D but is described
+   as a "complementary" or "synergistic" opportunity without articulating the specific mechanism.
+   This pattern signals one or more of: (i) management avoiding the hard operational problems of
+   the core business; (ii) TAM narrative-building to maintain a high-growth story and support the
+   multiple; (iii) inability to identify high-ROI incremental opportunities within the core.
+   Distinguish sharply from adjacent diversification — where the new product leverages the
+   company's existing data, distribution, or technical moat (e.g., a payment processor building
+   an advertising business on top of its transaction data). Adjacent is potentially value-
+   creating; truly unrelated organic diversification is a capital allocation red flag. The test:
+   "Does this company have a clear, specific competitive advantage in this new category that it
+   does not also possess in its core business?" If no, and the core is not yet consistently
+   profitable, flag as a management quality and capital allocation concern.
 7. Check price history to understand where the current price sits vs. intrinsic value estimate
 8. Check `get_earnings_calendar` — know when earnings are due. Timing risk matters for entry;
    if an uncertain earnings event is imminent, add to watchlist with a target entry price instead.
 9. Read `get_stock_news` + `get_rss_news` — scan for any events that could impair the moat or break the thesis
 10. Check `get_insider_activity` — meaningful buying by CEO/CFO (especially at founder-led companies)
-    is a strong signal that insiders believe the stock is below intrinsic value
+    is a strong signal that insiders believe the stock is below intrinsic value.
+    **Asymmetry between insider buying and selling**: insider buying is a stronger signal than
+    insider selling because insiders buy only when they believe the stock is cheap (one reason),
+    whereas insiders sell for many reasons unrelated to stock outlook: diversification, tax
+    planning, liquidity needs, estate management, SBC vesting schedules. Insider selling is
+    therefore weak evidence of overvaluation on its own. However, it becomes meaningful
+    corroborating negative evidence when: (a) the fundamental investment case is already highly
+    uncertain — bimodal outcomes, no clear path to FCF, disputed competitive position; and
+    (b) a persistent pattern of net selling occurs simultaneously across multiple insiders (not
+    just one) over 2-4 consecutive quarters. In this context, the collective pattern signals
+    that insiders — who have superior non-public insight into operational trajectory — are not
+    compelled to add personal exposure despite having information advantages. This raises the
+    hurdle rate. Framework: when the thesis is clear and fundamental value is evident, routine
+    insider selling can be ignored (diversification is rational and expected). When the
+    thesis is uncertain and the fundamental case is debatable, treat persistent multi-insider
+    net selling as a meaningful negative corroborating signal that warrants further scrutiny of
+    the bear case — do not dismiss it as noise in an already uncertain investment.
 11. For high-conviction finalists, run the deep research tools:
     - `get_material_events` — catch any thesis-breaking 8-K events in the last 90 days
     - `get_competitor_analysis` — validate the moat by comparing ROIC, margins, and retention vs peers
