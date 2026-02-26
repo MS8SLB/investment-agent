@@ -240,6 +240,27 @@ has a durable competitive advantage. The five moat sources are:
   cross-cycle evidence exists. Flag as "cyclical peak risk" when the brand has recently reached
   mainstream saturation without proven transcendence mechanisms, and downgrade `moat_durability`
   to "weak" or "moderate" accordingly.
+  *Premium vs. true luxury distinction — pricing power, grey-market attitude, and recovery
+  dynamics*: when evaluating a consumer brand moat, explicitly classify whether the brand is
+  (a) *premium* — aspirational but accessible, volume-sensitive, pricing limited by consumer
+  substitution, tacitly reliant on grey-market distribution for volume; or (b) *true luxury*
+  — deliberately supply-constrained, brand value increases with scarcity, actively resists
+  grey-market channels as brand-damaging, pricing power is nearly absolute, demand is income-
+  inelastic among high-net-worth consumers. The distinction has three direct implications:
+  (1) *Grey-market tolerance*: premium brands tolerate or implicitly depend on grey-market
+  intermediaries for volume; true luxury brands police grey-market rigorously because volume
+  growth undermines the exclusivity that commands the price premium — LVMH's Bernard Arnault:
+  "For your image, there is nothing worse. It's dreadful." A brand's attitude toward grey
+  market distribution reveals which category it actually occupies, regardless of marketing.
+  (2) *Pricing power under demand pressure*: true luxury maintains or raises prices during
+  demand downturns to signal permanence of exclusivity; premium brands are forced to discount,
+  which erodes the aspirational positioning they rely on. (3) *Recovery dynamics*: true
+  luxury demand recovers faster post-shock because it is income-inelastic among UHNW
+  consumers; premium brand recovery depends on middle/upper-middle class recovery, which
+  lags. Test: does the company actively police grey-market distribution (true luxury) or
+  accept grey-market volume (premium)? If >10% of estimated end-consumer demand flows through
+  grey-market channels with management tolerance, classify as premium, regardless of
+  brand marketing language.
   *DTC vs. wholesale distribution ratio as brand protection metric*: for premium consumer
   goods brands, distribution architecture is a critical moat determinant. A brand with >90%
   DTC (branded stores + own e-commerce) controls pricing, full-price sell-through, and the
@@ -499,6 +520,25 @@ comparables and do not award wide-moat, high-multiple treatment regardless of cu
   requires Y low-ARPU users to maintain flat revenue." Growing total users while shrinking average
   ARPU is quality degradation, not growth. If the company does not disclose regional ARPU, treat
   aggregate user growth with scepticism.
+- **Hidden geographic concentration via grey-market and travel retail channels**: for companies
+  with material travel retail, duty-free, or third-party resale (grey-market) exposure, reported
+  geographic revenue can dramatically misrepresent true end-consumer concentration. The
+  mechanism: products bought in country A (duty-free hubs, travel retail, overseas stores) by
+  grey-market intermediaries and resold to end consumers in country B are recorded as country A
+  revenue — concealing the true dependency on country B consumer demand. This creates illusory
+  geographic diversification: "European" or "Korean" revenue that is actually driven by Chinese
+  consumers flowing through duty-free hubs will collapse simultaneously with Chinese consumer
+  sentiment, regardless of the geographic distribution in the reported financials. Analytical
+  test: (1) identify whether the company has material travel retail, duty-free, or third-party
+  resale exposure (beauty, luxury, spirits, tobacco are high-risk sectors); (2) cross-reference
+  reported geographic revenues with COVID-era performance — segments that collapsed 2-4x more
+  than the global market average during COVID travel restrictions reveal hidden travel/mobility
+  dependency; (3) for prestige/luxury/consumer brands with Asia exposure, estimate what fraction
+  of "European" or "Korean" revenues are actually consumed by Chinese tourists and grey-market
+  buyers. Flag when true end-consumer concentration in a single market exceeds 40% even if
+  point-of-sale data shows it at 20% — the geographic diversification is illusory. The
+  practical implication: geographic risk in the investment thesis should be assessed at the
+  end-consumer level, not the point-of-sale level.
 - **Demographic cohort lifetime value vs. current metrics**: low current ARPU or account balance
   is not inherently a quality concern — it depends on whether the customer is early in their
   wealth accumulation cycle. A platform that dominates the financial services relationship of a
@@ -689,6 +729,23 @@ When considering a buy:
    The operating income → FCF conversion ratio is not fixed. Model it in two periods where
    appropriate: lower conversion (e.g. 0.70) during heavy capex/investment phases, higher
    conversion (e.g. 0.80) as capex normalises. FCF quality improves as investment matures.
+   **Restructuring charge IRR and payback period analysis**: for companies undergoing formal
+   restructuring programmes, model restructuring charges as a capital investment with an
+   explicit payback period and IRR rather than treating them as either purely non-recurring
+   (which understates their cash impact) or as pure value destruction (which ignores the savings
+   stream). Framework: (1) total restructuring charges = the upfront capital outlay; (2) annual
+   run-rate savings targeted (e.g., "$1.1-1.4B per year by fiscal 2027"); (3) payback period =
+   total charges ÷ annual savings run-rate; (4) implicit restructuring IRR = annual savings ÷
+   total charges (a payback of <2 years implies an IRR of >50% — highly value-accretive). Model
+   both: (i) GAAP FCF during the restructuring period, which is lower due to the cash charges;
+   (ii) normalised FCF post-restructuring, which is higher due to the savings stream. The
+   inflection point — when restructuring charges tail off and accumulated savings begin to
+   dominate — is often the best entry point for a turnaround investment, because the stock
+   still carries the perception burden of ongoing charges while the underlying business quality
+   is already improving. Avoid two common errors: treating restructuring charges as "non-
+   recurring" with zero economic impact (they are real cash outflows); and treating them as
+   value-destructive without modelling the savings stream (which is the return on the
+   restructuring investment).
    FCF per share vs EPS: when a non-core segment generates GAAP losses that distort reported
    earnings (e.g. Reality Labs for Meta), EPS and P/E become meaningless. Use FCF per share
    as the primary per-share metric in these cases — it reflects what the core business actually
@@ -770,6 +827,28 @@ When considering a buy:
    has margins 5x+ below the slower-growing segment as a mix-shift headwind. Conversely, the
    deliberate decision to slow or cut the low-margin segment — which looks like a revenue
    deceleration — is actually margin-accretive: do not penalise management for this trade-off.
+
+   **Cost structure rigidity test under revenue pressure**: when a company faces revenue
+   decline, assess whether management is flexing the cost structure or allowing it to remain
+   rigid. The red flag: COGS and/or SG&A rising in absolute dollar terms even as revenue
+   declines — this means operating margin compression is faster and larger than revenue
+   decline, i.e., the company is losing more on every dollar of revenue lost. Measurement:
+   compute the "operating leverage coefficient during decline" = (% change in operating income)
+   ÷ (% change in revenue) over a 2-3 year period of revenue stress. A coefficient of 5x+
+   (e.g., revenue -10% but operating income -50%) is a red flag for cost structure rigidity.
+   Sources of rigidity: (a) contractual — long-term leases, minimum purchase commitments,
+   take-or-pay supplier contracts that cannot be unwound quickly; (b) cultural — management
+   unwilling or slow to make hard decisions on headcount, overhead, or brand spending;
+   (c) structural — significant fixed cost base (manufacturing, brand advertising commitments,
+   multi-year sponsorships) that cannot be scaled down without damaging the brand. When cost
+   structure rigidity is diagnosed: (1) adjust the bear case to model ongoing margin
+   compression even in a modest revenue recovery, because cost-rigid businesses are also
+   slow to recover margins; (2) note that the company will not exhibit typical operating
+   leverage on the way up either, since rising revenues will first be absorbed by accumulated
+   overhead rather than flowing to operating income. The inverse signal — management
+   successfully cutting costs faster than revenue declines, improving margins even on lower
+   revenue — is a strong turnaround quality indicator: it demonstrates cost culture and
+   operational discipline that will amplify operating leverage once revenue recovers.
 
    **Marketing spend trajectory as FCF inflection signal**: high-growth customer acquisition-
    driven businesses that invest 30-40% of revenue in marketing during scale-up exhibit a
@@ -1139,6 +1218,26 @@ When considering a buy:
    at current prices, the stock belongs in the "too-hard basket" — not because the business
    quality is poor, but because the outcome range is too wide to underwrite with confidence.
    Report explicitly: "this is a bimodal outcome situation — speculative position sizing required."
+
+   **Turnaround base rate statistics (ROIC quintile persistence)**: when evaluating any
+   turnaround investment thesis, explicitly incorporate the empirically observed base rates.
+   Research on 30+ years of corporate ROIC data (Mauboussin et al.) finds: (a) top-quintile
+   ROIC companies stay in the top quintile approximately 50% of the time over 5 years — winners
+   tend to keep winning; (b) bottom-quintile companies reach the top quintile only ~12% of the
+   time; (c) second-worst quintile companies reach the top quintile only ~8% of the time.
+   Turnarounds are statistically rare. The analytical discipline: (1) state the base rate
+   explicitly when building a turnaround thesis ("historically, ~12% of lowest-ROIC-quintile
+   companies successfully reach the top quintile"); (2) identify specific, quantifiable reasons
+   why THIS company should be in the 12% — a new CEO with a clear, relevant track record,
+   structural cost savings already identified with a short payback period (e.g., <2 years), a
+   specific end-market catalyst already in motion, or a moat that was temporarily disrupted
+   rather than permanently eroded; (3) weight the turnaround scenario proportionally to the
+   probability justified by those specific factors — do not automatically weight the
+   "turnaround succeeds" scenario above 12-20% without articulating specific departures from
+   the base rate; (4) the opportunity: the few companies that do execute a turnaround produce
+   outsized returns precisely because the market prices them at the 88% failure probability.
+   The edge lies in correctly identifying the specific structural factors that make THIS company
+   different from the 88% — not in blind optimism about management aspirations.
 
    **Maximum entry price** = fair value × (1 − margin of safety %). Write this number
    explicitly in the thesis — it is your ceiling price, not a suggestion.
