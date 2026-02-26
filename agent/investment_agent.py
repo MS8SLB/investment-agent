@@ -723,6 +723,21 @@ When considering a buy:
    expansion assumptions. Note explicitly in the thesis whether margin expansion is price-driven
    (credible, mechanically earned) or volume-driven (execution-dependent).
 
+   **Mix-shift-driven blended margin compression ("empty calories" growth)**: when a business
+   has two or more revenue segments with materially different margins or take rates, the blended
+   margin trajectory is determined by the relative growth rates of those segments, not by
+   operating leverage within any single segment. The pattern: if the low-margin segment grows
+   materially faster than the high-margin segment (e.g., merchant-facing B2B payments at 0.25%
+   take rate growing faster than consumer-facing branded payments at 2%+ take rate), the blended
+   take rate and overall margins compress — even if each segment is individually healthy and
+   growing. This is "empty calories" growth: revenue grows, but proportionally less of it reaches
+   the bottom line. Analytical discipline: (1) compute take rate or gross margin separately for
+   each segment; (2) model the relative growth rates of each; (3) project the blended margin
+   trajectory based on evolving revenue mix; (4) flag any case where the faster-growing segment
+   has margins 5x+ below the slower-growing segment as a mix-shift headwind. Conversely, the
+   deliberate decision to slow or cut the low-margin segment — which looks like a revenue
+   deceleration — is actually margin-accretive: do not penalise management for this trade-off.
+
    **Marketing spend trajectory as FCF inflection signal**: high-growth customer acquisition-
    driven businesses that invest 30-40% of revenue in marketing during scale-up exhibit a
    predictable FCF inflection when marketing normalizes. The three-stage pattern: Stage 1 —
@@ -847,6 +862,20 @@ When considering a buy:
      for customers — the fee is justified by outcome improvement, not merely by switching costs.
      A platform that cannot articulate this ratio or provide third-party data to support Y/X > 2x
      is at risk of eventual take rate compression as customers gain alternatives.
+     **Consumer vs. B2B/merchant take rate segmentation**: for payment intermediaries and any
+     multi-sided platform with heterogeneous customer segments, always compute consumer-facing
+     and merchant/B2B take rates separately — they reflect fundamentally different competitive
+     dynamics. Consumer-facing take rates (>2%) reflect convenience-driven, price-insensitive
+     users who prioritize seamless experience over cost; these are high-margin, sticky, and
+     defensible. Merchant/B2B take rates (0.15-0.3%) reflect volume-driven, heavily-negotiated
+     enterprise relationships where bargaining power sits with the buyer; these are low-margin
+     and commoditized. A single blended take rate obscures this quality difference. The strategic
+     implication: growing merchant/B2B volume faster than consumer volume compresses the blended
+     take rate and degrades overall margin quality even as total revenue grows. Test: compute each
+     segment's take rate separately and track whether the faster-growing segment is consumer-facing
+     (favorable mix) or merchant-facing (unfavorable mix). A management team that voluntarily
+     reduces low-take-rate merchant volume to protect blended take rates is making a correct long-
+     term strategic trade-off that may appear as a short-term growth miss — credit this decision.
      **Variable-cost ceiling**: businesses physically anchored to real-world fulfilment (one driver
      per delivery, one host per booking) cannot achieve software-like operating leverage. Every
      incremental order requires a real person in the real world. Even at full scale, 15-20%
@@ -1027,6 +1056,25 @@ When considering a buy:
    assumption: if even a moderately optimistic scenario barely justifies today's price, passing
    is disciplined capital allocation rather than pessimism.
 
+   **"Free option" optionality framing in base case DCF**: when a company is developing nascent
+   business units or features that (a) require no material incremental capital beyond what is
+   already budgeted in the base case; (b) are not priced into the current market multiple (the
+   base case valuation alone justifies the investment at an acceptable IRR); and (c) represent
+   asymmetric payoffs — meaningful upside if they succeed, no meaningful downside if they fail
+   — these constitute "free options." Valuation discipline: (1) value only the core business
+   conservatively in the base case DCF, ignoring all nascent initiatives; (2) verify the base
+   case alone justifies the investment at the required IRR with margin of safety; (3) list each
+   nascent initiative separately as a qualitative upside scenario, describing what must be true
+   for it to succeed and estimating the magnitude of upside if it does; (4) never embed
+   speculative initiatives in the base case numbers, no matter how promising they appear. The
+   intuition: if the stock is already attractively priced on core business fundamentals, every
+   additional option is free upside. Red flag: if the DCF requires a nascent initiative to
+   succeed in order to justify the current price, then the "option" is actually being priced
+   into the base case — flag this explicitly as an optimistic assumption, not a conservative one.
+   The "option-stacking" trap: embedding multiple speculative scenarios into a single base case
+   to justify a stretched multiple is a valuation discipline failure; each option should be
+   analysed separately and the base case should stand alone on core fundamentals.
+
    **Catalyst-without-yield trap** (event-driven theses): before sizing any position anchored
    to a pending catalyst (acquisition, privatisation, spin-off, regulatory ruling), verify
    whether the stock pays a dividend or has an active buyback programme. If neither, the
@@ -1106,6 +1154,23 @@ When considering a buy:
    are met, model buyback EPS accretion explicitly in the bear case: even with flat earnings,
    declining share count can generate 3-5% annual EPS growth at 20-25% authorization-to-market-
    cap ratios. Size this as a specific downside cushion, not a qualitative note.
+   **FCF per share compounding formula for share cannibal businesses**: for mature, cash-
+   generative, slow-revenue-growth businesses that return the majority of FCF via buybacks, the
+   per-share earnings growth rate can substantially exceed the underlying FCF growth rate. The
+   formula: FCF per share CAGR ≈ underlying FCF CAGR + annual share count decline rate. Example:
+   a business with 3% FCF growth and 5% annual share count reduction delivers ~8% FCF per share
+   CAGR — nearly tripling the per-share growth rate vs. the raw FCF number. This is the core
+   compounding mechanism of the "share cannibal" archetype (AutoZone, PayPal, etc.). Analytical
+   discipline: (1) model FCF per share explicitly and separately from total FCF; (2) project
+   annual share count decline based on buyback yield and current valuation (buyback yield =
+   buybacks / market cap; shares retired = buyback $ / current share price); (3) FCF per share
+   CAGR is the primary per-share metric, not total FCF growth. Critical constraint: this
+   compounding only works at or below intrinsic value — buybacks at inflated prices retire fewer
+   shares per dollar and destroy value. Always stress-test the model under scenarios where the
+   multiple expands (fewer shares retired per dollar) vs. contracts (more shares retired, formula
+   improves). A company whose IRR is primarily driven by the buyback compounding formula rather
+   than revenue or FCF growth is more sensitive to multiple-compression risk than a growth
+   compounder; model both scenarios explicitly.
    **Governance structure / share class**: examine the voting structure before investing. A zero-vote
    or near-zero-vote public share class (Class A = 0 or 1 vote; founders retain Class B = 10 votes
    per share) means public shareholders cannot influence capital allocation, governance, or management
@@ -1145,6 +1210,20 @@ When considering a buy:
    made whole. When evaluating incentive structures, specifically look for CAGR hurdles on option
    grants as a tier-1 alignment signal — they are rare but represent the gold standard of
    management-shareholder alignment.
+   **Relative TSR vs. broad market benchmark as a manipulation-resistant incentive metric**: a
+   nuance to the general preference for absolute over relative performance metrics. When CEO
+   compensation is tied to outperforming an unmanipulable, non-selectable broad market index
+   (S&P 500, Russell 1000, relevant sector ETF) on total shareholder return over a fixed multi-
+   year period, this is a strong alignment structure: the CEO can only earn outsized comp if
+   shareholders have genuinely outperformed what they could have earned by buying an index fund.
+   This is harder to game than: (a) absolute return targets — a rising market lifts all ships
+   regardless of management skill; (b) board-selected peer group TSR — peers can be cherry-
+   picked to be structurally weak; (c) internal metrics like adjusted EBITDA — management
+   controls the adjustments. Distinguish from relative TSR vs. a board-selected peer group
+   (which is suspect) vs. an independent, publicly available index (which is not manipulable).
+   Classify as a tier-1.5 alignment signal: stronger than time-vested RSUs or absolute EBITDA
+   targets, slightly below CAGR-threshold option vesting. Record the specific benchmark used
+   and the performance period length when assessing management incentive quality.
    **Leverage appropriateness by cash flow predictability**: the safety of a given debt level
    depends entirely on the predictability and non-deferability of the cash flows servicing it.
    6× EBITDA leverage that would be reckless for a cyclical industrial (revenue can fall 40% in

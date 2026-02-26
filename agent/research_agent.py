@@ -604,6 +604,18 @@ Work through these in order:
    and be sceptical of margin expansion projections. Note in `full_thesis` whether margin
    expansion is price-driven (credible) or volume-driven (execution-dependent).
 
+   **Mix-shift-driven blended margin compression ("empty calories" growth)**: when a business
+   has two or more segments with materially different margins or take rates, the blended margin
+   trajectory is set by the relative growth rates of those segments. The pattern: if the low-
+   margin segment grows materially faster than the high-margin segment (e.g., merchant B2B
+   payments at 0.25% take rate outpacing consumer payments at 2%+), the blended take rate
+   compresses — even if each segment is individually healthy. This is "empty calories" growth.
+   Compute segment take rates/margins separately; model relative growth rates; project blended
+   margin trajectory from evolving revenue mix. Flag in `key_risks` when the faster-growing
+   segment has margins 5x+ below the slower-growing segment. Inversely: the deliberate decision
+   to slow the low-margin segment (which appears as revenue deceleration) is margin-accretive
+   — flag as a positive strategic shift in `full_thesis`, not as a growth concern.
+
    **Marketing spend trajectory as FCF inflection signal**: for customer acquisition-driven
    businesses, identify the current stage of the marketing flywheel — Stage 1 (marketing
    >30% of revenue, building from scratch), Stage 2 (marketing/revenue declining for 2+
@@ -707,6 +719,15 @@ Work through these in order:
      approaches 1x, flag take-rate compression risk in `key_risks`. Report in `valuation_inputs`
      whether the take rate should be modeled flat, expanding, or declining based on this test,
      and note the supporting evidence (or absence thereof).
+     **Consumer vs. B2B/merchant take rate segmentation**: for payment intermediaries, always
+     compute consumer-facing take rate (>2%, convenience-driven, sticky) and merchant/B2B take
+     rate (0.15-0.3%, volume-driven, negotiated) separately. A single blended take rate obscures
+     quality differences. Growing merchant/B2B volume faster than consumer volume compresses the
+     blended take rate and degrades margin quality. In `valuation_inputs`: report segment take
+     rates separately; model blended take rate trajectory based on relative segment growth rates.
+     In `full_thesis`: credit management that voluntarily cuts low-take-rate enterprise volume to
+     protect blended margins — this is a correct long-term trade-off that may appear as a
+     short-term growth miss. Flag as a positive strategic signal, not a growth concern.
      **Variable-cost ceiling**: businesses physically anchored to real-world fulfilment cannot
      achieve software-like operating leverage. Realistic full-scale operating margins for a
      delivery/logistics marketplace are 15-20%, not 30-40%+. Do not apply software-grade
@@ -881,6 +902,18 @@ Work through these in order:
    - The target entry price (after margin of safety) should deliver ~13-15% IRR
 
    - Calculate margin of safety: (intrinsic value - current price) / intrinsic value × 100
+   **"Free option" optionality framing**: when a company has nascent business units that (a)
+   require no material incremental capital beyond what is already budgeted, (b) are not priced
+   into the current market multiple, and (c) represent asymmetric payoffs (meaningful upside if
+   successful, no meaningful downside if not), treat them as "free options." Discipline: (1)
+   value only the core business in the base case DCF; verify the base case alone justifies the
+   investment at the required IRR with margin of safety; (2) list each nascent initiative
+   separately as a qualitative upside scenario describing what must be true and the magnitude
+   of upside; (3) never embed speculative initiatives in base case numbers. In `full_thesis`:
+   explicitly separate "base case investment thesis" from "free option upside scenarios." Flag
+   in `valuation_inputs` when the model requires a speculative initiative to succeed in order
+   to justify the current price — this is the "option-stacking" trap, a valuation discipline
+   failure and a red flag, not a bull case.
    **Catalyst-without-yield trap** (event-driven theses): before sizing any position anchored
    to a pending catalyst (acquisition, privatisation, spin-off, regulatory ruling, management
    change), verify whether the stock pays a dividend or has an active buyback programme. If
@@ -944,6 +977,17 @@ Work through these in order:
    conditions are met, model buyback EPS accretion explicitly in the bear case. Report the
    authorization-to-market-cap ratio; flag in `capital_allocation_quality` as a downside cushion
    when ratio > 20% and the programme is FCF-funded.
+   **FCF per share compounding formula for share cannibal businesses**: for mature, high-FCF,
+   slow-revenue-growth businesses returning most FCF via buybacks, per-share earnings growth
+   substantially exceeds total FCF growth. Formula: FCF per share CAGR ≈ underlying FCF CAGR
+   + annual share count decline rate (e.g., 3% FCF growth + 5% share count decline ≈ 8% FCF
+   per share CAGR). This is the share cannibal compounding mechanism. In `valuation_inputs`:
+   report total FCF CAGR and FCF per share CAGR explicitly; project annual share count decline
+   from buyback yield and current price; note that this compounding works only at or below
+   intrinsic value (buybacks above intrinsic value retire fewer shares, destroying value).
+   Include a sensitivity: FCF per share CAGR under (a) flat multiple, (b) 20% multiple
+   expansion, (c) 20% multiple compression. Flag when IRR depends primarily on buyback
+   compounding rather than business growth — this creates multiple-compression sensitivity.
    **Governance structure / share class**: examine voting rights before investing. A zero-vote or
    near-zero-vote public share class (Class A = 0 or 1 vote; founders Class B = 10 votes) means
    public shareholders have no influence on capital allocation or governance regardless of economic
@@ -973,6 +1017,14 @@ Work through these in order:
    with standard time-vested options where management benefits from any price recovery regardless
    of whether shareholders were made whole. Flag CAGR-hurdle option grants as a tier-1 alignment
    signal; note their absence (replaced by pure tenure vesting) as a governance concern.
+   **Relative TSR vs. broad market benchmark**: when CEO comp is tied to outperforming an
+   unmanipulable public index (S&P 500, Russell 1000, sector ETF) on TSR over a fixed multi-
+   year period, this is a strong alignment signal — the CEO earns outsized comp only if
+   shareholders genuinely outperformed the passive alternative. Distinguish from: (a) absolute
+   return targets (rising market benefits even poor operators); (b) board-selected peer group
+   TSR (peers can be cherry-picked). Classify as a tier-1.5 alignment signal: stronger than
+   time-vested RSUs or EBITDA targets, slightly below CAGR-threshold option vesting. Note in
+   `capital_allocation_quality` with the specific benchmark used and performance period length.
    **Leverage appropriateness by cash flow predictability**: do not apply standard leverage
    warnings uniformly. 6× EBITDA debt that would be reckless for a cyclical industrial
    (where revenue can fall 40% in a downturn) may be rational for a business with captive,
