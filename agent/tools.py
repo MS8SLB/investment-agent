@@ -861,6 +861,55 @@ TOOL_DEFINITIONS = [
             "required": ["tickers_with_data", "context"],
         },
     },
+    # ── Bear case adversarial challenge ───────────────────────────────────────
+    {
+        "name": "challenge_buy_theses",
+        "description": (
+            "Launch adversarial bear case subagents to challenge bull buy recommendations "
+            "before committing capital. For each stock the research agent recommended 'buy', "
+            "a separate bear case subagent is given the full bull report and tasked with "
+            "finding every flaw: overestimated moat, valuation errors, missed risks, "
+            "accounting red flags, competitive threats, and macro sensitivity.\n\n"
+            "Call this AFTER research_stocks_parallel, passing in the reports it returned. "
+            "Only 'buy'-rated reports are challenged; others pass through unchanged.\n\n"
+            "Each bear report returns:\n"
+            "  - verdict: 'proceed' (bull thesis holds), 'caution' (real issues found), "
+            "    or 'reject' (fundamental flaw — do not buy)\n"
+            "  - bear_conviction: 1-10 (how strongly the bear argues against buying)\n"
+            "  - key_objections: specific flaws found\n"
+            "  - risks_missed_by_bull: risks the bull report glossed over\n"
+            "  - recommended_action: final call after weighing both sides\n\n"
+            "Decision rule:\n"
+            "  - verdict='proceed' → buy is confirmed, proceed with normal position sizing\n"
+            "  - verdict='caution' → consider half-size position or watchlist pending resolution\n"
+            "  - verdict='reject' → do NOT buy; shadow-record instead\n\n"
+            "Provide 'context' with the current macro regime and sector weights so the bear "
+            "agent can assess macro sensitivity of each thesis."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "bull_reports": {
+                    "type": "array",
+                    "description": (
+                        "List of research report dicts returned by research_stocks_parallel. "
+                        "Pass the full list — non-buy recommendations are skipped automatically."
+                    ),
+                    "items": {"type": "object"},
+                },
+                "context": {
+                    "type": "string",
+                    "description": (
+                        "Portfolio context: macro regime, sector weights, cash available, "
+                        "and any signals that should inform the bear's macro sensitivity check. "
+                        "Example: Macro RISK_OFF, yield curve inverted. Tech 35% of portfolio. "
+                        "Cash $145k. VIX elevated at 28."
+                    ),
+                },
+            },
+            "required": ["bull_reports", "context"],
+        },
+    },
     {
         "name": "save_session_reflection",
         "description": (
@@ -1038,6 +1087,14 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         from agent.research_agent import research_stocks_parallel
         return research_stocks_parallel(
             tickers_with_data=tool_input["tickers_with_data"],
+            context=tool_input.get("context", ""),
+        )
+
+    elif tool_name == "challenge_buy_theses":
+        # Local import to avoid circular dependency (bear_case_agent imports tools)
+        from agent.bear_case_agent import challenge_buy_theses
+        return challenge_buy_theses(
+            bull_reports=tool_input["bull_reports"],
             context=tool_input.get("context", ""),
         )
 

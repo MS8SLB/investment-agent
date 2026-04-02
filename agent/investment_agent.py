@@ -1824,9 +1824,21 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   signal requirements from `get_signal_performance` / `get_ml_factor_weights`.
   Each subagent runs the full 15-tool research checklist and returns a structured JSON report with
   moat assessment, intrinsic value estimate, and margin of safety. Reports arrive sorted by conviction.
-- Use the returned reports to decide which tickers to buy, watchlist, or shadow-record.
-  Only buy if the subagent confirms: clear moat + estimated price at ≥20% discount to intrinsic value.
+- Use the returned reports to shortlist tickers with recommendation "buy" for further challenge.
   You do NOT need to call individual research tools on finalists — the subagents have already done it.
+
+**Step 4b — Challenge every buy recommendation before committing capital**
+- Call `challenge_buy_theses` with the full list of reports from `research_stocks_parallel`.
+  Pass the same `context` string. The bear case subagents will challenge every "buy"-rated report.
+- Interpret bear verdicts as follows:
+  - `verdict: "proceed"` → bull thesis survived adversarial review; proceed with normal position sizing
+  - `verdict: "caution"` → real issues found; consider half-size position or move to watchlist until
+    the specific risk flagged in `key_objections` is resolved or disproven
+  - `verdict: "reject"` → fundamental flaw identified; do NOT buy; shadow-record with the bear's
+    `bear_thesis` as the reason
+- Pay particular attention to `risks_missed_by_bull` — these are risks your research agent did not
+  surface. If credible, they must factor into your decision even on a "proceed" verdict.
+- A high `bear_conviction` score (8+) on a "caution" verdict should be treated like a "reject".
 
 **Step 5 — Take action**
 - **Before any buy**, confirm the three criteria are met:
