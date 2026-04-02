@@ -33,6 +33,7 @@ _BEAR_TOOL_NAMES = {
     "get_price_history",
     "get_technical_indicators",
     "get_short_interest",
+    "get_options_flow",
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
@@ -120,7 +121,16 @@ Work through each of these. Use the research tools to verify or refute specific 
    - Is there a known overhang: index rebalancing, lock-up expiry, convertible maturity?
    - Check `get_material_events` for recent 8-K filings the bull may have overlooked.
 
-8. **Sentiment and positioning** — `get_retail_sentiment`, `get_short_interest`:
+8. **Sentiment and positioning** — `get_retail_sentiment`, `get_short_interest`, `get_options_flow`:
+   - Always call `get_options_flow`. Three signals to weaponize:
+     - PCR > 1.0: options market is net bearish — institutions are paying for downside protection.
+       If PCR > 1.5, this is aggressive hedging or outright bearish positioning. Add to `key_objections`.
+     - IV significantly above realized vol: the market is pricing in event risk or fear around this
+       stock. If the bull report doesn't address what that event risk is, flag it as a gap.
+     - Put-skewed unusual activity: someone opened a large fresh put position. This is not a random
+       hedge — investigate the strike and expiry. A far-OTM put expiring in 3 months suggests a
+       specific bear thesis (e.g., before an earnings, regulatory decision, or debt maturity).
+       Add to `key_objections` if you can identify a credible scenario behind it.
    - Always call `get_short_interest`. If `short_level` is "high" or "very_high":
      institutional research desks have done deep work and are betting against this stock.
      This is meaningful signal — professionals are not shorting randomly. Ask: what is

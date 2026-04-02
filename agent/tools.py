@@ -146,6 +146,43 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_options_flow",
+        "description": (
+            "Retrieve options market data for a stock: put/call volume and OI ratios, "
+            "ATM implied volatility vs. 30-day realized volatility, and unusual contract "
+            "activity (large fresh directional bets). Analyzes the nearest 3 expiries.\n\n"
+            "Three distinct signals — read each separately:\n\n"
+            "1. Put/Call ratio (sentiment):\n"
+            "   < 0.7 = bullish (heavy call buying vs. puts)\n"
+            "   0.7–1.0 = neutral\n"
+            "   > 1.0 = bearish (heavy put buying — hedging or directional short)\n"
+            "   > 1.5 = strongly bearish\n\n"
+            "2. IV vs. realized volatility (event/fear pricing):\n"
+            "   IV >> realized vol: market pricing in an upcoming event or fear — options\n"
+            "   are expensive; buying stock outright is more capital-efficient than buying calls\n"
+            "   IV ≈ realized vol: normal; no special event risk priced in\n"
+            "   IV << realized vol: options unusually cheap — low implied risk\n\n"
+            "3. Unusual contracts (volume ≥ 3× open interest, ≥ 500 contracts):\n"
+            "   Fresh directional bets by large traders, not hedges or rolls.\n"
+            "   Call-skewed unusual activity = bullish smart-money signal\n"
+            "   Put-skewed unusual activity = bearish smart-money signal or large hedge\n\n"
+            "Use this as a positioning/sentiment check, NOT as a buy/sell trigger. "
+            "A fundamentally great stock with bearish options positioning is still a buy — "
+            "but unusually heavy put buying or very high IV warrants investigation. "
+            "No API key required — data from yfinance."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
         "name": "search_stocks",
         "description": (
             "Search for stocks by company name or keyword. Returns matching tickers. "
@@ -1031,6 +1068,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_short_interest":
         return market_data.get_short_interest(tool_input["ticker"])
+
+    elif tool_name == "get_options_flow":
+        return market_data.get_options_flow(tool_input["ticker"])
 
     elif tool_name == "search_stocks":
         return market_data.search_stocks(tool_input["query"])

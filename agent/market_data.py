@@ -193,6 +193,242 @@ def get_price_history(ticker: str, period: str = "1y") -> dict:
         return {"error": str(e)}
 
 
+def get_options_flow(ticker: str) -> dict:
+    """
+    Retrieve options market data: put/call ratio, ATM implied volatility,
+    IV vs. realized volatility, and unusual contract activity.
+
+    Analyzes the nearest 3 expiries (most liquid, most relevant for sentiment).
+    Realized volatility is computed from 30-day daily price history.
+
+    Key signals:
+    - put/call volume ratio > 1.0: bearish positioning
+    - put/call volume ratio < 0.7: bullish positioning
+    - IV materially above realized vol: market pricing in event risk or fear
+    - Unusual contracts (volume >> open interest): fresh directional bets opening
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+        expiries = t.options
+        if not expiries:
+            return {"ticker": ticker.upper(), "error": "No options data available for this ticker"}
+
+        # Current price for ATM selection
+        info = t.info
+        current_price = (
+            info.get("currentPrice")
+            or info.get("regularMarketPrice")
+            or info.get("previousClose")
+        )
+        if not current_price:
+            return {"ticker": ticker.upper(), "error": "Could not determine current price"}
+
+        # Select nearest 3 expiries (up to ~6 weeks out for liquidity)
+        today = datetime.now().date()
+        near_expiries = []
+        for exp in expiries:
+            exp_date = datetime.strptime(exp, "%Y-%m-%d").date()
+            days_out = (exp_date - today).days
+            if 5 <= days_out <= 60:
+                near_expiries.append(exp)
+            if len(near_expiries) == 3:
+                break
+        # Fall back to first expiry if none in the 5-60 day window
+        if not near_expiries:
+            near_expiries = expiries[:2]
+
+        # ── Aggregate put/call data across near expiries ──────────────────────
+        total_call_vol = 0
+        total_put_vol = 0
+        total_call_oi = 0
+        total_put_oi = 0
+        atm_iv_calls = []
+        atm_iv_puts = []
+        unusual_contracts = []
+
+        for exp in near_expiries:
+            try:
+                chain = t.option_chain(exp)
+            except Exception:
+                continue
+
+            calls = chain.calls.copy()
+            puts = chain.puts.copy()
+
+            # Fill NaN volumes/OI with 0
+            for col in ("volume", "openInterest"):
+                calls[col] = calls[col].fillna(0)
+                puts[col] = puts[col].fillna(0)
+
+            total_call_vol += int(calls["volume"].sum())
+            total_put_vol += int(puts["volume"].sum())
+            total_call_oi += int(calls["openInterest"].sum())
+            total_put_oi += int(puts["openInterest"].sum())
+
+            # ATM IV: find the strike closest to current price in each chain
+            if not calls.empty and "impliedVolatility" in calls.columns:
+                calls["strike_dist"] = (calls["strike"] - current_price).abs()
+                atm_call = calls.loc[calls["strike_dist"].idxmin()]
+                iv = atm_call.get("impliedVolatility")
+                if iv and iv > 0:
+                    atm_iv_calls.append(float(iv))
+
+            if not puts.empty and "impliedVolatility" in puts.columns:
+                puts["strike_dist"] = (puts["strike"] - current_price).abs()
+                atm_put = puts.loc[puts["strike_dist"].idxmin()]
+                iv = atm_put.get("impliedVolatility")
+                if iv and iv > 0:
+                    atm_iv_puts.append(float(iv))
+
+            # Unusual activity: volume ≥ 3× open interest, minimum 500 contracts
+            # This signals fresh directional positioning (not just rolling/hedging)
+            for side, df in [("call", calls), ("put", puts)]:
+                if df.empty:
+                    continue
+                unusual = df[
+                    (df["volume"] >= 500) &
+                    (df["openInterest"] > 0) &
+                    (df["volume"] >= df["openInterest"] * 3)
+                ].copy()
+                for _, row in unusual.iterrows():
+                    vol = int(row["volume"])
+                    oi = int(row["openInterest"])
+                    iv_pct = round(float(row["impliedVolatility"]) * 100, 1) if row.get("impliedVolatility") else None
+                    unusual_contracts.append({
+                        "type": side,
+                        "strike": float(row["strike"]),
+                        "expiry": exp,
+                        "volume": vol,
+                        "open_interest": oi,
+                        "vol_oi_ratio": round(vol / oi, 1),
+                        "iv_pct": iv_pct,
+                        "note": f"Volume {round(vol/oi, 1)}x OI — likely fresh {side} position",
+                    })
+
+        # Sort unusual by volume descending, keep top 5
+        unusual_contracts.sort(key=lambda x: x["volume"], reverse=True)
+        unusual_contracts = unusual_contracts[:5]
+
+        # ── Put/call ratios ───────────────────────────────────────────────────
+        pcr_volume = round(total_put_vol / total_call_vol, 2) if total_call_vol > 0 else None
+        pcr_oi = round(total_put_oi / total_call_oi, 2) if total_call_oi > 0 else None
+
+        if pcr_volume is None:
+            pcr_signal = "unknown"
+        elif pcr_volume < 0.7:
+            pcr_signal = "bullish"
+        elif pcr_volume < 1.0:
+            pcr_signal = "neutral"
+        elif pcr_volume < 1.5:
+            pcr_signal = "bearish"
+        else:
+            pcr_signal = "strongly_bearish"
+
+        # ── ATM implied volatility ────────────────────────────────────────────
+        all_atm_ivs = atm_iv_calls + atm_iv_puts
+        atm_iv = round(sum(all_atm_ivs) / len(all_atm_ivs) * 100, 1) if all_atm_ivs else None
+
+        # ── 30-day realized volatility (annualised) ───────────────────────────
+        realized_vol = None
+        try:
+            hist = t.history(period="3mo")
+            if len(hist) >= 21:
+                log_returns = hist["Close"].pct_change().dropna()
+                realized_vol = round(float(log_returns.tail(21).std() * (252 ** 0.5) * 100), 1)
+        except Exception:
+            pass
+
+        # ── IV vs realized vol ────────────────────────────────────────────────
+        iv_premium = None
+        iv_vs_realized = "unknown"
+        if atm_iv is not None and realized_vol is not None:
+            iv_premium = round(atm_iv - realized_vol, 1)
+            if iv_premium > 10:
+                iv_vs_realized = "elevated"    # market pricing in fear or upcoming event
+            elif iv_premium > 3:
+                iv_vs_realized = "slightly_elevated"
+            elif iv_premium < -5:
+                iv_vs_realized = "depressed"   # unusually cheap options
+            else:
+                iv_vs_realized = "normal"
+
+        # ── Interpretation ────────────────────────────────────────────────────
+        interpretation = []
+
+        if pcr_volume is not None:
+            if pcr_signal in ("bullish",):
+                interpretation.append(
+                    f"Put/call volume ratio {pcr_volume} — options traders net bullish; "
+                    "more call than put volume in near-term expiries."
+                )
+            elif pcr_signal in ("bearish", "strongly_bearish"):
+                interpretation.append(
+                    f"Put/call volume ratio {pcr_volume} — elevated put buying; "
+                    "options market is hedging or positioning for downside."
+                )
+            else:
+                interpretation.append(f"Put/call volume ratio {pcr_volume} — neutral options positioning.")
+
+        if iv_vs_realized == "elevated":
+            interpretation.append(
+                f"ATM IV {atm_iv}% vs. 30d realized vol {realized_vol}% "
+                f"(+{iv_premium}pp premium) — market is pricing in an event or elevated fear. "
+                "Options are expensive; buying stock rather than calls may be more efficient."
+            )
+        elif iv_vs_realized == "depressed":
+            interpretation.append(
+                f"ATM IV {atm_iv}% vs. 30d realized vol {realized_vol}% "
+                f"({iv_premium:+.1f}pp) — unusually cheap options; low implied event risk."
+            )
+        elif atm_iv is not None and realized_vol is not None:
+            interpretation.append(
+                f"ATM IV {atm_iv}% vs. 30d realized vol {realized_vol}% — options fairly priced."
+            )
+
+        if unusual_contracts:
+            sides = [c["type"] for c in unusual_contracts]
+            call_unusual = sides.count("call")
+            put_unusual = sides.count("put")
+            if call_unusual > put_unusual:
+                interpretation.append(
+                    f"{len(unusual_contracts)} unusual contract(s) detected — "
+                    f"skewed toward calls ({call_unusual} call vs {put_unusual} put); "
+                    "suggests fresh bullish positioning by large traders."
+                )
+            elif put_unusual > call_unusual:
+                interpretation.append(
+                    f"{len(unusual_contracts)} unusual contract(s) detected — "
+                    f"skewed toward puts ({put_unusual} put vs {call_unusual} call); "
+                    "suggests hedging or directional bearish bet."
+                )
+            else:
+                interpretation.append(
+                    f"{len(unusual_contracts)} unusual contracts detected across calls and puts."
+                )
+
+        return {
+            "ticker": ticker.upper(),
+            "as_of": today.strftime("%Y-%m-%d"),
+            "current_price": round(current_price, 2),
+            "expiries_analyzed": near_expiries,
+            "total_call_volume": total_call_vol,
+            "total_put_volume": total_put_vol,
+            "total_call_oi": total_call_oi,
+            "total_put_oi": total_put_oi,
+            "put_call_volume_ratio": pcr_volume,
+            "put_call_oi_ratio": pcr_oi,
+            "pcr_signal": pcr_signal,
+            "atm_iv_pct": atm_iv,
+            "realized_vol_30d_pct": realized_vol,
+            "iv_vs_realized": iv_vs_realized,
+            "iv_premium_pp": iv_premium,
+            "unusual_contracts": unusual_contracts,
+            "interpretation": interpretation,
+        }
+    except Exception as e:
+        return {"ticker": ticker.upper(), "error": str(e)}
+
+
 def get_short_interest(ticker: str) -> dict:
     """
     Retrieve short interest data for a stock from yfinance.

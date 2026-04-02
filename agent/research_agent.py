@@ -32,6 +32,7 @@ _RESEARCH_TOOL_NAMES = {
     "get_price_history",
     "get_technical_indicators",
     "get_short_interest",
+    "get_options_flow",
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
@@ -1205,7 +1206,18 @@ Work through these in order:
       "buy" should at minimum trigger a closer look at the SEC risk factors.
     - Report `short_percent_of_float`, `short_ratio_days_to_cover`, and `mom_direction` in
       `full_thesis` and flag in `key_risks` if short_level ≥ "high".
-17. **Technical entry timing** — `get_technical_indicators`: ONLY call this if you are leaning
+17. **Options flow** — `get_options_flow`: call this when leaning toward "buy". Three signals:
+    - Put/call volume ratio: < 0.7 = net bullish positioning; > 1.0 = net bearish/hedging.
+      A high PCR on a stock you like is not a veto — it's a question to answer: are institutions
+      hedging an existing long position (bullish long-term) or opening fresh shorts (bearish)?
+    - IV vs. realized vol: if IV premium > 10pp, options are expensive — the market is pricing
+      in an upcoming event. Note this: if your thesis has no catalyst, high IV is a caution flag.
+      If you're buying ahead of an event you believe in, high IV confirms it's being watched.
+    - Unusual contracts: fresh large directional bets. Call-skewed unusual activity on a stock
+      you like is a confirming signal. Put-skewed unusual activity warrants checking what the
+      large trader knows (cross-reference with material events and news).
+    - Never buy options purely because of options flow — this informs equity entry timing only.
+18. **Technical entry timing** — `get_technical_indicators`: ONLY call this if you are leaning
     toward "buy" on fundamental and valuation grounds. Technicals do NOT change a fundamental
     verdict — they inform entry timing only.
     - RSI > 70 (overbought): flag as a timing risk; consider "watchlist" over "buy" even if
