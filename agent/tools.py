@@ -397,7 +397,7 @@ TOOL_DEFINITIONS = [
                 "tickers": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of ticker symbols to screen (max 100 per call)",
+                    "description": "List of ticker symbols to screen",
                 },
                 "top_n": {
                     "type": "integer",

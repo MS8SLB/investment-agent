@@ -790,7 +790,6 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
     """
     Run a fast parallel fundamental screen across a list of tickers.
     Returns the top_n candidates ranked by a composite quality + value score.
-    Cap input at 100 tickers per call for speed.
     """
     def _fetch(ticker: str) -> Optional[dict]:
         try:
@@ -902,11 +901,10 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
         except Exception:
             return None
 
-    batch = tickers[:100]
     results: list[dict] = []
 
     with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = {executor.submit(_fetch, t): t for t in batch}
+        futures = {executor.submit(_fetch, t): t for t in tickers}
         for future in as_completed(futures):
             res = future.result()
             if res:

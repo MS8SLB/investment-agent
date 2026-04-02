@@ -397,9 +397,8 @@ def get_competitor_analysis(ticker: str) -> dict:
     if not sp500_tickers:
         return {"error": "Could not load S&P 500 universe for peer comparison"}
 
-    # Screen the whole sector (max 100 for performance)
     sector_peers = [t for t in sp500_tickers if t != ticker.upper()]
-    screened     = market_data.screen_stocks(sector_peers[:100], top_n=50)
+    screened     = market_data.screen_stocks(sector_peers, top_n=50)
 
     # Pull the subject ticker's fundamentals
     subject_data = None
