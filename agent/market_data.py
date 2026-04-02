@@ -1055,6 +1055,262 @@ def get_insider_activity(ticker: str) -> dict:
         return {"error": str(e)}
 
 
+def get_hedge_recommendations(equity_pct: Optional[float] = None, cash_pct: Optional[float] = None) -> dict:
+    """
+    Translate the current macro regime into concrete defensive ETF hedge recommendations.
+
+    Fetches macro data internally. Accepts optional equity_pct / cash_pct
+    (from the caller's portfolio state) to personalise the allocation sizing.
+
+    Hedge universe is restricted to plain, non-leveraged, non-inverse ETFs:
+      TLT  — iShares 20+ Year Treasury Bond ETF  (RISK_OFF flight-to-safety)
+      IEF  — iShares 7-10 Year Treasury Bond ETF  (moderate duration hedge)
+      SHV  — iShares Short Treasury Bond ETF      (cash equivalent with yield)
+      GLD  — SPDR Gold Trust                       (inflation + crisis hedge)
+      TIP  — iShares TIPS Bond ETF                 (inflation-protected bonds)
+      GSG  — iShares S&P GSCI Commodity ETF        (broad commodity inflation hedge)
+
+    Never recommends leveraged, inverse, or single-commodity futures ETFs
+    — they decay and are inconsistent with a long-term value approach.
+    """
+    # ── Fetch current macro regime ────────────────────────────────────────────
+    macro = get_macro_environment()
+    rates = macro.get("rates", {})
+    sentiment = macro.get("sentiment", {})
+    commodities = macro.get("commodities", {})
+    dollar = macro.get("dollar", {})
+
+    vix = sentiment.get("vix")
+    yield_spread = rates.get("yield_curve_spread")        # positive = normal, negative = inverted
+    ten_yr = rates.get("ten_yr_treasury_yield_pct")
+    oil = commodities.get("oil_wti_usd")
+    gold_price = commodities.get("gold_usd")
+    dxy = dollar.get("dxy")
+
+    # ── Detect regime ─────────────────────────────────────────────────────────
+    # Mirrors the logic in ml_insights.py for consistency
+    risk_off = bool(vix and vix > 25) or bool(yield_spread is not None and yield_spread < 0)
+    high_rates = bool(ten_yr and ten_yr > 4.5)
+    inflationary = bool(oil and oil > 85)   # crude >$85 signals inflation pressure
+    stagflation = risk_off and inflationary
+
+    if stagflation:
+        regime = "STAGFLATION"
+    elif risk_off:
+        regime = "RISK_OFF"
+    elif inflationary:
+        regime = "INFLATIONARY"
+    elif high_rates:
+        regime = "HIGH_RATES"
+    else:
+        regime = "NORMAL"
+
+    # ── Hedge ETF definitions ─────────────────────────────────────────────────
+    # Each entry: ticker, name, category, base alloc %, regimes it applies to,
+    # entry / exit trigger text, rationale
+    _HEDGE_UNIVERSE = [
+        {
+            "ticker": "TLT",
+            "name": "iShares 20+ Year Treasury Bond ETF",
+            "category": "long_bonds",
+            "base_alloc_pct": 8,
+            "regimes": {"RISK_OFF", "STAGFLATION"},
+            "rationale": (
+                "Long-duration Treasuries are the classic flight-to-safety asset. "
+                "When equities sell off in a RISK_OFF regime, bond yields typically fall "
+                "and TLT prices rise — providing an inverse correlation that cushions drawdowns."
+            ),
+            "entry_signal": "VIX > 25 and/or yield curve inverted",
+            "exit_signal": "VIX sustainably below 20 AND yield curve re-normalises (spread > 0.3%)",
+        },
+        {
+            "ticker": "IEF",
+            "name": "iShares 7-10 Year Treasury Bond ETF",
+            "category": "medium_duration_bonds",
+            "base_alloc_pct": 5,
+            "regimes": {"RISK_OFF", "HIGH_RATES"},
+            "rationale": (
+                "Intermediate Treasuries carry less duration risk than TLT but still provide "
+                "meaningful defensive exposure. In a HIGH_RATES regime, medium-duration bonds "
+                "are preferable to long-duration (TLT) to avoid excessive interest-rate sensitivity."
+            ),
+            "entry_signal": "RISK_OFF regime or 10yr yield > 4.5% (as a duration-safe bond allocation)",
+            "exit_signal": "Regime normalises or 10yr yield falls below 3.5%",
+        },
+        {
+            "ticker": "SHV",
+            "name": "iShares Short Treasury Bond ETF",
+            "category": "cash_equivalent",
+            "base_alloc_pct": 5,
+            "regimes": {"RISK_OFF", "HIGH_RATES", "STAGFLATION"},
+            "rationale": (
+                "Sub-1-year T-bills: near-zero duration risk, earns the risk-free rate. "
+                "In a RISK_OFF or HIGH_RATES regime, parking cash in SHV earns the prevailing "
+                "short rate (currently elevated) rather than leaving it idle. Not a hedge — "
+                "a yield-generating cash alternative."
+            ),
+            "entry_signal": "Any risk-reducing regime; especially when short-term rates are elevated",
+            "exit_signal": "When attractive long equity opportunities appear or rates fall significantly",
+        },
+        {
+            "ticker": "GLD",
+            "name": "SPDR Gold Trust",
+            "category": "gold",
+            "base_alloc_pct": 5,
+            "regimes": {"RISK_OFF", "INFLATIONARY", "STAGFLATION"},
+            "rationale": (
+                "Gold holds real value during inflation (unlike nominal bonds) and also "
+                "rallies in RISK_OFF / flight-to-safety episodes. Most useful when facing "
+                "STAGFLATION — where bonds lose to inflation but gold typically holds purchasing power."
+            ),
+            "entry_signal": "RISK_OFF + inflation rising, or STAGFLATION regime",
+            "exit_signal": "Inflation falls below 3% and equity risk premium normalises",
+        },
+        {
+            "ticker": "TIP",
+            "name": "iShares TIPS Bond ETF",
+            "category": "inflation_protected_bonds",
+            "base_alloc_pct": 5,
+            "regimes": {"INFLATIONARY", "STAGFLATION"},
+            "rationale": (
+                "Treasury Inflation-Protected Securities adjust principal for CPI, "
+                "preserving real bond value during inflationary periods. Preferable to nominal "
+                "bonds (TLT) in an INFLATIONARY regime where inflation erodes fixed coupons."
+            ),
+            "entry_signal": "CPI trending above 3.5% and rising, or oil > $85",
+            "exit_signal": "CPI falls below 3% on a sustained basis",
+        },
+        {
+            "ticker": "GSG",
+            "name": "iShares S&P GSCI Commodity ETF",
+            "category": "commodities",
+            "base_alloc_pct": 3,
+            "regimes": {"INFLATIONARY"},
+            "rationale": (
+                "Broad commodity basket (energy, metals, agriculture) — the underlying driver "
+                "of inflation itself. Provides a partial natural hedge: when commodity prices "
+                "drive CPI higher, GSG rises. Small allocation only — commodities are volatile "
+                "and carry no intrinsic yield."
+            ),
+            "entry_signal": "Oil > $85 and CPI > 4% and rising",
+            "exit_signal": "Commodity prices and CPI trend reverse",
+        },
+    ]
+
+    # ── Build recommendations for the current regime ──────────────────────────
+    applicable = [h for h in _HEDGE_UNIVERSE if regime in h["regimes"]]
+
+    # Scale allocations based on equity concentration and regime severity
+    # More equity exposure + worse regime = more aggressive hedging
+    severity_multiplier = 1.0
+    if regime == "STAGFLATION":
+        severity_multiplier = 1.5
+    elif regime == "RISK_OFF" and vix and vix > 35:
+        severity_multiplier = 1.4   # crisis-level VIX
+    elif regime == "RISK_OFF":
+        severity_multiplier = 1.1
+
+    # If caller provided equity_pct, scale up if heavily invested
+    concentration_multiplier = 1.0
+    if equity_pct is not None:
+        if equity_pct > 90:
+            concentration_multiplier = 1.3
+        elif equity_pct > 80:
+            concentration_multiplier = 1.1
+        elif equity_pct < 60:
+            concentration_multiplier = 0.7   # already defensive
+
+    recommendations = []
+    total_hedge_pct = 0
+    for h in applicable:
+        alloc = round(h["base_alloc_pct"] * severity_multiplier * concentration_multiplier, 1)
+        # Hard cap: no single hedge ETF > 10%, total hedge cap handled below
+        alloc = min(alloc, 10.0)
+        total_hedge_pct += alloc
+        recommendations.append({
+            "ticker": h["ticker"],
+            "name": h["name"],
+            "category": h["category"],
+            "suggested_allocation_pct": alloc,
+            "rationale": h["rationale"],
+            "entry_signal": h["entry_signal"],
+            "exit_signal": h["exit_signal"],
+        })
+
+    # Hard cap: total hedge ≤ 20% of portfolio (long-term value strategy, not macro trading)
+    if total_hedge_pct > 20 and recommendations:
+        scale = 20 / total_hedge_pct
+        for r in recommendations:
+            r["suggested_allocation_pct"] = round(r["suggested_allocation_pct"] * scale, 1)
+        total_hedge_pct = 20.0
+
+    # ── Hedge warranted? ──────────────────────────────────────────────────────
+    hedge_warranted = regime in ("RISK_OFF", "INFLATIONARY", "STAGFLATION", "HIGH_RATES")
+    no_hedge_rationale = None
+    if not hedge_warranted:
+        no_hedge_rationale = (
+            f"Current regime is {regime} — no macro trigger for defensive hedging. "
+            "Holding cash is sufficient; deploying into hedge ETFs would dilute equity returns "
+            "without a clear compensating risk-reduction benefit."
+        )
+        recommendations = []
+        total_hedge_pct = 0
+
+    # ── Cash check ────────────────────────────────────────────────────────────
+    # Hedges should ALWAYS be funded from cash, not by selling equity
+    funding_note = None
+    if cash_pct is not None and hedge_warranted:
+        if cash_pct < total_hedge_pct:
+            funding_note = (
+                f"Warning: recommended hedge allocation ({total_hedge_pct:.0f}%) exceeds "
+                f"current cash ({cash_pct:.0f}%). Fund hedges ONLY from cash — do NOT sell "
+                "equity positions to finance hedging. Scale back recommendations to fit available cash."
+            )
+            # Scale down to fit available cash (with 5% buffer for equity buys)
+            available = max(0, cash_pct - 5)
+            if available < total_hedge_pct and available > 0:
+                scale = available / total_hedge_pct
+                for r in recommendations:
+                    r["suggested_allocation_pct"] = round(r["suggested_allocation_pct"] * scale, 1)
+                total_hedge_pct = round(available, 1)
+        else:
+            funding_note = (
+                f"Sufficient cash ({cash_pct:.0f}%) available to fund recommended "
+                f"hedge allocation ({total_hedge_pct:.0f}%) without selling any equity."
+            )
+
+    # ── Key signals used ─────────────────────────────────────────────────────
+    regime_signals = []
+    if vix:
+        regime_signals.append(f"VIX {vix:.1f} ({'elevated' if vix > 25 else 'normal'})")
+    if yield_spread is not None:
+        regime_signals.append(
+            f"Yield curve {yield_spread:+.2f}% ({'inverted' if yield_spread < 0 else 'normal'})"
+        )
+    if ten_yr:
+        regime_signals.append(f"10yr Treasury {ten_yr:.1f}%")
+    if oil:
+        regime_signals.append(f"WTI crude ${oil:.0f}")
+
+    return {
+        "regime": regime,
+        "hedge_warranted": hedge_warranted,
+        "equity_pct_input": equity_pct,
+        "cash_pct_input": cash_pct,
+        "total_recommended_hedge_pct": total_hedge_pct,
+        "recommendations": recommendations,
+        "no_hedge_rationale": no_hedge_rationale,
+        "funding_note": funding_note,
+        "regime_signals": regime_signals,
+        "philosophy": (
+            "Hedges are funded exclusively from cash, not by selling equity. "
+            "Maximum hedge allocation is 20% of total portfolio. "
+            "These are defensive positions to reduce drawdown in stress regimes — "
+            "not macro bets or yield plays. Unwind when the triggering regime resolves."
+        ),
+    }
+
+
 def get_macro_environment() -> dict:
     """
     Fetch key macroeconomic indicators: Treasury yields, yield curve,

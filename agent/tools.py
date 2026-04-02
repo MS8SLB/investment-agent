@@ -387,6 +387,50 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_hedge_recommendations",
+        "description": (
+            "Translate the current macro regime into concrete defensive ETF hedge recommendations: "
+            "which ETFs to buy, how much to allocate, when to enter, and when to unwind.\n\n"
+            "Call this during portfolio rebalancing when the macro environment looks stressed. "
+            "Triggers: VIX > 25, inverted yield curve, oil > $85, or any RISK_OFF / INFLATIONARY "
+            "/ STAGFLATION / HIGH_RATES regime signal from get_macro_environment.\n\n"
+            "Hedge universe (plain, non-leveraged, non-inverse ETFs only):\n"
+            "  TLT — 20+ Year Treasury Bonds (RISK_OFF flight-to-safety)\n"
+            "  IEF — 7-10 Year Treasury Bonds (moderate duration, also HIGH_RATES)\n"
+            "  SHV — Short Treasury Bonds <1yr (cash equivalent, earns short-term yield)\n"
+            "  GLD — Gold (inflation + crisis hedge; useful in STAGFLATION)\n"
+            "  TIP — TIPS Bonds (inflation-protected; INFLATIONARY regime)\n"
+            "  GSG — Broad Commodity ETF (energy/metals/agriculture; pure INFLATIONARY)\n\n"
+            "Hard rules:\n"
+            "  - Hedges are ALWAYS funded from cash, never by selling equity positions\n"
+            "  - Maximum hedge allocation: 20% of total portfolio\n"
+            "  - No recommendation is made in NORMAL / RISK_ON regimes\n"
+            "  - Unwind when the triggering regime resolves\n\n"
+            "Pass equity_pct and cash_pct from get_portfolio_status so recommendations "
+            "are sized to your actual portfolio composition."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "equity_pct": {
+                    "type": "number",
+                    "description": (
+                        "Current equity allocation as % of total portfolio value (0-100). "
+                        "From get_portfolio_status: equity_value / (equity_value + cash) × 100."
+                    ),
+                },
+                "cash_pct": {
+                    "type": "number",
+                    "description": (
+                        "Current cash as % of total portfolio value (0-100). "
+                        "Hedges will be scaled to fit available cash."
+                    ),
+                },
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "get_benchmark_comparison",
         "description": (
             "Compare the portfolio's total return since inception against the S&P 500. "
@@ -1104,6 +1148,27 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_macro_environment":
         return market_data.get_macro_environment()
+
+    elif tool_name == "get_hedge_recommendations":
+        # Compute equity/cash % from live portfolio state if not supplied by caller
+        equity_pct = tool_input.get("equity_pct")
+        cash_pct = tool_input.get("cash_pct")
+        if equity_pct is None or cash_pct is None:
+            holdings = portfolio.get_holdings()
+            cash = portfolio.get_cash()
+            equity_value = 0.0
+            for h in holdings:
+                try:
+                    q = market_data.get_stock_quote(h["ticker"])
+                    price = q.get("price") or h.get("avg_cost", 0)
+                    equity_value += h["shares"] * price
+                except Exception:
+                    equity_value += h["shares"] * h.get("avg_cost", 0)
+            total = equity_value + cash
+            if total > 0:
+                equity_pct = round(equity_value / total * 100, 1)
+                cash_pct = round(cash / total * 100, 1)
+        return market_data.get_hedge_recommendations(equity_pct=equity_pct, cash_pct=cash_pct)
 
     elif tool_name == "get_stock_universe":
         index = tool_input.get("index", "all")

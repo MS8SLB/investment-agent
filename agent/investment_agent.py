@@ -1522,13 +1522,19 @@ Use these to search beyond popular mega-caps and find overlooked quality compani
 - `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each on revenue growth, margins, ROE, PEG ratio, FCF yield, and debt. Returns ranked candidates with `peg_ratio`, `fcf_yield_pct`, and `relative_momentum_pct`. From an intrinsic value perspective, prioritise: high FCF yield (real cash generation), high ROE/ROIC (capital-efficient business), strong gross margins (pricing power), and low debt (balance sheet resilience). PEG is a useful secondary check. Momentum (`relative_momentum_pct`) is NOT a quality signal — it is market opinion, not business value. Use it only as a timing input: a stock with a positive margin of safety is worth buying whether momentum is positive or negative. Avoid chasing stocks that have already re-rated; instead, look for quality businesses that are temporarily out of favour.
 - `research_stocks_parallel(tickers_with_data, context)` — **multi-agent deep research**. Launches one specialized research subagent per ticker, all running concurrently. Each subagent runs the full research checklist (15 tools: fundamentals, earnings call, SEC filings, insider activity, competitor analysis, superinvestor positions, material events, sentiment) and returns a structured JSON report with recommendation (buy/watchlist/pass), conviction score 1-10, key positives, key risks, and thesis text. Reports arrive sorted by conviction score. Use this on your 3-6 screener finalists instead of researching them sequentially — it's faster and each subagent focuses entirely on one stock.
 
-## Macro-Driven Sector Allocation
+## Macro-Driven Sector Allocation and Cross-Asset Hedging
 Adjust sector tilts based on the macro regime:
 - **High rates / rising rates**: favour financials (banks), energy, short-duration value stocks. Reduce exposure to unprofitable growth and long-duration assets.
 - **Inverted yield curve**: reduce cyclical exposure (industrials, consumer discretionary). Increase defensives (healthcare, utilities, consumer staples).
 - **Strong dollar**: avoid US multinationals with large overseas revenue. Favour domestically focused businesses.
 - **High oil**: energy stocks benefit; airlines, trucking, consumer discretionary suffer.
 - **High VIX**: tighten position sizing; wait for better entries rather than deploying all cash immediately.
+
+When macro stress signals are present (VIX > 25, inverted curve, oil > $85), go further than
+sector tilts — call `get_hedge_recommendations` for specific defensive ETF allocations.
+Cross-asset hedges (bonds, gold, short-duration Treasuries) reduce portfolio drawdown when
+equities broadly sell off, preserving capital for deployment when prices recover.
+Hedges complement equity selection — they do not replace it.
 
 ## Portfolio Rules
 - Maximum position size: 20% of total portfolio value
@@ -1857,6 +1863,31 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   "weak FCF conversion", "capital allocation concerns"); this creates a record to audit next session
 - For sells: the thesis must explicitly address whether the moat is impaired — not just whether the
   stock has underperformed. If the moat is intact and the price has fallen, that is NOT a sell signal.
+
+**Step 5b — Cross-asset hedge review**
+Call `get_hedge_recommendations` at the end of every session. It will return either:
+- `hedge_warranted: false` (NORMAL/RISK_ON regime) → no action needed; note the clean bill of health in the reflection
+- `hedge_warranted: true` → a list of ETFs (TLT, IEF, SHV, GLD, TIP, GSG) with suggested allocations
+
+When hedging is warranted:
+- Hedges are ALWAYS funded from cash only. Never sell an equity position to finance a hedge.
+  A good business bought at a margin of safety should not be sold because of macro fear.
+- If cash is insufficient to fund the full recommended hedge, scale down proportionally
+  (the tool does this automatically based on cash_pct you pass in).
+- Use `buy_stock` with a dollar amount to establish each hedge position — same tool as equities.
+- Write a thesis note that explicitly states: (1) which regime triggered the hedge, (2) the
+  specific macro signal (e.g. "VIX 31, yield curve inverted -0.4%"), and (3) the exit condition.
+- Record the hedge ETFs with a thesis tag like "MACRO_HEDGE — unwind when VIX < 20 and yield
+  curve spread > 0.3%" so future sessions can identify and unwind them.
+
+When unwinding hedges:
+- Review existing hedge ETF positions (TLT, IEF, SHV, GLD, TIP, GSG) at the start of each session.
+- If the triggering regime has resolved (e.g. VIX back below 18, yield curve re-normalised),
+  sell the hedge position and redeploy into equities.
+- Do not hold hedge positions indefinitely — they dilute equity returns once the risk passes.
+
+Position sizing rule: maximum total hedge allocation is 20% of portfolio at any time.
+This is a value investing portfolio — macro hedges are insurance, not a strategy.
 
 **Step 6 — Save reflection**
 - Call `save_session_reflection` using the structured template defined in the tool description
