@@ -193,6 +193,137 @@ def get_price_history(ticker: str, period: str = "1y") -> dict:
         return {"error": str(e)}
 
 
+def get_short_interest(ticker: str) -> dict:
+    """
+    Retrieve short interest data for a stock from yfinance.
+
+    Returns short % of float, days-to-cover, month-over-month change,
+    and interpreted signals (institutional bear conviction vs. squeeze risk).
+
+    Short interest data from yfinance is sourced from FINRA and updated
+    twice monthly — figures lag by ~2 weeks.
+    """
+    try:
+        info = yf.Ticker(ticker.upper()).info
+
+        shares_short = info.get("sharesShort")
+        shares_short_prior = info.get("sharesShortPriorMonth")
+        short_pct_float = info.get("shortPercentOfFloat")     # decimal, e.g. 0.05
+        short_ratio = info.get("shortRatio")                  # days to cover
+        float_shares = info.get("floatShares")
+        date_ts = info.get("dateShortInterest")               # UNIX timestamp
+
+        if short_pct_float is None and shares_short is None:
+            return {"ticker": ticker.upper(), "error": "No short interest data available"}
+
+        # Convert to percentage
+        short_pct = round(short_pct_float * 100, 2) if short_pct_float is not None else None
+
+        # Month-over-month change in shares short
+        mom_change_pct = None
+        mom_direction = "unknown"
+        if shares_short is not None and shares_short_prior and shares_short_prior > 0:
+            mom_change_pct = round((shares_short - shares_short_prior) / shares_short_prior * 100, 1)
+            if mom_change_pct > 10:
+                mom_direction = "rising"       # bears adding conviction
+            elif mom_change_pct < -10:
+                mom_direction = "falling"      # bears covering — potential bullish signal
+            else:
+                mom_direction = "stable"
+
+        # Data date
+        data_date = None
+        if date_ts:
+            try:
+                from datetime import timezone
+                data_date = datetime.fromtimestamp(date_ts, tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        # ── Short % of float signal ───────────────────────────────────────────
+        # Thresholds based on typical institutional research:
+        #   < 5%   → low     (market neutral; no strong view)
+        #   5-15%  → moderate (some institutional bears)
+        #   15-25% → high    (significant short conviction)
+        #   > 25%  → very_high (crowded short — major red flag OR squeeze fuel)
+        if short_pct is None:
+            short_level = "unknown"
+        elif short_pct < 5:
+            short_level = "low"
+        elif short_pct < 15:
+            short_level = "moderate"
+        elif short_pct < 25:
+            short_level = "high"
+        else:
+            short_level = "very_high"
+
+        # ── Days-to-cover / squeeze risk ─────────────────────────────────────
+        if short_ratio is None:
+            squeeze_risk = "unknown"
+        elif short_ratio < 3:
+            squeeze_risk = "low"
+        elif short_ratio < 7:
+            squeeze_risk = "moderate"
+        elif short_ratio < 10:
+            squeeze_risk = "elevated"
+        else:
+            squeeze_risk = "high"
+
+        # ── Interpretation ────────────────────────────────────────────────────
+        # Short interest has a dual reading:
+        # (A) Institutional bear signal: smart money has done deep work and is short
+        # (B) Squeeze catalyst: if the long thesis is correct, a positive catalyst
+        #     can force rapid short covering, amplifying gains
+        #
+        # Rule of thumb:
+        #   High short % + rising trend = weight (A) heavily — treat as a fundamental red flag
+        #   High short % + falling trend = bears covering, potential momentum reversal
+        #   High short % + strong fundamental thesis = flag (B) as an upside catalyst, not the thesis itself
+        interpretation = []
+
+        if short_level in ("high", "very_high"):
+            interpretation.append(
+                f"Short interest elevated at {short_pct}% of float — "
+                "institutional bears have a view; verify their thesis isn't something the bull case missed."
+            )
+        elif short_level == "moderate":
+            interpretation.append(f"Moderate short interest at {short_pct}% — some institutional skepticism but not alarming.")
+        else:
+            interpretation.append(f"Low short interest at {short_pct}% — market broadly not positioned against this stock.")
+
+        if mom_direction == "rising":
+            interpretation.append(
+                f"Short interest grew {mom_change_pct:+.1f}% month-over-month — bears adding conviction; investigate why."
+            )
+        elif mom_direction == "falling":
+            interpretation.append(
+                f"Short interest declined {mom_change_pct:+.1f}% month-over-month — short covering in progress; potential near-term tailwind."
+            )
+
+        if squeeze_risk in ("elevated", "high"):
+            interpretation.append(
+                f"Days-to-cover {short_ratio:.1f} days — high squeeze risk if a positive catalyst emerges. "
+                "This amplifies upside on a correct long thesis but is NOT a standalone buy reason."
+            )
+
+        return {
+            "ticker": ticker.upper(),
+            "data_date": data_date,
+            "shares_short": shares_short,
+            "shares_short_prior_month": shares_short_prior,
+            "short_percent_of_float": short_pct,
+            "short_ratio_days_to_cover": round(float(short_ratio), 1) if short_ratio else None,
+            "float_shares": float_shares,
+            "mom_change_pct": mom_change_pct,
+            "mom_direction": mom_direction,
+            "short_level": short_level,
+            "squeeze_risk": squeeze_risk,
+            "interpretation": interpretation,
+        }
+    except Exception as e:
+        return {"ticker": ticker.upper(), "error": str(e)}
+
+
 def get_technical_indicators(ticker: str) -> dict:
     """
     Compute key technical indicators from 1-year daily price history.

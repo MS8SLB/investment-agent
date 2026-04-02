@@ -31,6 +31,7 @@ _RESEARCH_TOOL_NAMES = {
     "get_stock_fundamentals",
     "get_price_history",
     "get_technical_indicators",
+    "get_short_interest",
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
@@ -1192,7 +1193,19 @@ Work through these in order:
     changes in MD&A tone. New risk factors not in prior filings = emerging threat.
 15. **Alternative signals** — `get_google_trends`, `get_retail_sentiment`: use as contrarian
     thermometer only. Excessive retail enthusiasm = caution; retail despair = potential opportunity.
-16. **Technical entry timing** — `get_technical_indicators`: ONLY call this if you are leaning
+16. **Short interest** — `get_short_interest`: always call this. It has two readings — weight both:
+    - (A) Institutional bear signal: if `short_level` is "high" or "very_high" AND
+      `mom_direction` is "rising", sophisticated investors are actively adding short exposure.
+      Ask: what do they know? Cross-check against the risk factors and competitive landscape
+      you've already researched. If you can't identify their thesis, treat it as a caution.
+    - (B) Squeeze catalyst: high short % on a stock where the long thesis is strong and a
+      catalyst is imminent means short covering will amplify upside. Note this in `key_positives`
+      as optionality — but do NOT buy purely for the squeeze.
+    - Rising short interest (mom_direction "rising") on a stock you were going to recommend
+      "buy" should at minimum trigger a closer look at the SEC risk factors.
+    - Report `short_percent_of_float`, `short_ratio_days_to_cover`, and `mom_direction` in
+      `full_thesis` and flag in `key_risks` if short_level ≥ "high".
+17. **Technical entry timing** — `get_technical_indicators`: ONLY call this if you are leaning
     toward "buy" on fundamental and valuation grounds. Technicals do NOT change a fundamental
     verdict — they inform entry timing only.
     - RSI > 70 (overbought): flag as a timing risk; consider "watchlist" over "buy" even if

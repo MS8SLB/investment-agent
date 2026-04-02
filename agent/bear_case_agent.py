@@ -32,6 +32,7 @@ _BEAR_TOOL_NAMES = {
     "get_stock_fundamentals",
     "get_price_history",
     "get_technical_indicators",
+    "get_short_interest",
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
@@ -119,11 +120,20 @@ Work through each of these. Use the research tools to verify or refute specific 
    - Is there a known overhang: index rebalancing, lock-up expiry, convertible maturity?
    - Check `get_material_events` for recent 8-K filings the bull may have overlooked.
 
-8. **Sentiment and positioning**:
+8. **Sentiment and positioning** — `get_retail_sentiment`, `get_short_interest`:
+   - Always call `get_short_interest`. If `short_level` is "high" or "very_high":
+     institutional research desks have done deep work and are betting against this stock.
+     This is meaningful signal — professionals are not shorting randomly. Ask: what is
+     their thesis? Can you identify it from the risk factors, competitive data, or
+     earnings call? If yes, it belongs in `key_objections`. If you cannot identify the
+     bear thesis even after investigation, that itself is a red flag — add to `key_objections`
+     as "elevated institutional short interest with no identifiable thesis found."
+   - `mom_direction` "rising": bears adding conviction this month — the negative view is
+     strengthening, not fading. Raise this in `key_objections`.
+   - `mom_direction` "falling": short covering underway — bears may be closing their positions,
+     which weakens the short thesis. Note in `bull_points_that_hold`.
    - Is retail sentiment euphoric? Use `get_retail_sentiment` — extreme bulls at a top.
    - Has every long-only fund already bought in, leaving no new buyers to drive the re-rating?
-   - Are short interest figures elevated for a reason the bull dismissed? High short interest
-     often reflects institutional awareness of a specific structural problem.
 
 9. **AI disruption — be more aggressive than the bull**:
    - The bull likely gave a moderate AI disruption rating. Is that rating too lenient?

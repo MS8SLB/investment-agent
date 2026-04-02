@@ -115,6 +115,37 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_short_interest",
+        "description": (
+            "Retrieve short interest data for a stock: short % of float, days-to-cover "
+            "(short ratio), month-over-month change in shares short, and interpreted signals.\n\n"
+            "Short interest has two readings — use both:\n"
+            "  (A) Institutional bear signal: high short % + rising trend means smart money "
+            "has researched this stock and is actively betting against it. Treat as a red flag "
+            "that warrants extra scrutiny — what do they know that the bull case missed?\n"
+            "  (B) Squeeze catalyst: high short % on a stock with a strong fundamental thesis "
+            "and an upcoming catalyst means short covering will amplify any price move higher. "
+            "This is upside optionality on top of the thesis — not a standalone buy reason.\n\n"
+            "Thresholds:\n"
+            "  short_level 'high' (15-25%) or 'very_high' (>25%): investigate short thesis\n"
+            "  mom_direction 'rising': bears adding — dig deeper before buying\n"
+            "  mom_direction 'falling': short covering — potential near-term tailwind\n"
+            "  days_to_cover > 7: elevated squeeze risk if positive catalyst emerges\n\n"
+            "Data is sourced from FINRA via yfinance and updated twice monthly — "
+            "figures typically lag ~2 weeks. No API key required."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
         "name": "search_stocks",
         "description": (
             "Search for stocks by company name or keyword. Returns matching tickers. "
@@ -997,6 +1028,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_technical_indicators":
         return market_data.get_technical_indicators(tool_input["ticker"])
+
+    elif tool_name == "get_short_interest":
+        return market_data.get_short_interest(tool_input["ticker"])
 
     elif tool_name == "search_stocks":
         return market_data.search_stocks(tool_input["query"])
