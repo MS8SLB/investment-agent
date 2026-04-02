@@ -83,6 +83,38 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_technical_indicators",
+        "description": (
+            "Compute technical indicators for a stock to assess entry timing and trend health. "
+            "Returns RSI-14, MACD (12/26/9), Bollinger Bands (20-day, 2σ), EMA-50/200 "
+            "(golden/death cross), volume vs 20-day average, and an overall signal summary.\n\n"
+            "Use this AFTER fundamentals confirm a great business at a fair price — "
+            "technicals answer 'is now a good entry point?' not 'should I buy this business?'. "
+            "A fundamentally sound stock with bearish technicals may warrant waiting for a "
+            "better entry; a fundamentally weak stock with bullish technicals is still a pass.\n\n"
+            "Key signals to act on:\n"
+            "  - RSI < 30 (oversold): stock may be at a near-term bottom — favorable entry\n"
+            "  - RSI > 70 (overbought): wait for a pullback before buying\n"
+            "  - MACD bullish crossover: momentum turning up — confirms entry timing\n"
+            "  - MACD bearish crossover: momentum turning down — wait or reduce size\n"
+            "  - Price below EMA-50 and EMA-200 (death cross): stock in downtrend — be cautious\n"
+            "  - Price at lower Bollinger Band: near-term oversold, may bounce\n"
+            "  - Price at upper Bollinger Band: extended, high risk of short-term pullback\n"
+            "  - High volume on up days: institutional buying — supportive of thesis\n\n"
+            "No API key required — computed from yfinance 1-year daily history."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
         "name": "search_stocks",
         "description": (
             "Search for stocks by company name or keyword. Returns matching tickers. "
@@ -962,6 +994,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         return market_data.get_price_history(
             tool_input["ticker"], tool_input.get("period", "1y")
         )
+
+    elif tool_name == "get_technical_indicators":
+        return market_data.get_technical_indicators(tool_input["ticker"])
 
     elif tool_name == "search_stocks":
         return market_data.search_stocks(tool_input["query"])

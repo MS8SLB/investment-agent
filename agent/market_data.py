@@ -193,11 +193,201 @@ def get_price_history(ticker: str, period: str = "1y") -> dict:
         return {"error": str(e)}
 
 
+def get_technical_indicators(ticker: str) -> dict:
+    """
+    Compute key technical indicators from 1-year daily price history.
+
+    Returns RSI-14, MACD (12/26/9), Bollinger Bands (20, 2σ), EMA-50/200,
+    volume trend, and an overall signal summary for entry timing.
+
+    All calculations use pandas/numpy — no external TA library required.
+    """
+    try:
+        hist = yf.Ticker(ticker.upper()).history(period="1y")
+        if len(hist) < 30:
+            return {"error": f"Insufficient price history for {ticker} (need ≥30 days)"}
+
+        close = hist["Close"].dropna()
+        volume = hist["Volume"].dropna()
+        n = len(close)
+
+        # ── RSI-14 ────────────────────────────────────────────────────────────
+        delta = close.diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        # Wilder smoothing (EWM with alpha=1/14)
+        avg_gain = gain.ewm(alpha=1 / 14, min_periods=14, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1 / 14, min_periods=14, adjust=False).mean()
+        rs = avg_gain / avg_loss.replace(0, float("nan"))
+        rsi_series = 100 - (100 / (1 + rs))
+        rsi = float(rsi_series.iloc[-1]) if not rsi_series.isna().all() else None
+
+        if rsi is None:
+            rsi_signal = "unknown"
+        elif rsi >= 70:
+            rsi_signal = "overbought"
+        elif rsi <= 30:
+            rsi_signal = "oversold"
+        else:
+            rsi_signal = "neutral"
+
+        # ── MACD 12/26/9 ─────────────────────────────────────────────────────
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+        macd_line = ema12 - ema26
+        signal_line = macd_line.ewm(span=9, adjust=False).mean()
+        histogram = macd_line - signal_line
+
+        macd_val = round(float(macd_line.iloc[-1]), 4)
+        signal_val = round(float(signal_line.iloc[-1]), 4)
+        hist_val = round(float(histogram.iloc[-1]), 4)
+        hist_prev = float(histogram.iloc[-2]) if n >= 2 else 0.0
+
+        if macd_val > signal_val:
+            macd_trend = "bullish"
+        else:
+            macd_trend = "bearish"
+
+        if hist_val > 0 and hist_prev <= 0:
+            macd_crossover = "bullish_crossover"
+        elif hist_val < 0 and hist_prev >= 0:
+            macd_crossover = "bearish_crossover"
+        else:
+            macd_crossover = "none"
+
+        # ── Bollinger Bands 20, 2σ ────────────────────────────────────────────
+        sma20 = close.rolling(20).mean()
+        std20 = close.rolling(20).std()
+        bb_upper = sma20 + 2 * std20
+        bb_lower = sma20 - 2 * std20
+        bb_mid_val = round(float(sma20.iloc[-1]), 2)
+        bb_upper_val = round(float(bb_upper.iloc[-1]), 2)
+        bb_lower_val = round(float(bb_lower.iloc[-1]), 2)
+        current_price = round(float(close.iloc[-1]), 2)
+        band_width = bb_upper_val - bb_lower_val
+        bb_position_pct = round(
+            ((current_price - bb_lower_val) / band_width * 100) if band_width > 0 else 50.0,
+            1,
+        )
+
+        if current_price >= bb_upper_val:
+            bb_signal = "at_upper_band"
+        elif current_price <= bb_lower_val:
+            bb_signal = "at_lower_band"
+        else:
+            bb_signal = "inside_bands"
+
+        # ── EMA 50 / 200 ──────────────────────────────────────────────────────
+        ema50 = close.ewm(span=50, adjust=False).mean()
+        ema200 = close.ewm(span=200, adjust=False).mean()
+        ema50_val = round(float(ema50.iloc[-1]), 2)
+        ema200_val = round(float(ema200.iloc[-1]), 2)
+        price_vs_ema50_pct = round((current_price - ema50_val) / ema50_val * 100, 1)
+        price_vs_ema200_pct = round((current_price - ema200_val) / ema200_val * 100, 1)
+
+        if ema50_val > ema200_val:
+            ma_trend = "golden_cross"       # longer-term uptrend
+        else:
+            ma_trend = "death_cross"        # longer-term downtrend
+
+        # ── Volume trend ──────────────────────────────────────────────────────
+        vol_20d_avg = round(float(volume.rolling(20).mean().iloc[-1]))
+        last_vol = float(volume.iloc[-1])
+        vol_ratio = round(last_vol / vol_20d_avg, 2) if vol_20d_avg > 0 else None
+
+        if vol_ratio is None:
+            vol_signal = "unknown"
+        elif vol_ratio >= 2.0:
+            vol_signal = "high_volume"
+        elif vol_ratio >= 1.2:
+            vol_signal = "above_average"
+        elif vol_ratio <= 0.5:
+            vol_signal = "very_low_volume"
+        else:
+            vol_signal = "normal"
+
+        # ── Overall signal ────────────────────────────────────────────────────
+        bull_points = 0
+        bear_points = 0
+
+        if rsi_signal == "oversold":
+            bull_points += 2
+        elif rsi_signal == "overbought":
+            bear_points += 2
+
+        if macd_trend == "bullish":
+            bull_points += 1
+        else:
+            bear_points += 1
+
+        if macd_crossover == "bullish_crossover":
+            bull_points += 2
+        elif macd_crossover == "bearish_crossover":
+            bear_points += 2
+
+        if ma_trend == "golden_cross":
+            bull_points += 1
+        else:
+            bear_points += 1
+
+        if current_price > ema50_val:
+            bull_points += 1
+        else:
+            bear_points += 1
+
+        if bb_signal == "at_lower_band":
+            bull_points += 1
+        elif bb_signal == "at_upper_band":
+            bear_points += 1
+
+        if bull_points > bear_points + 1:
+            overall_signal = "bullish"
+        elif bear_points > bull_points + 1:
+            overall_signal = "bearish"
+        else:
+            overall_signal = "neutral"
+
+        # ── Human-readable summary ────────────────────────────────────────────
+        signals = []
+        if rsi is not None:
+            signals.append(f"RSI-14 {rsi:.1f} ({rsi_signal})")
+        signals.append(f"MACD {macd_trend}" + (f" — {macd_crossover.replace('_', ' ')}" if macd_crossover != "none" else ""))
+        signals.append(f"Price vs EMA50: {price_vs_ema50_pct:+.1f}%, EMA200: {price_vs_ema200_pct:+.1f}% ({ma_trend.replace('_', ' ')})")
+        signals.append(f"Bollinger position {bb_position_pct}% ({bb_signal.replace('_', ' ')})")
+        signals.append(f"Volume {vol_ratio}x 20-day avg ({vol_signal.replace('_', ' ')})")
+
+        return {
+            "ticker": ticker.upper(),
+            "as_of": close.index[-1].strftime("%Y-%m-%d"),
+            "current_price": current_price,
+            "rsi_14": round(rsi, 1) if rsi is not None else None,
+            "rsi_signal": rsi_signal,
+            "macd": macd_val,
+            "macd_signal_line": signal_val,
+            "macd_histogram": hist_val,
+            "macd_trend": macd_trend,
+            "macd_crossover": macd_crossover,
+            "bb_upper": bb_upper_val,
+            "bb_middle": bb_mid_val,
+            "bb_lower": bb_lower_val,
+            "bb_position_pct": bb_position_pct,
+            "bb_signal": bb_signal,
+            "ema_50": ema50_val,
+            "ema_200": ema200_val,
+            "price_vs_ema50_pct": price_vs_ema50_pct,
+            "price_vs_ema200_pct": price_vs_ema200_pct,
+            "ma_trend": ma_trend,
+            "volume_20d_avg": vol_20d_avg,
+            "volume_ratio": vol_ratio,
+            "volume_signal": vol_signal,
+            "overall_signal": overall_signal,
+            "signals_summary": signals,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def search_stocks(query: str) -> list[dict]:
-    """
-    Look up tickers for a company name or keyword using yfinance search.
-    Returns a list of matching results.
-    """
     try:
         results = yf.Search(query, max_results=5)
         quotes = results.quotes if hasattr(results, "quotes") else []

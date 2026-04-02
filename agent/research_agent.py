@@ -30,6 +30,7 @@ _RESEARCH_TOOL_NAMES = {
     "get_stock_quote",
     "get_stock_fundamentals",
     "get_price_history",
+    "get_technical_indicators",
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
@@ -1191,6 +1192,21 @@ Work through these in order:
     changes in MD&A tone. New risk factors not in prior filings = emerging threat.
 15. **Alternative signals** — `get_google_trends`, `get_retail_sentiment`: use as contrarian
     thermometer only. Excessive retail enthusiasm = caution; retail despair = potential opportunity.
+16. **Technical entry timing** — `get_technical_indicators`: ONLY call this if you are leaning
+    toward "buy" on fundamental and valuation grounds. Technicals do NOT change a fundamental
+    verdict — they inform entry timing only.
+    - RSI > 70 (overbought): flag as a timing risk; consider "watchlist" over "buy" even if
+      fundamentals are solid, unless there is a clear catalyst imminent.
+    - MACD bearish crossover + price below EMA-50: momentum is deteriorating; a slightly better
+      entry may be days or weeks away — adjust target_entry_price downward.
+    - Death cross (EMA-50 below EMA-200): stock is in a longer-term downtrend; require a wider
+      margin of safety (25%+ rather than 20%) before buying into a downtrend.
+    - RSI < 35 + price near lower Bollinger Band: near-term oversold — good entry timing.
+    - MACD bullish crossover: momentum turning up — confirms entry.
+    - Report `overall_signal` in full_thesis as a one-word entry timing note ("bullish entry",
+      "neutral entry", "wait for pullback").
+    - Never pass on a wonderful business purely for technical reasons. Technicals adjust entry
+      price and position size — they do not override a moat-and-margin-of-safety decision.
 
 ## Output Format
 After completing your research, output ONLY a JSON object with this exact structure (no markdown, no extra text):

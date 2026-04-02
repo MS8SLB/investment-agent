@@ -31,6 +31,7 @@ _BEAR_TOOL_NAMES = {
     "get_stock_quote",
     "get_stock_fundamentals",
     "get_price_history",
+    "get_technical_indicators",
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
@@ -106,9 +107,15 @@ Work through each of these. Use the research tools to verify or refute specific 
    - Is the customer base concentrated in a handful of accounts that could churn or negotiate harder?
    - Are margins already being compressed by competition even if the bull sees a "moat"?
 
-7. **Timing and catalyst risks**:
+7. **Timing and catalyst risks** — `get_technical_indicators`:
+   - Call `get_technical_indicators` to check price trend independently of the bull report.
+   - RSI > 70 (overbought) + price at upper Bollinger Band: stock is extended — entering here
+     risks a 10-15% near-term drawdown before any fundamental thesis plays out.
+   - Death cross (EMA-50 below EMA-200): the stock is in a structural downtrend; the bull is
+     fighting the tape. Raise this as a timing risk in `key_objections`.
+   - MACD bearish crossover: momentum turning negative — bull may be catching a falling knife.
+   - Price more than 20% above EMA-200: valuation may already reflect the upside the bull sees.
    - Is there an earnings event within 4 weeks? Buying before a miss is a known hazard.
-   - Is the stock technically in a downtrend (50DMA below 200DMA)? Use `get_price_history`.
    - Is there a known overhang: index rebalancing, lock-up expiry, convertible maturity?
    - Check `get_material_events` for recent 8-K filings the bull may have overlooked.
 
