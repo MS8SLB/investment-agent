@@ -657,9 +657,59 @@ TOOL_DEFINITIONS = [
         },
     },
     {
-        "name": "get_shadow_performance",
+        "name": "run_backtest",
         "description": (
-            "Review all stocks you previously passed on, showing their price change since consideration. "
+            "Run a strategy backtest in one of three modes to validate whether the "
+            "screening and trading approach is actually working.\n\n"
+            "Modes:\n\n"
+            "  'trade_history' — Replays ALL closed trades (no 20-trade limit). "
+            "Computes win rate, avg return, Sharpe ratio, max drawdown, and "
+            "S&P 500 alpha per trade. Segments results by market regime at entry "
+            "(VIX level: low_volatility / normal / elevated / high_fear). "
+            "Shows best and worst trades. Call this in Step 1 periodically (every "
+            "5+ closed trades) to validate that the strategy is generating alpha.\n\n"
+            "  'signal_cohorts' — Breaks all closed trades into signal cohorts: "
+            "PEG < 1.5 vs ≥ 1.5, FCF yield > 3% vs ≤ 3%, positive vs negative "
+            "momentum, score ≥ 8 vs < 8, and bull entry (VIX < 20) vs bear entry. "
+            "Shows win rate and avg return for each cohort so you can see which "
+            "signals are actually predictive in YOUR portfolio's specific history. "
+            "Use this to update signal weights in get_ml_factor_weights.\n\n"
+            "  'momentum' — Simulates buying the top-momentum tercile of a "
+            "provided ticker list at a point holding_days ago, and measures "
+            "actual forward return vs. S&P 500 buy-and-hold. Uses price data "
+            "only — no look-ahead on fundamentals. Pass your current screener "
+            "candidates as tickers to validate the momentum signal. "
+            "Requires tickers list.\n\n"
+            "Call 'trade_history' and 'signal_cohorts' in Step 1 once you have "
+            "≥5 closed trades. Call 'momentum' in Step 4 after screening to "
+            "validate momentum as a factor before weighting it in decisions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["trade_history", "signal_cohorts", "momentum"],
+                    "description": "Which backtest to run.",
+                },
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Required for mode='momentum'. Pass screener candidate tickers.",
+                },
+                "holding_days": {
+                    "type": "integer",
+                    "description": (
+                        "For mode='momentum': how many days ago the simulated entry was. "
+                        "Default 90 (one quarter). Use 180 or 365 for longer horizons."
+                    ),
+                },
+            },
+            "required": ["mode"],
+        },
+    },
+    {
+        "name": "get_shadow_performance",
             "Call this in Step 1 to audit past pass decisions — if a rejected stock is up 30%, "
             "understand why you were wrong; if it's down 20%, your thesis was validated. "
             "Use these lessons to sharpen your screening judgment."
@@ -1230,6 +1280,14 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_signal_performance":
         return portfolio.get_signal_performance()
+
+    elif tool_name == "run_backtest":
+        from agent.backtest import run_backtest
+        return run_backtest(
+            mode=tool_input["mode"],
+            tickers=tool_input.get("tickers"),
+            holding_days=tool_input.get("holding_days", 90),
+        )
 
     elif tool_name == "add_to_shadow_portfolio":
         return portfolio.add_to_shadow_portfolio(

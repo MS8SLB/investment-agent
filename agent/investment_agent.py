@@ -1556,6 +1556,10 @@ You have persistent memory across sessions. Use it to improve your decision-maki
 4. Call `get_trade_outcomes` — raw signal snapshots for all past trades.
 5. Call `get_signal_performance` — statistical breakdown of which signal thresholds have predicted positive returns. Use this to weight signals in screening: if PEG < 1.5 shows 70% win rate vs 40% without, make it a near-requirement.
 6. Call `get_shadow_performance` — check how stocks you previously passed on have moved. Validate or challenge your past reasoning.
+7. **If you have ≥ 5 closed trades**, call `run_backtest` twice:
+   - `mode="trade_history"` — full closed-trade analysis: win rate, Sharpe, max drawdown, S&P 500 alpha, and regime breakdown. If win_rate_pct < 50% or sharpe_ratio < 0.5, tighten entry criteria before buying anything new this session.
+   - `mode="signal_cohorts"` — see which signal thresholds (PEG, FCF yield, momentum, score) have historically separated winners from losers in YOUR portfolio. Apply the winning cohort definitions as hard filters in Step 3 screening this session.
+   - If the backtest reveals that bear_entry trades (VIX ≥ 20) underperform bull_entry trades by > 10pp avg return, require a wider margin of safety (25%+) on any buy today if VIX is currently elevated.
 
 **When making trades:**
 - Always write a detailed thesis in the `notes` field. Include:
@@ -1824,6 +1828,10 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - From all screener results, select **3-6 candidates** where: (a) FCF yield is attractive,
   (b) the business sounds like it could have a durable moat, and (c) the stock is not obviously
   at a historic valuation peak. Avoid companies with high debt-to-equity or declining FCF.
+- Optional: call `run_backtest(mode="momentum", tickers=[...screener candidates...], holding_days=90)`
+  to validate whether momentum has been a predictive factor in this universe recently.
+  If momentum_premium_pct > 5 (top-momentum tercile beat bottom by >5pp), weight
+  relative_momentum_pct more heavily when ranking screener finalists.
 - Call `research_stocks_parallel` with those tickers and their screener rows in `tickers_with_data`.
   Pass a concise `context` string covering: current macro regime, sector exposure weights, available
   cash, intrinsic value investment mandate (moat required, 20% margin of safety required), and any
