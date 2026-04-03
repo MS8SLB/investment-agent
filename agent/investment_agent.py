@@ -1744,7 +1744,10 @@ def run_agent_session(
         # Execute tool calls and build tool results
         tool_results = []
         for tc in tool_calls:
-            result = handle_tool_call(tc.name, tc.input)
+            try:
+                result = handle_tool_call(tc.name, tc.input)
+            except Exception as exc:
+                result = {"error": f"Tool '{tc.name}' raised an unexpected exception: {exc}"}
             if on_tool_result:
                 on_tool_result(tc.name, result)
             tool_results.append({

@@ -710,6 +710,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_shadow_performance",
+        "description": (
             "Call this in Step 1 to audit past pass decisions — if a rejected stock is up 30%, "
             "understand why you were wrong; if it's down 20%, your thesis was validated. "
             "Use these lessons to sharpen your screening judgment."

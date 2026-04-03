@@ -1425,7 +1425,10 @@ Complete all research steps from your checklist, then output the JSON report."""
         # Execute tools
         tool_results = []
         for tc in tool_calls:
-            result = handle_tool_call(tc.name, tc.input)
+            try:
+                result = handle_tool_call(tc.name, tc.input)
+            except Exception as exc:
+                result = {"error": f"Tool '{tc.name}' raised an unexpected exception: {exc}"}
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tc.id,
