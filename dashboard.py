@@ -318,7 +318,6 @@ with st.sidebar:
             "PERFORMANCE",
             "TRADES",
             "AI REVIEW",
-            "ASK AGENT",
             "REFLECTIONS",
         ],
         key="page_selector",
@@ -1018,89 +1017,6 @@ elif "AI REVIEW" in page:
             '<span style="color:#00E676;font-size:12px;letter-spacing:1px;">✓ AGENT COMPLETE</span>',
             unsafe_allow_html=True,
         )
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PAGE: ASK AGENT
-# ═══════════════════════════════════════════════════════════════════════════════
-elif "ASK AGENT" in page:
-    page_header("ASK THE AGENT")
-
-    st.markdown(
-        '<div style="color:#505050;font-size:12px;line-height:2;margin-bottom:20px;">'
-        'Ask the AI anything about your portfolio, specific stocks, or market conditions.'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    # ── Quick-prompt buttons ──────────────────────────────────────────────────
-    section("QUICK QUERIES")
-    examples = [
-        "What is the current risk profile of my portfolio?",
-        "Analyze NVDA — is it a good buy right now?",
-        "Should I add more defensive positions?",
-        "Rebalance the portfolio to reduce tech exposure",
-        "Which of my holdings has the weakest thesis right now?",
-        "What sectors am I missing?",
-    ]
-
-    cols = st.columns(3)
-    for i, ex in enumerate(examples):
-        if cols[i % 3].button(ex, key=f"quick_{i}"):
-            st.session_state["ask_prefill"] = ex
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── Input ─────────────────────────────────────────────────────────────────
-    section("YOUR QUERY")
-    prompt = st.text_area(
-        "TYPE YOUR QUESTION",
-        value=st.session_state.pop("ask_prefill", ""),
-        height=80,
-        placeholder='e.g. "Should I buy Apple right now?"',
-        key="ask_text",
-        label_visibility="collapsed",
-    )
-
-    ask_btn = st.button("▶  SEND TO AGENT")
-    output_area = st.empty()
-
-    if ask_btn and prompt.strip():
-        from agent.investment_agent import run_custom_prompt
-
-        lines = [
-            '<span style="color:#505050">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>',
-            f'<span style="color:#888">USER › {html.escape(prompt.strip())}</span>',
-            '<span style="color:#505050">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>',
-            "",
-        ]
-
-        def refresh():
-            output_area.markdown(agent_box(lines), unsafe_allow_html=True)
-
-        def on_text(text: str):
-            lines.append(f'<span style="color:#C8C8C8">{html.escape(text)}</span>')
-            refresh()
-
-        def on_tool_call(name: str, inp: dict):
-            ticker = html.escape(str(inp.get("ticker", "")))
-            extra = f' <span style="color:#888">{ticker}</span>' if ticker else ""
-            lines.append(f'<span style="color:#FF8000">  ⚙ {html.escape(name)}</span>{extra}')
-            refresh()
-
-        refresh()
-
-        try:
-            run_custom_prompt(prompt.strip(), model=selected_model, on_text=on_text, on_tool_call=on_tool_call)
-            lines.append("")
-            lines.append('<span style="color:#00E676">✓ DONE</span>')
-        except Exception as e:
-            lines.append(f'<span style="color:#FF3B3B">✗ ERROR: {html.escape(str(e))}</span>')
-
-        refresh()
-
-    elif ask_btn:
-        st.warning("Please enter a question before sending.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
