@@ -25,7 +25,7 @@ _env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 _dotenv_vals = dotenv_values(_env_file)
 STARTING_CASH = float(_dotenv_vals.get("STARTING_CASH") or os.environ.get("STARTING_CASH") or "100000")
 
-from agent.portfolio import initialize_portfolio, get_reflections, reset_portfolio
+from agent.portfolio import initialize_portfolio, get_reflections, reset_portfolio, get_universe_scores_meta
 initialize_portfolio(STARTING_CASH)
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -892,7 +892,27 @@ elif "AI REVIEW" in page:
             unsafe_allow_html=True,
         )
 
-    col_btn, col_fresh, col_status = st.columns([1, 1, 2])
+    # ── Universe quality cache status ─────────────────────────────────────────
+    _umeta = get_universe_scores_meta()
+    _ucount = _umeta.get("count", 0)
+    _uage   = _umeta.get("days_since_refresh")
+    if _ucount == 0:
+        _ucache_color = "#FF3B3B"
+        _ucache_label = "UNIVERSE CACHE: EMPTY — will auto-build on next run (~10 min)"
+    elif _uage is not None and _uage > 90:
+        _ucache_color = "#FFA040"
+        _ucache_label = f"UNIVERSE CACHE: STALE ({_uage}d old, {_ucount} tickers) — will auto-refresh on next run"
+    else:
+        _ucache_color = "#00E676"
+        _uage_str = f"{_uage}d old" if _uage is not None else "age unknown"
+        _ucache_label = f"UNIVERSE CACHE: FRESH ({_uage_str}, {_ucount} tickers scored)"
+    st.markdown(
+        f'<div style="color:{_ucache_color};font-size:11px;letter-spacing:1px;margin-bottom:12px;">'
+        f'◈ {_ucache_label}</div>',
+        unsafe_allow_html=True,
+    )
+
+    col_btn, col_fresh, col_refresh_cache, col_status = st.columns([1, 1, 1, 2])
     with col_btn:
         run_btn = st.button(
             "▶  RUN AI REVIEW",
@@ -902,6 +922,12 @@ elif "AI REVIEW" in page:
         fresh_btn = st.button(
             "↺  FRESH RUN",
             disabled=st.session_state.agent_running,
+        )
+    with col_refresh_cache:
+        refresh_cache_btn = st.button(
+            "⟳  REFRESH UNIVERSE",
+            disabled=st.session_state.agent_running,
+            help="Rebuild quality scores for all ~700 tickers. Takes ~10 min. Run quarterly.",
         )
     with col_status:
         status_box = st.empty()
@@ -915,6 +941,21 @@ elif "AI REVIEW" in page:
 
     if fresh_btn and os.path.exists(CHECKPOINT_PATH):
         os.remove(CHECKPOINT_PATH)
+
+    if refresh_cache_btn:
+        from agent import market_data as _md
+        from agent.portfolio import save_universe_scores as _save_scores
+        st.session_state.agent_running = True
+        with st.spinner("REBUILDING UNIVERSE QUALITY CACHE (~700 tickers, please wait)..."):
+            _sp500 = _md.get_stock_universe("sp500")
+            _intl  = _md.get_international_universe()
+            _scored = _md.score_quality_universe(
+                _sp500.get("tickers", []), _intl.get("tickers", [])
+            )
+            _save_scores(_scored)
+        st.session_state.agent_running = False
+        st.success(f"Universe cache rebuilt — {len(_scored)} tickers scored.")
+        st.rerun()
 
     if run_btn or fresh_btn:
         from agent.investment_agent import run_portfolio_review
