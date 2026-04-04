@@ -440,17 +440,35 @@ if "PORTFOLIO" in page:
 
         if alloc:
             alloc_df = pd.DataFrame(alloc)
-            palette = [
-                "#FF8000", "#FFA040", "#FFB870", "#CC6600",
-                "#FF6600", "#FFD700", "#00E676", "#40C4FF",
-                "#EA80FC", "#FF5252", "#69F0AE", "#FFD740",
+            # Distinct colors for positions; cash always gets neutral grey
+            _position_colors = [
+                "#00E676",  # green
+                "#40C4FF",  # sky blue
+                "#EA80FC",  # purple
+                "#FFD740",  # yellow
+                "#FF5252",  # red
+                "#00BCD4",  # cyan
+                "#B388FF",  # lavender
+                "#69F0AE",  # mint
+                "#FF80AB",  # pink
+                "#FF6D00",  # deep orange
+                "#F4FF81",  # lime
+                "#80D8FF",  # light blue
             ]
+            colors = []
+            pos_idx = 0
+            for label in alloc_df["label"]:
+                if label == "CASH":
+                    colors.append("#2A2A2A")   # dark grey — cash is not a position
+                else:
+                    colors.append(_position_colors[pos_idx % len(_position_colors)])
+                    pos_idx += 1
             fig = go.Figure(go.Pie(
                 labels=alloc_df["label"],
                 values=alloc_df["value"],
                 hole=0.62,
                 marker=dict(
-                    colors=palette[:len(alloc_df)],
+                    colors=colors,
                     line=dict(color="#000", width=2),
                 ),
                 textfont=dict(family="IBM Plex Mono", size=11),
