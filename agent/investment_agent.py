@@ -1518,6 +1518,7 @@ These tools access primary source SEC filings and provide qualitative intelligen
 
 ## Stock Discovery Tools
 Use these to search beyond popular mega-caps and find overlooked quality companies:
+- `get_international_universe(region?)` — returns ~200 major non-US stocks (Europe, Asia, LatAm, Canada, India) as ADRs and foreign-listed tickers. **Call every session** — this is the only way to surface international opportunities. Pass tickers to `screen_stocks` in batches of 60-80.
 - `get_stock_universe(index, sector)` — when `index="sp500"`, returns **all** ~500 S&P 500 tickers (no sampling). Use the optional `sector` parameter (e.g. "Health Care", "Financials") to narrow to a specific GICS sector. For mid/small-cap exposure use `index="broad"` with `random_seed` and `sample_n`.
 - `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each on revenue growth, margins, ROE, PEG ratio, FCF yield, and debt. Returns ranked candidates with `peg_ratio`, `fcf_yield_pct`, and `relative_momentum_pct`. From an intrinsic value perspective, prioritise: high FCF yield (real cash generation), high ROE/ROIC (capital-efficient business), strong gross margins (pricing power), and low debt (balance sheet resilience). PEG is a useful secondary check. Momentum (`relative_momentum_pct`) is NOT a quality signal — it is market opinion, not business value. Use it only as a timing input: a stock with a positive margin of safety is worth buying whether momentum is positive or negative. Avoid chasing stocks that have already re-rated; instead, look for quality businesses that are temporarily out of favour.
 - `research_stocks_parallel(tickers_with_data, context)` — **multi-agent deep research**. Launches one specialized research subagent per ticker, all running concurrently. Each subagent runs the full research checklist (15 tools: fundamentals, earnings call, SEC filings, insider activity, competitor analysis, superinvestor positions, material events, sentiment) and returns a structured JSON report with recommendation (buy/watchlist/pass), conviction score 1-10, key positives, key risks, and thesis text. Reports arrive sorted by conviction score. Use this on your 3-6 screener finalists instead of researching them sequentially — it's faster and each subagent focuses entirely on one stock.
@@ -1810,13 +1811,26 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Identify any positions where the thesis has broken down or the position has grown too large
 - Reassess intrinsic value for each holding: has it grown (thesis compounding) or shrunk (deterioration)?
 
-**Step 4 — Discover new opportunities from the full S&P 500**
+**Step 4 — Discover new opportunities: screen the full S&P 500 AND the international universe**
+
+*US screen (exhaustive):*
 - Call `get_stock_universe("sp500")` **once** — this returns all ~500 S&P 500 tickers.
 - Split the returned list into batches of 100 and call `screen_stocks` on each batch
   (5-6 calls total). This gives you exhaustive, deterministic coverage of the entire index —
   no ticker is missed due to random sampling.
-- Screen each batch with `screen_stocks` (100 tickers per call). From an intrinsic value perspective,
-  prioritise candidates by:
+
+*International screen (every session — do not skip):*
+- Call `get_international_universe()` **once** — returns ~200 major non-US companies across
+  Europe, Asia-Pacific, Latin America, Canada, and India (mix of US-listed ADRs and
+  foreign-suffix tickers). This is the ONLY way to surface international opportunities;
+  they are not in the S&P 500 universe.
+- Split into batches of 60-80 tickers and call `screen_stocks` on each batch (3-4 calls).
+  Foreign-suffix tickers that lack yfinance data are automatically skipped — this is normal.
+- Treat international and US screener results as a single combined pool of candidates.
+  Do not deprioritise international names just because they are less familiar. Some of the
+  world's best-moat businesses (ASML, Novo Nordisk, Hermès, Keyence, CSL) are non-US.
+
+*Screening criteria (same for US and international):*
   1. `fcf_yield_pct` > 3% — real cash generation, not accounting profits
   2. High ROE/margins — evidence of a moat generating excess returns on capital
   3. Low debt — financial resilience and capital allocation flexibility
@@ -1828,9 +1842,9 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   actually predicted returns in this portfolio; discount signals that show no predictive edge
 - Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies
   that are temporarily cheap, not the most popular stocks at peak valuations
-- From all screener results, select **3-6 candidates** where: (a) FCF yield is attractive,
-  (b) the business sounds like it could have a durable moat, and (c) the stock is not obviously
-  at a historic valuation peak. Avoid companies with high debt-to-equity or declining FCF.
+- From all screener results (US + international combined), select **3-6 candidates** where:
+  (a) FCF yield is attractive, (b) the business sounds like it could have a durable moat, and
+  (c) the stock is not obviously at a historic valuation peak. Avoid high debt or declining FCF.
 - Optional: call `run_backtest(mode="momentum", tickers=[...screener candidates...], holding_days=90)`
   to validate whether momentum has been a predictive factor in this universe recently.
   If momentum_premium_pct > 5 (top-momentum tercile beat bottom by >5pp), weight

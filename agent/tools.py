@@ -486,6 +486,38 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_international_universe",
+        "description": (
+            "Return a curated list of ~200 major international stocks for screening — "
+            "companies NOT already in the US S&P 500 / broad universe.\n\n"
+            "Covers top companies from Europe (UK, Germany, France, Switzerland, Netherlands, "
+            "Nordics), Asia-Pacific (Japan, South Korea, HK/China, Taiwan, Australia, Singapore), "
+            "Latin America (Brazil, Mexico, Chile), Canada, and India/Israel.\n\n"
+            "Mix of US-listed ADRs (NYSE/NASDAQ — best data quality, e.g. TSM, ASML, NVO, SAP) "
+            "and direct foreign-listed tickers with exchange suffixes (e.g. NESN.SW, 005930.KS, "
+            "0700.HK). All accessible via yfinance.\n\n"
+            "WORKFLOW: call this once per session, then pass the returned tickers list to "
+            "screen_stocks in batches of 50-80. Foreign-suffix tickers that lack data are "
+            "silently skipped by screen_stocks.\n\n"
+            "Use the optional 'region' parameter to focus on one geography if the macro "
+            "environment favours it (e.g. 'europe' during USD weakness, 'asia' for EM exposure)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": (
+                        "Optional: narrow to one region. "
+                        "Valid: 'europe', 'asia', 'latam', 'canada', 'india'. "
+                        "Omit (or pass null) for all regions combined."
+                    ),
+                },
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "get_stock_universe",
         "description": (
             "Fetch tickers from major US stock universes. "
@@ -1220,6 +1252,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
                 equity_pct = round(equity_value / total * 100, 1)
                 cash_pct = round(cash / total * 100, 1)
         return market_data.get_hedge_recommendations(equity_pct=equity_pct, cash_pct=cash_pct)
+
+    elif tool_name == "get_international_universe":
+        return market_data.get_international_universe(region=tool_input.get("region"))
 
     elif tool_name == "get_stock_universe":
         index = tool_input.get("index", "all")

@@ -1465,6 +1465,250 @@ def get_sector_exposure(holdings: list[dict]) -> dict:
     }
 
 
+def get_international_universe(region: Optional[str] = None) -> dict:
+    """
+    Return a curated list of major international stocks for screening.
+
+    Covers ~200 top companies across Europe, Asia-Pacific, Latin America,
+    Canada, and India/Israel. Mix of:
+      - US-listed ADRs / direct NYSE/NASDAQ listings (highest yfinance data quality)
+      - Foreign-listed tickers with exchange suffixes (.L, .DE, .AS, .PA, .SW,
+        .T, .HK, .NS, .KS) for companies with no US listing
+
+    All tickers are accessible via yfinance. Pass the returned tickers list
+    directly to screen_stocks for fundamental screening.
+
+    region options (case-insensitive):
+      "europe"  — UK, Germany, France, Switzerland, Netherlands, Sweden, Denmark
+      "asia"    — Japan, South Korea, Hong Kong/China, Taiwan, Singapore, Australia
+      "latam"   — Brazil, Mexico, Chile, Colombia
+      "canada"  — Canadian companies
+      "india"   — India + Israel tech
+      None      — all regions combined
+    """
+    # ── Europe ────────────────────────────────────────────────────────────────
+    # Mix of US ADRs and direct EU listings. EU-suffix tickers may have slightly
+    # less complete yfinance fundamental data but price history is reliable.
+    europe = [
+        # UK (no suffix = US-listed; .L = London)
+        "SHEL",   # Shell (NYSE)
+        "BP",     # BP (NYSE)
+        "AZN",    # AstraZeneca (NASDAQ)
+        "GSK",    # GSK (NYSE)
+        "LSXMA",  # Liberty Media (skip — use RIO for diversification)
+        "RIO",    # Rio Tinto (NYSE)
+        "HSBC",   # HSBC (NYSE)
+        "BCS",    # Barclays (NYSE)
+        "VOD",    # Vodafone (NASDAQ)
+        "RR.L",   # Rolls-Royce (London)
+        "ULVR.L", # Unilever (London)
+        "DGE.L",  # Diageo (London)
+        "BATS.L", # BAT (London)
+        "REL.L",  # RELX (London)
+        "NG.L",   # National Grid (London)
+        # Germany
+        "SAP",    # SAP (NYSE)
+        "SIE.DE", # Siemens (Frankfurt)
+        "ALV.DE", # Allianz (Frankfurt)
+        "BMW.DE", # BMW (Frankfurt)
+        "VOW3.DE",# Volkswagen (Frankfurt)
+        "BAYN.DE",# Bayer (Frankfurt)
+        "MBG.DE", # Mercedes-Benz (Frankfurt)
+        "DTE.DE", # Deutsche Telekom (Frankfurt)
+        "BAS.DE", # BASF (Frankfurt)
+        "ADS.DE", # Adidas (Frankfurt)
+        # France
+        "LVMUY",  # LVMH (US ADR)
+        "LRLCY",  # L'Oréal (US ADR)
+        "SNYNF",  # Sanofi (US ADR)
+        "AIR.PA", # Airbus (Paris)
+        "TTE",    # TotalEnergies (NYSE)
+        "BNP.PA", # BNP Paribas (Paris)
+        "MC.PA",  # LVMH (Paris — use if ADR has thin data)
+        # Switzerland
+        "NESN.SW",# Nestlé (Swiss)
+        "ROG.SW", # Roche (Swiss)
+        "NOVN.SW",# Novartis (Swiss)
+        "ABBN.SW",# ABB (Swiss)
+        "ZURN.SW",# Zurich Insurance (Swiss)
+        # Netherlands
+        "ASML",   # ASML (NASDAQ — already in broad but too important to miss)
+        "PHIA.AS",# Philips (Amsterdam)
+        "HEIA.AS",# Heineken (Amsterdam)
+        "INGA.AS",# ING (Amsterdam)
+        # Sweden / Denmark / Norway
+        "NVO",    # Novo Nordisk (NYSE)
+        "VOLV-B.ST", # Volvo B (Stockholm)
+        "ATCO-A.ST", # Atlas Copco (Stockholm)
+        "ERICB.ST",  # Ericsson B (Stockholm)
+        "NESTE.HE",  # Neste (Helsinki)
+        # Spain / Italy
+        "SAN",    # Santander (NYSE)
+        "BBVA",   # BBVA (NYSE)
+        "TEF",    # Telefónica (NYSE)
+        "ENEL.MI",# Enel (Milan)
+        "ENI.MI", # ENI (Milan)
+    ]
+
+    # ── Asia-Pacific ──────────────────────────────────────────────────────────
+    asia = [
+        # Taiwan
+        "TSM",    # TSMC (NYSE ADR — most important semiconductor)
+        "UMC",    # United Microelectronics (NYSE)
+        # Japan
+        "TM",     # Toyota (NYSE ADR)
+        "SONY",   # Sony (NYSE ADR)
+        "HMC",    # Honda (NYSE ADR)
+        "MUFG",   # Mitsubishi UFJ (NYSE ADR)
+        "NMR",    # Nomura (NYSE ADR)
+        "7203.T", # Toyota (Tokyo)
+        "6758.T", # Sony (Tokyo)
+        "9984.T", # SoftBank (Tokyo)
+        "6861.T", # Keyence (Tokyo)
+        "7974.T", # Nintendo (Tokyo)
+        "8306.T", # Mitsubishi UFJ (Tokyo)
+        "9432.T", # NTT (Tokyo)
+        "6098.T", # Recruit Holdings (Tokyo)
+        "4063.T", # Shin-Etsu Chemical (Tokyo)
+        # South Korea
+        "005930.KS", # Samsung Electronics (Seoul)
+        "000660.KS", # SK Hynix (Seoul)
+        "035420.KS", # NAVER (Seoul)
+        "051910.KS", # LG Chem (Seoul)
+        # China / Hong Kong (ADRs)
+        "BABA",   # Alibaba (NYSE ADR)
+        "BIDU",   # Baidu (NASDAQ ADR)
+        "JD",     # JD.com (NASDAQ ADR)
+        "PDD",    # PDD/Temu (NASDAQ)
+        "TCEHY",  # Tencent (US OTC ADR)
+        "NTES",   # NetEase (NASDAQ)
+        "VIPS",   # Vipshop (NYSE)
+        "9988.HK",# Alibaba (HK)
+        "0700.HK",# Tencent (HK)
+        "3690.HK",# Meituan (HK)
+        "9618.HK",# JD.com (HK)
+        "1299.HK",# AIA Group (HK)
+        "0941.HK",# China Mobile (HK)
+        # Australia
+        "BHP",    # BHP (NYSE ADR)
+        "RIO",    # Rio Tinto (NYSE — appears in Europe too, global miner)
+        "BHP.AX", # BHP (ASX)
+        "CBA.AX", # Commonwealth Bank (ASX)
+        "CSL.AX", # CSL Limited (ASX — biotech)
+        "WDS.AX", # Woodside Energy (ASX)
+        # Singapore
+        "D05.SI", # DBS Bank (Singapore)
+        "O39.SI", # OCBC Bank (Singapore)
+        "C6L.SI", # Singapore Airlines (Singapore)
+    ]
+
+    # ── Latin America ─────────────────────────────────────────────────────────
+    latam = [
+        "MELI",   # MercadoLibre (NASDAQ)
+        "NU",     # Nubank (NYSE)
+        "VALE",   # Vale (NYSE ADR)
+        "PBR",    # Petrobras (NYSE ADR)
+        "ITUB",   # Itaú Unibanco (NYSE ADR)
+        "BBD",    # Bradesco (NYSE ADR)
+        "ABEV",   # Ambev (NYSE ADR)
+        "BAP",    # Credicorp — Peru (NYSE)
+        "AMX",    # América Móvil (NYSE ADR)
+        "GFNORTEO.MX", # Banorte (Mexico)
+        "WALMEX.MX",   # Walmart de Mexico (Mexico)
+        "EC",     # Ecopetrol Colombia (NYSE ADR)
+    ]
+
+    # ── Canada ────────────────────────────────────────────────────────────────
+    canada = [
+        "SHOP",   # Shopify (NYSE)
+        "RY",     # Royal Bank (NYSE)
+        "TD",     # Toronto-Dominion (NYSE)
+        "BN",     # Brookfield (NYSE)
+        "BAM",    # Brookfield Asset Mgmt (NYSE)
+        "CNQ",    # Canadian Natural Resources (NYSE)
+        "SU",     # Suncor Energy (NYSE)
+        "CP",     # Canadian Pacific Kansas City (NYSE)
+        "CNI",    # Canadian National Railway (NYSE)
+        "MFC",    # Manulife (NYSE)
+        "SLF",    # Sun Life (NYSE)
+        "BCE",    # BCE Telecom (NYSE)
+        "ABX",    # Barrick Gold (NYSE)
+        "WPM",    # Wheaton Precious Metals (NYSE)
+        "CCO.TO", # Cameco (Toronto — uranium)
+        "ATD.TO", # Alimentation Couche-Tard (Toronto)
+        "CSU.TO", # Constellation Software (Toronto)
+    ]
+
+    # ── India + Israel ────────────────────────────────────────────────────────
+    india = [
+        # India (US ADRs)
+        "INFY",   # Infosys (NYSE)
+        "WIT",    # Wipro (NYSE)
+        "HDB",    # HDFC Bank (NYSE ADR)
+        "IBN",    # ICICI Bank (NYSE ADR)
+        "SIFY",   # Sify Technologies (NASDAQ)
+        "RELIANCE.NS", # Reliance Industries (NSE)
+        "TCS.NS",      # Tata Consultancy Services (NSE)
+        "HCLTECH.NS",  # HCL Technologies (NSE)
+        "BAJFINANCE.NS",# Bajaj Finance (NSE)
+        "TITAN.NS",    # Titan Company (NSE)
+        # Israel tech (NASDAQ-listed)
+        "CHKP",   # Check Point Software
+        "NICE",   # NICE Systems
+        "MNDY",   # Monday.com
+        "GLBE",   # Global-E Online
+        "WDAY",   # (skip — US company)
+        "CYBR",   # CyberArk
+    ]
+
+    # ── Assemble ──────────────────────────────────────────────────────────────
+    region_map = {
+        "europe": europe,
+        "asia":   asia,
+        "latam":  latam,
+        "canada": canada,
+        "india":  india,
+    }
+
+    if region:
+        key = region.lower()
+        if key not in region_map:
+            return {
+                "error": f"Unknown region '{region}'. Valid: europe, asia, latam, canada, india"
+            }
+        tickers = region_map[key]
+        used_regions = [key]
+    else:
+        # Deduplicate across regions (RIO appears in both europe and asia)
+        seen: set[str] = set()
+        tickers = []
+        for r_tickers in region_map.values():
+            for t in r_tickers:
+                if t not in seen:
+                    seen.add(t)
+                    tickers.append(t)
+        used_regions = list(region_map.keys())
+
+    # Remove any accidental duplicates or blank entries
+    tickers = [t for t in tickers if t and t.strip()]
+
+    return {
+        "tickers": tickers,
+        "total_count": len(tickers),
+        "regions_included": used_regions,
+        "note": (
+            f"{len(tickers)} major international stocks across {', '.join(used_regions)}. "
+            "Mix of US-listed ADRs (NYSE/NASDAQ — best data quality) and foreign-listed tickers "
+            "with exchange suffixes (.L=London, .DE=Frankfurt, .PA=Paris, .SW=Swiss, "
+            ".AS=Amsterdam, .T=Tokyo, .HK=HongKong, .KS=Seoul, .AX=ASX, .NS/.BO=India). "
+            "Pass the tickers list to screen_stocks in batches of 50-80 for fundamental screening. "
+            "Foreign-suffix tickers may return fewer fundamentals from yfinance — "
+            "if a ticker errors in screen_stocks it is silently skipped."
+        ),
+        "region_counts": {r: len(v) for r, v in region_map.items()},
+    }
+
+
 def get_stock_universe(
     index: str = "all",
     sample_n: int = 200,
