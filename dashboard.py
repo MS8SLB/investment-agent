@@ -929,7 +929,7 @@ elif "AI REVIEW" in page:
         unsafe_allow_html=True,
     )
 
-    col_btn, col_fresh, col_refresh_cache, col_status = st.columns([1, 1, 1, 2])
+    col_btn, col_fresh, col_refresh_cache, col_monitor, col_status = st.columns([1, 1, 1, 1, 2])
     with col_btn:
         run_btn = st.button(
             "▶  RUN AI REVIEW",
@@ -945,6 +945,12 @@ elif "AI REVIEW" in page:
             "⟳  REFRESH UNIVERSE",
             disabled=st.session_state.agent_running,
             help="Rebuild quality scores for all ~700 tickers. Takes ~10 min. Run quarterly.",
+        )
+    with col_monitor:
+        monitor_btn = st.button(
+            "◉  WATCHLIST MONITOR",
+            disabled=st.session_state.agent_running,
+            help="Run the daily price monitor — checks watchlist triggers and earnings dates.",
         )
     with col_status:
         status_box = st.empty()
@@ -973,6 +979,31 @@ elif "AI REVIEW" in page:
         st.session_state.agent_running = False
         st.success(f"Universe cache rebuilt — {len(_scored)} tickers scored.")
         st.rerun()
+
+    if monitor_btn:
+        import subprocess, sys
+        with st.spinner("RUNNING WATCHLIST MONITOR..."):
+            result = subprocess.run(
+                [sys.executable, "monitor.py"],
+                capture_output=True,
+                text=True,
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+            )
+        output_text = result.stdout or "(no output)"
+        if result.returncode != 0 and result.stderr:
+            output_text += "\n" + result.stderr
+        # Strip ANSI color codes for display
+        import re as _re
+        clean = _re.sub(r'\x1b\[[0-9;]*m', '', output_text)
+        lines_monitor = [
+            '<span style="color:#505050">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>',
+            f'<span style="color:#505050">WATCHLIST MONITOR  {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</span>',
+            '<span style="color:#505050">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>',
+            "",
+        ]
+        for line in clean.splitlines():
+            lines_monitor.append(f'<span style="color:#C8C8C8">{html.escape(line)}</span>')
+        output_area.markdown(agent_box(lines_monitor), unsafe_allow_html=True)
 
     if run_btn or fresh_btn:
         from agent.investment_agent import run_portfolio_review
