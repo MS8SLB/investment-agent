@@ -558,6 +558,48 @@ elif "PERFORMANCE" in page:
     else:
         st.info("No performance data yet — run an AI Review to start tracking.")
 
+    # ── SPY benchmark comparison ──────────────────────────────────────────────
+    section("SPY BENCHMARK COMPARISON (SINCE INCEPTION)")
+    from agent.portfolio import get_benchmark_comparison as _get_spy_bench
+    spy_bench = _get_spy_bench()
+    if spy_bench.get("available"):
+        _b1, _b2, _b3 = st.columns(3)
+        _port_ret = spy_bench.get("portfolio_return_pct", 0)
+        _spy_ret = spy_bench.get("spy_return_pct", 0)
+        _alpha = spy_bench.get("alpha_pct", 0)
+        _beating = spy_bench.get("beating_market", False)
+
+        _b1.metric(
+            "PORTFOLIO RETURN",
+            fmt_pct(_port_ret),
+            delta=fmt_pct(_port_ret),
+            delta_color="normal" if _port_ret >= 0 else "inverse",
+        )
+        _b2.metric(
+            "SPY RETURN",
+            fmt_pct(_spy_ret),
+        )
+        _b3.metric(
+            "ALPHA VS SPY",
+            fmt_pct(_alpha),
+            "OUTPERFORMING" if _beating else "UNDERPERFORMING",
+            delta_color="normal" if _beating else "inverse",
+        )
+        st.markdown(
+            f'<div style="color:#505050;font-size:11px;margin-top:4px;">'
+            f'Tracked since {spy_bench.get("start_date", "N/A")} &nbsp;|&nbsp; '
+            f'Portfolio: {fmt_usd(spy_bench.get("portfolio_value"))} &nbsp;|&nbsp; '
+            f'SPY equivalent: {fmt_usd(spy_bench.get("spy_equivalent_value"))}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div style="color:#505050;font-size:12px;">No benchmark data yet — '
+            'call get_benchmark_comparison in an AI Review to start tracking.</div>',
+            unsafe_allow_html=True,
+        )
+
     # ── Chart ─────────────────────────────────────────────────────────────────
     section("PORTFOLIO VALUE OVER TIME")
 

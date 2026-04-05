@@ -134,6 +134,18 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
             )
         """)
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dividends (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                amount_per_share REAL NOT NULL,
+                shares_held REAL NOT NULL,
+                total_amount REAL NOT NULL,
+                ex_date TEXT,
+                recorded_at TEXT NOT NULL
+            )
+        """)
+
         # Migrate existing DBs: add realized_pnl column if missing
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN realized_pnl REAL")
@@ -836,3 +848,37 @@ def close_prediction(ticker: str, outcome_price: float) -> None:
         )
         conn.commit()
     conn.close()
+
+# ── Dividend tracking ─────────────────────────────────────────────────────────
+
+def log_dividend(ticker: str, amount_per_share: float, shares_held: float, ex_date: str = None) -> float:
+    """Log a dividend payment and return total amount received."""
+    total = amount_per_share * shares_held
+    conn = _get_connection()
+    conn.execute(
+        "INSERT INTO dividends (ticker, amount_per_share, shares_held, total_amount, ex_date, recorded_at) VALUES (?,?,?,?,?,?)",
+        (ticker, amount_per_share, shares_held, total, ex_date, datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    return total
+
+
+def get_dividends(limit: int = 50) -> list:
+    """Return recent dividend records."""
+    conn = _get_connection()
+    rows = conn.execute(
+        "SELECT ticker, amount_per_share, shares_held, total_amount, ex_date, recorded_at FROM dividends ORDER BY recorded_at DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return [{"ticker": r[0], "amount_per_share": r[1], "shares_held": r[2],
+             "total_amount": r[3], "ex_date": r[4], "recorded_at": r[5]} for r in rows]
+
+
+def get_total_dividends_received() -> float:
+    """Return total dividends received across all time."""
+    conn = _get_connection()
+    result = conn.execute("SELECT COALESCE(SUM(total_amount), 0) FROM dividends").fetchone()
+    conn.close()
+    return result[0]
