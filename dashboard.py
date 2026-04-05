@@ -338,7 +338,7 @@ if "PORTFOLIO" in page:
     page_header("PORTFOLIO — LIVE OVERVIEW")
     _, _rb = st.columns([6, 1])
     with _rb:
-        if st.button("⟳  REFRESH", key="refresh_portfolio", width="stretch"):
+        if st.button("⟳  REFRESH", key="refresh_portfolio", use_container_width=True):
             st.rerun()
 
     from agent.tools import _get_portfolio_status
@@ -413,7 +413,7 @@ if "PORTFOLIO" in page:
                 "RETURN":     lambda v: ("+" if v >= 0 else "") + f"{v:.2f}%",
             })
         )
-        st.dataframe(styled, width="stretch", hide_index=True)
+        st.dataframe(styled, use_container_width=True, hide_index=True)
 
         # ── Allocation chart ─────────────────────────────────────────────────
         section("PORTFOLIO ALLOCATION")
@@ -478,7 +478,7 @@ if "PORTFOLIO" in page:
                     showarrow=False,
                 )],
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
 
     # ── Danger zone ──────────────────────────────────────────────────────────
@@ -528,104 +528,95 @@ elif "PERFORMANCE" in page:
     page_header("PERFORMANCE — VS S&P 500")
     _, _rb = st.columns([6, 1])
     with _rb:
-        if st.button("⟳  REFRESH", key="refresh_performance", width="stretch"):
+        if st.button("⟳  REFRESH", key="refresh_performance", use_container_width=True):
             st.rerun()
 
-    from agent.portfolio import get_portfolio_snapshots
-    from agent.tools import _handle_benchmark_comparison
+    from agent.portfolio import (
+        get_portfolio_snapshots, get_portfolio_metrics,
+        get_benchmark_comparison, get_transactions,
+    )
 
     with st.spinner("LOADING PERFORMANCE DATA..."):
-        bench = _handle_benchmark_comparison()
-        snapshots = get_portfolio_snapshots(limit=200)
+        snapshots  = get_portfolio_snapshots(limit=500)
+        spy_bench  = get_benchmark_comparison()
+        metrics    = get_portfolio_metrics()
+        txs        = get_transactions(limit=200)
 
-    # ── Benchmark metrics ─────────────────────────────────────────────────────
-    if bench.get("portfolio_return_pct") is not None:
-        port_ret = bench.get("portfolio_return_pct", 0)
-        bench_ret = bench.get("benchmark_return_pct")
-        alpha = bench.get("alpha_pct")
-        beating = bench.get("is_beating_benchmark")
+    # ── Key metrics row ───────────────────────────────────────────────────────
+    sharpe   = metrics.get("sharpe_ratio")
+    drawdown = metrics.get("max_drawdown_pct")
+    vol      = metrics.get("annualised_volatility_pct")
+    ann_ret  = metrics.get("annualised_return_pct")
+    port_ret = spy_bench.get("portfolio_return_pct") if spy_bench.get("available") else None
+    spy_ret  = spy_bench.get("spy_return_pct")       if spy_bench.get("available") else None
+    alpha    = spy_bench.get("alpha_pct")             if spy_bench.get("available") else None
+    beating  = spy_bench.get("beating_market", False)
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("PORTFOLIO RETURN", fmt_pct(port_ret), delta=fmt_pct(port_ret))
-        c2.metric("S&P 500 RETURN", fmt_pct(bench_ret) if bench_ret is not None else "N/A")
-        c3.metric(
-            "ALPHA (OUTPERFORMANCE)",
-            fmt_pct(alpha) if alpha is not None else "N/A",
-            "BEATING INDEX" if beating else "LAGGING INDEX",
-            delta_color="normal" if beating else "inverse",
-        )
-        c4.metric("CURRENT VALUE", fmt_usd(bench.get("portfolio_current_value")))
-    else:
-        st.info("No performance data yet — run an AI Review to start tracking.")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("PORTFOLIO RETURN",
+        fmt_pct(port_ret) if port_ret is not None else "N/A",
+        delta=fmt_pct(port_ret) if port_ret is not None else None,
+        delta_color="normal" if (port_ret or 0) >= 0 else "inverse",
+    )
+    c2.metric("SPY RETURN",
+        fmt_pct(spy_ret) if spy_ret is not None else "N/A",
+    )
+    c3.metric("ALPHA VS SPY",
+        fmt_pct(alpha) if alpha is not None else "N/A",
+        "OUTPERFORMING" if beating else ("UNDERPERFORMING" if alpha is not None else None),
+        delta_color="normal" if beating else "inverse",
+    )
+    c4.metric("SHARPE RATIO",
+        f"{sharpe:.2f}" if sharpe is not None else "N/A",
+        "GOOD" if sharpe is not None and sharpe > 1 else ("WEAK" if sharpe is not None and sharpe < 0 else None),
+        delta_color="normal" if sharpe is not None and sharpe > 0 else "inverse",
+    )
 
-    # ── SPY benchmark comparison ──────────────────────────────────────────────
-    section("SPY BENCHMARK COMPARISON (SINCE INCEPTION)")
-    from agent.portfolio import get_benchmark_comparison as _get_spy_bench
-    spy_bench = _get_spy_bench()
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("MAX DRAWDOWN",
+        f"-{drawdown:.1f}%" if drawdown is not None else "N/A",
+        delta_color="off",
+    )
+    c6.metric("ANNUALISED VOL",
+        f"{vol:.1f}%" if vol is not None else "N/A",
+        delta_color="off",
+    )
+    c7.metric("ANNUALISED RETURN",
+        f"{ann_ret:+.1f}%" if ann_ret is not None else "N/A",
+        delta_color="off",
+    )
+    c8.metric("PORTFOLIO VALUE",
+        fmt_usd(spy_bench.get("portfolio_value")) if spy_bench.get("available") else "N/A",
+        delta_color="off",
+    )
+
     if spy_bench.get("available"):
-        _b1, _b2, _b3 = st.columns(3)
-        _port_ret = spy_bench.get("portfolio_return_pct", 0)
-        _spy_ret = spy_bench.get("spy_return_pct", 0)
-        _alpha = spy_bench.get("alpha_pct", 0)
-        _beating = spy_bench.get("beating_market", False)
-
-        _b1.metric(
-            "PORTFOLIO RETURN",
-            fmt_pct(_port_ret),
-            delta=fmt_pct(_port_ret),
-            delta_color="normal" if _port_ret >= 0 else "inverse",
-        )
-        _b2.metric(
-            "SPY RETURN",
-            fmt_pct(_spy_ret),
-        )
-        _b3.metric(
-            "ALPHA VS SPY",
-            fmt_pct(_alpha),
-            "OUTPERFORMING" if _beating else "UNDERPERFORMING",
-            delta_color="normal" if _beating else "inverse",
-        )
         st.markdown(
-            f'<div style="color:#505050;font-size:11px;margin-top:4px;">'
-            f'Tracked since {spy_bench.get("start_date", "N/A")} &nbsp;|&nbsp; '
-            f'Portfolio: {fmt_usd(spy_bench.get("portfolio_value"))} &nbsp;|&nbsp; '
+            f'<div style="color:#505050;font-size:10px;margin-top:-8px;margin-bottom:12px;">'
+            f'Tracked since {spy_bench.get("start_date","N/A")} &nbsp;|&nbsp; '
             f'SPY equivalent: {fmt_usd(spy_bench.get("spy_equivalent_value"))}'
-            f'</div>',
-            unsafe_allow_html=True,
+            f'</div>', unsafe_allow_html=True,
         )
-    else:
-        st.markdown(
-            '<div style="color:#505050;font-size:12px;">No benchmark data yet — '
-            'call get_benchmark_comparison in an AI Review to start tracking.</div>',
-            unsafe_allow_html=True,
-        )
-
-    # ── Chart ─────────────────────────────────────────────────────────────────
-    section("PORTFOLIO VALUE OVER TIME")
 
     if snapshots:
-        _RANGES = {"1D": 1, "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": None}
-        _TICK_FMTS = {
-            "1D": "%H:%M", "1W": "%b %d", "1M": "%b %d",
-            "3M": "%b %d", "6M": "%b %d", "1Y": "%b '%y", "ALL": "%b '%y",
-        }
+        # ── Time range selector ───────────────────────────────────────────────
+        _RANGES   = {"1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": None}
+        _TICK_FMT = {"1W": "%b %d", "1M": "%b %d", "3M": "%b %d",
+                     "6M": "%b %d", "1Y": "%b '%y", "ALL": "%b '%y"}
 
         if "perf_range" not in st.session_state:
             st.session_state.perf_range = "ALL"
 
         _rcols = st.columns(len(_RANGES))
         for _col, _label in zip(_rcols, _RANGES):
-            if _col.button(
-                _label,
-                key=f"range_{_label}",
-                width="stretch",
-                type="primary" if st.session_state.perf_range == _label else "secondary",
-            ):
+            if _col.button(_label, key=f"range_{_label}", use_container_width=True,
+                           type="primary" if st.session_state.perf_range == _label else "secondary"):
                 st.session_state.perf_range = _label
                 st.rerun()
 
         _sel = st.session_state.perf_range
 
+        import numpy as np
         df = pd.DataFrame(snapshots)
         df["ts"] = pd.to_datetime(df["ts"])
         df = df.sort_values("ts")
@@ -634,160 +625,203 @@ elif "PERFORMANCE" in page:
             _cutoff = df["ts"].max() - pd.Timedelta(days=_RANGES[_sel])
             df = df[df["ts"] >= _cutoff].copy()
 
-        df["ts"] = df["ts"].dt.floor("h" if _sel == "1D" else "D")
-        df = df.drop_duplicates(subset="ts").sort_values("ts")
+        df = df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
 
-        tick_fmt = _TICK_FMTS[_sel]
+        # Normalise to % return from first point
+        base_port = df["portfolio_value"].iloc[0]
+        df["port_pct"] = (df["portfolio_value"] / base_port - 1) * 100
+
+        has_spy = df["benchmark_price"].notna().any()
+        if has_spy:
+            base_spy = df["benchmark_price"].dropna().iloc[0]
+            df["spy_pct"] = (df["benchmark_price"] / base_spy - 1) * 100
+            df["spy_pct"] = df["spy_pct"].ffill()
+
+        # ── Main chart: normalised % return with alpha fill ───────────────────
+        section("PORTFOLIO vs S&P 500 — NORMALISED RETURN (%)")
 
         fig = go.Figure()
 
-        fig.add_trace(go.Scatter(
-            x=df["ts"],
-            y=df["portfolio_value"],
-            mode="lines+markers",
-            name="MY PORTFOLIO",
-            line=dict(color="#FF8000", width=2),
-            marker=dict(size=5, color="#FF8000"),
-            fill="tozeroy",
-            fillcolor="rgba(255,128,0,0.06)",
-            hovertemplate="<b>Portfolio:</b> $%{y:,.2f}<extra></extra>",
-        ))
+        # Alpha fill (positive = green, negative = red)
+        if has_spy:
+            port_arr = df["port_pct"].values
+            spy_arr  = df["spy_pct"].values
+            xs       = df["ts"].tolist()
 
-        if df["benchmark_price"].notna().any():
-            first_spy = df["benchmark_price"].dropna().iloc[0]
-            first_val = df.loc[df["benchmark_price"].notna(), "portfolio_value"].iloc[0]
-            df["spy_indexed"] = df["benchmark_price"] / first_spy * first_val
+            # Split into ahead / behind segments for fill colour
+            for _i in range(len(xs) - 1):
+                _color = "rgba(0,230,118,0.12)" if port_arr[_i] >= spy_arr[_i] else "rgba(255,59,59,0.12)"
+                fig.add_trace(go.Scatter(
+                    x=[xs[_i], xs[_i+1], xs[_i+1], xs[_i]],
+                    y=[port_arr[_i], port_arr[_i+1], spy_arr[_i+1], spy_arr[_i]],
+                    fill="toself",
+                    fillcolor=_color,
+                    line=dict(width=0),
+                    showlegend=False,
+                    hoverinfo="skip",
+                ))
+
+            # SPY line
             fig.add_trace(go.Scatter(
-                x=df["ts"],
-                y=df["spy_indexed"],
+                x=df["ts"], y=df["spy_pct"],
                 mode="lines",
-                name="S&P 500 (INDEXED)",
-                line=dict(color="#404040", width=1, dash="dot"),
-                hovertemplate="<b>S&P 500:</b> $%{y:,.2f}<extra></extra>",
+                name="S&P 500",
+                line=dict(color="#404040", width=2),
+                hovertemplate="<b>S&P 500:</b> %{y:+.2f}%<extra></extra>",
             ))
 
+        # Portfolio line (on top)
+        fig.add_trace(go.Scatter(
+            x=df["ts"], y=df["port_pct"],
+            mode="lines",
+            name="MY PORTFOLIO",
+            line=dict(color="#FF8000", width=2.5),
+            hovertemplate="<b>Portfolio:</b> %{y:+.2f}%<extra></extra>",
+        ))
+
+        # Agent run / trade event annotations
+        _trade_dates = {}
+        for tx in txs:
+            _d = tx.get("ts", "")[:10]
+            if _d:
+                _trade_dates[_d] = _trade_dates.get(_d, 0) + 1
+
+        _chart_start = df["ts"].min()
+        _chart_end   = df["ts"].max()
+        for _d, _count in _trade_dates.items():
+            try:
+                _dt = pd.Timestamp(_d)
+                if _chart_start <= _dt <= _chart_end:
+                    fig.add_vline(
+                        x=_dt.timestamp() * 1000,
+                        line=dict(color="#1a1a1a", width=1, dash="dot"),
+                    )
+                    fig.add_annotation(
+                        x=_dt, y=1, yref="paper",
+                        text=f"▼{_count}" if _count > 1 else "▼",
+                        showarrow=False,
+                        font=dict(color="#303030", size=9, family="IBM Plex Mono"),
+                        yanchor="top",
+                    )
+            except Exception:
+                pass
+
+        fig.add_hline(y=0, line=dict(color="#1a1a1a", width=1))
+
         fig.update_layout(
-            paper_bgcolor="#000",
-            plot_bgcolor="#000",
+            paper_bgcolor="#000", plot_bgcolor="#000",
             font=dict(family="IBM Plex Mono", color="#FF8000"),
             xaxis=dict(
-                gridcolor="#0d0d0d",
-                tickfont=dict(color="#505050", size=10),
-                showline=True,
-                linecolor="#1a1a1a",
-                title=None,
-                tickformat=tick_fmt,
-                nticks=10,
+                gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
+                showline=True, linecolor="#1a1a1a", title=None,
+                tickformat=_TICK_FMT[_sel], nticks=10,
             ),
             yaxis=dict(
-                gridcolor="#0d0d0d",
-                tickfont=dict(color="#505050", size=10),
-                tickprefix="$",
-                showline=True,
-                linecolor="#1a1a1a",
-                title=None,
+                gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
+                ticksuffix="%", showline=True, linecolor="#1a1a1a", title=None,
+                zeroline=False,
             ),
-            legend=dict(
-                bgcolor="#080808",
-                bordercolor="#1a1a1a",
-                font=dict(color="#C8C8C8", size=11),
-            ),
-            margin=dict(l=0, r=0, t=8, b=0),
+            legend=dict(bgcolor="#080808", bordercolor="#1a1a1a",
+                        font=dict(color="#C8C8C8", size=11),
+                        orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            margin=dict(l=0, r=0, t=32, b=0),
             height=420,
             hovermode="x unified",
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown(
+            '<div style="color:#303030;font-size:9px;margin-top:-8px;">'
+            '▼ = agent run with trades &nbsp;|&nbsp; '
+            '<span style="color:rgba(0,230,118,0.6)">■</span> ahead of SPY &nbsp;|&nbsp; '
+            '<span style="color:rgba(255,59,59,0.6)">■</span> behind SPY'
+            '</div>', unsafe_allow_html=True,
+        )
 
-        # ── Risk metrics ──────────────────────────────────────────────────────
-        from agent.portfolio import get_portfolio_metrics
-        metrics = get_portfolio_metrics()
+        # ── Drawdown sub-chart ────────────────────────────────────────────────
+        section("DRAWDOWN FROM PEAK")
 
-        section("RISK METRICS")
-        if metrics.get("sharpe_ratio") is not None or metrics.get("max_drawdown_pct") is not None:
-            r1, r2, r3, r4 = st.columns(4)
-            sharpe = metrics.get("sharpe_ratio")
-            drawdown = metrics.get("max_drawdown_pct")
-            vol = metrics.get("annualised_volatility_pct")
-            ann_ret = metrics.get("annualised_return_pct")
+        df["port_peak"]     = df["portfolio_value"].cummax()
+        df["port_drawdown"] = (df["portfolio_value"] / df["port_peak"] - 1) * 100
 
-            r1.metric(
-                "SHARPE RATIO",
-                f"{sharpe:.2f}" if sharpe is not None else "N/A",
-                "GOOD" if sharpe is not None and sharpe > 1 else ("WEAK" if sharpe is not None and sharpe < 0 else None),
-                delta_color="normal" if sharpe is not None and sharpe > 0 else "inverse",
-            )
-            r2.metric(
-                "MAX DRAWDOWN",
-                f"-{drawdown:.1f}%" if drawdown is not None else "N/A",
-                delta_color="off",
-            )
-            r3.metric(
-                "ANNUALISED VOL",
-                f"{vol:.1f}%" if vol is not None else "N/A",
-                delta_color="off",
-            )
-            r4.metric(
-                "ANNUALISED RETURN",
-                f"{ann_ret:+.1f}%" if ann_ret is not None else "N/A",
-                delta_color="off",
-            )
-            if metrics.get("note"):
-                st.markdown(
-                    f'<div style="color:#505050;font-size:10px;margin-top:4px;">{metrics["note"]}</div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.markdown(
-                '<div style="color:#505050;font-size:12px;">Not enough snapshots yet — metrics appear after 2+ reviews.</div>',
-                unsafe_allow_html=True,
-            )
+        fig_dd = go.Figure()
 
-        # ── Rolling returns ───────────────────────────────────────────────────
+        if has_spy:
+            df["spy_peak"]     = df["benchmark_price"].ffill().cummax()
+            df["spy_drawdown"] = (df["benchmark_price"].ffill() / df["spy_peak"] - 1) * 100
+            fig_dd.add_trace(go.Scatter(
+                x=df["ts"], y=df["spy_drawdown"],
+                mode="lines", name="S&P 500",
+                line=dict(color="#303030", width=1.5),
+                hovertemplate="<b>SPY DD:</b> %{y:.2f}%<extra></extra>",
+            ))
+
+        fig_dd.add_trace(go.Scatter(
+            x=df["ts"], y=df["port_drawdown"],
+            mode="lines", name="MY PORTFOLIO",
+            line=dict(color="#FF3B3B", width=2),
+            fill="tozeroy", fillcolor="rgba(255,59,59,0.06)",
+            hovertemplate="<b>Portfolio DD:</b> %{y:.2f}%<extra></extra>",
+        ))
+
+        fig_dd.add_hline(y=0, line=dict(color="#1a1a1a", width=1))
+
+        fig_dd.update_layout(
+            paper_bgcolor="#000", plot_bgcolor="#000",
+            font=dict(family="IBM Plex Mono", color="#FF8000"),
+            xaxis=dict(
+                gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
+                showline=True, linecolor="#1a1a1a", title=None,
+                tickformat=_TICK_FMT[_sel], nticks=10,
+            ),
+            yaxis=dict(
+                gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
+                ticksuffix="%", showline=True, linecolor="#1a1a1a", title=None,
+            ),
+            legend=dict(bgcolor="#080808", bordercolor="#1a1a1a",
+                        font=dict(color="#C8C8C8", size=11),
+                        orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            margin=dict(l=0, r=0, t=32, b=0),
+            height=220,
+            hovermode="x unified",
+        )
+        st.plotly_chart(fig_dd, use_container_width=True)
+
+        # ── Rolling returns bar chart ─────────────────────────────────────────
         section("ROLLING RETURNS VS S&P 500")
-        rolling = metrics.get("rolling", {})
-        periods = ["1m", "3m", "6m"]
-        labels = ["1 MONTH", "3 MONTHS", "6 MONTHS"]
+        rolling   = metrics.get("rolling", {})
+        periods   = ["1m", "3m", "6m"]
+        rlabels   = ["1 MONTH", "3 MONTHS", "6 MONTHS"]
         port_vals = [rolling.get(p, {}).get("portfolio_pct") for p in periods]
         spy_vals  = [rolling.get(p, {}).get("benchmark_pct") for p in periods]
 
-        has_rolling = any(v is not None for v in port_vals)
-        if has_rolling:
+        if any(v is not None for v in port_vals):
             fig2 = go.Figure()
             fig2.add_trace(go.Bar(
-                name="MY PORTFOLIO",
-                x=labels,
-                y=port_vals,
+                name="MY PORTFOLIO", x=rlabels, y=port_vals,
                 marker_color=["#FF8000" if (v or 0) >= 0 else "#FF3B3B" for v in port_vals],
                 text=[f"{v:+.1f}%" if v is not None else "N/A" for v in port_vals],
-                textposition="outside",
-                textfont=dict(color="#C8C8C8", size=11),
+                textposition="outside", textfont=dict(color="#C8C8C8", size=11),
             ))
             fig2.add_trace(go.Bar(
-                name="S&P 500",
-                x=labels,
-                y=spy_vals,
+                name="S&P 500", x=rlabels, y=spy_vals,
                 marker_color="#303030",
                 text=[f"{v:+.1f}%" if v is not None else "N/A" for v in spy_vals],
-                textposition="outside",
-                textfont=dict(color="#505050", size=11),
+                textposition="outside", textfont=dict(color="#505050", size=11),
             ))
             fig2.update_layout(
-                paper_bgcolor="#000",
-                plot_bgcolor="#000",
-                barmode="group",
-                bargap=0.3,
-                bargroupgap=0.05,
+                paper_bgcolor="#000", plot_bgcolor="#000",
+                barmode="group", bargap=0.3, bargroupgap=0.05,
                 font=dict(family="IBM Plex Mono", color="#FF8000"),
                 xaxis=dict(gridcolor="#0d0d0d", tickfont=dict(color="#505050", size=11), title=None),
                 yaxis=dict(gridcolor="#0d0d0d", tickfont=dict(color="#505050", size=10), ticksuffix="%", title=None),
                 legend=dict(bgcolor="#080808", bordercolor="#1a1a1a", font=dict(color="#C8C8C8", size=11)),
                 margin=dict(l=0, r=0, t=20, b=0),
-                height=300,
+                height=260,
             )
-            st.plotly_chart(fig2, width="stretch")
+            st.plotly_chart(fig2, use_container_width=True)
         else:
             st.markdown(
-                '<div style="color:#505050;font-size:12px;">Rolling return data builds over time — check back after more monthly reviews.</div>',
+                '<div style="color:#505050;font-size:12px;">Rolling return data builds over time.</div>',
                 unsafe_allow_html=True,
             )
 
@@ -802,7 +836,7 @@ elif "PERFORMANCE" in page:
                 "INVESTED":        fmt_usd(s["invested_value"]),
                 "S&P 500 PRICE":   fmt_usd(s.get("benchmark_price")),
             })
-        st.dataframe(pd.DataFrame(snap_rows), width="stretch", hide_index=True)
+        st.dataframe(pd.DataFrame(snap_rows), use_container_width=True, hide_index=True)
 
     else:
         st.markdown(
@@ -812,6 +846,7 @@ elif "PERFORMANCE" in page:
             '</div>',
             unsafe_allow_html=True,
         )
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -863,7 +898,7 @@ elif "TRADES" in page:
             })
 
         df = pd.DataFrame(rows)
-        st.dataframe(df, width="stretch", hide_index=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
         # ── P&L chart (if sells exist) ────────────────────────────────────────
         if sells and realized:
@@ -890,7 +925,7 @@ elif "TRADES" in page:
                 height=280,
                 showlegend=False,
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
