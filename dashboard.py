@@ -335,10 +335,10 @@ with st.sidebar:
         "claude-sonnet-4-6":         "Sonnet",
         "claude-opus-4-6":           "Opus",
     }
-    _MODEL_TIER_DOWN = {
+    _BEAR_TIER_MODEL = {
         "claude-haiku-4-5-20251001": "claude-haiku-4-5-20251001",
         "claude-sonnet-4-6":         "claude-haiku-4-5-20251001",
-        "claude-opus-4-6":           "claude-sonnet-4-6",
+        "claude-opus-4-6":           "claude-opus-4-6",   # Opus stays — critical gate
     }
     selected_model_label = st.selectbox(
         "AI MODEL",
@@ -348,7 +348,7 @@ with st.sidebar:
     )
     selected_model = MODEL_OPTIONS[selected_model_label]
     _research_tier  = _MODEL_TIER_LABELS[selected_model]
-    _bear_tier      = _MODEL_TIER_LABELS[_MODEL_TIER_DOWN[selected_model]]
+    _bear_tier      = _MODEL_TIER_LABELS[_BEAR_TIER_MODEL[selected_model]]
     st.markdown(
         f'<div style="color:#505050;font-size:9px;letter-spacing:1px;margin-top:4px;'
         f'font-family:\'IBM Plex Mono\',monospace;">'

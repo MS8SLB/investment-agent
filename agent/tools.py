@@ -28,13 +28,20 @@ def set_model_context(model: str) -> None:
     _CURRENT_MODEL = model
 
 
-def _tier_down(model: str) -> str:
-    """Return the model one tier below the given model (floor: Haiku)."""
-    try:
-        idx = _MODEL_TIERS.index(model)
-    except ValueError:
-        return model  # unknown model — pass through unchanged
-    return _MODEL_TIERS[max(0, idx - 1)]
+def _bear_case_model(model: str) -> str:
+    """
+    Return the model to use for bear case subagents.
+    Opus stays Opus — bear case is a critical decision gate and shouldn't be
+    downgraded when the user explicitly chose the best model.
+    Sonnet drops to Haiku (genuine cost save on focused adversarial work).
+    Haiku stays Haiku.
+    """
+    _BEAR_TIER = {
+        "claude-opus-4-6":           "claude-opus-4-6",
+        "claude-sonnet-4-6":         "claude-haiku-4-5-20251001",
+        "claude-haiku-4-5-20251001": "claude-haiku-4-5-20251001",
+    }
+    return _BEAR_TIER.get(model, model)
 
 
 def _effective_model() -> str | None:
@@ -1489,8 +1496,8 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "challenge_buy_theses":
         # Local import to avoid circular dependency (bear_case_agent imports tools)
         from agent.bear_case_agent import challenge_buy_theses
-        # Bear case is adversarial/focused work — drop one model tier to save cost
-        _bear_model = _tier_down(_effective_model()) if _effective_model() else None
+        # Opus stays Opus (critical gate); Sonnet drops to Haiku (cost save)
+        _bear_model = _bear_case_model(_effective_model()) if _effective_model() else None
         return challenge_buy_theses(
             bull_reports=tool_input["bull_reports"],
             context=tool_input.get("context", ""),
