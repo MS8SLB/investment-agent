@@ -326,9 +326,19 @@ with st.sidebar:
     st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
 
     MODEL_OPTIONS = {
-        "Haiku 4.5  (fast)": "claude-haiku-4-5-20251001",
+        "Haiku 4.5  (fast)":    "claude-haiku-4-5-20251001",
         "Sonnet 4.6 (balanced)": "claude-sonnet-4-6",
-        "Opus 4.6   (best)": "claude-opus-4-6",
+        "Opus 4.6   (best)":    "claude-opus-4-6",
+    }
+    _MODEL_TIER_LABELS = {
+        "claude-haiku-4-5-20251001": "Haiku",
+        "claude-sonnet-4-6":         "Sonnet",
+        "claude-opus-4-6":           "Opus",
+    }
+    _MODEL_TIER_DOWN = {
+        "claude-haiku-4-5-20251001": "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-6":         "claude-haiku-4-5-20251001",
+        "claude-opus-4-6":           "claude-sonnet-4-6",
     }
     selected_model_label = st.selectbox(
         "AI MODEL",
@@ -337,6 +347,15 @@ with st.sidebar:
         key="model_selector",
     )
     selected_model = MODEL_OPTIONS[selected_model_label]
+    _research_tier  = _MODEL_TIER_LABELS[selected_model]
+    _bear_tier      = _MODEL_TIER_LABELS[_MODEL_TIER_DOWN[selected_model]]
+    st.markdown(
+        f'<div style="color:#505050;font-size:9px;letter-spacing:1px;margin-top:4px;'
+        f'font-family:\'IBM Plex Mono\',monospace;">'
+        f'COORDINATOR + RESEARCH: {_research_tier}<br>'
+        f'BEAR CASE: {_bear_tier}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown("""
     <div style="margin-top:32px;border-top:1px solid #1a1a1a;padding-top:12px;">

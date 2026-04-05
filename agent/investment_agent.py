@@ -1657,6 +1657,10 @@ def run_agent_session(
     client = anthropic.Anthropic(api_key=_api_key)
     model = model or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
+    # Publish model to tools so subagent dispatchers use the right tier
+    from agent.tools import set_model_context
+    set_model_context(model)
+
     # Resume from checkpoint if one exists, otherwise start fresh.
     messages = None
     if checkpoint_path and os.path.exists(checkpoint_path):

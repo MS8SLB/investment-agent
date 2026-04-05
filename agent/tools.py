@@ -9,6 +9,39 @@ from typing import Any
 from agent import market_data, portfolio, sec_data, external_data, ml_insights
 
 
+# ── Model tier context ─────────────────────────────────────────────────────────
+# Set once per session before running the agentic loop so handle_tool_call
+# can forward the right model to research and bear-case subagents.
+
+_CURRENT_MODEL: str | None = None
+
+_MODEL_TIERS = [
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6",
+]
+
+
+def set_model_context(model: str) -> None:
+    """Store the coordinator model so subagent dispatchers can use it."""
+    global _CURRENT_MODEL
+    _CURRENT_MODEL = model
+
+
+def _tier_down(model: str) -> str:
+    """Return the model one tier below the given model (floor: Haiku)."""
+    try:
+        idx = _MODEL_TIERS.index(model)
+    except ValueError:
+        return model  # unknown model — pass through unchanged
+    return _MODEL_TIERS[max(0, idx - 1)]
+
+
+def _effective_model() -> str | None:
+    """Return the currently set model context, or None (subagent will use its own default)."""
+    return _CURRENT_MODEL
+
+
 # ── Tool schemas for Claude ────────────────────────────────────────────────────
 
 TOOL_DEFINITIONS = [
@@ -1450,14 +1483,18 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         return research_stocks_parallel(
             tickers_with_data=tool_input["tickers_with_data"],
             context=tool_input.get("context", ""),
+            model=_effective_model(),
         )
 
     elif tool_name == "challenge_buy_theses":
         # Local import to avoid circular dependency (bear_case_agent imports tools)
         from agent.bear_case_agent import challenge_buy_theses
+        # Bear case is adversarial/focused work — drop one model tier to save cost
+        _bear_model = _tier_down(_effective_model()) if _effective_model() else None
         return challenge_buy_theses(
             bull_reports=tool_input["bull_reports"],
             context=tool_input.get("context", ""),
+            model=_bear_model,
         )
 
     elif tool_name == "get_ml_factor_weights":
