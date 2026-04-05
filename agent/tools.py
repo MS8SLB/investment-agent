@@ -1168,6 +1168,76 @@ TOOL_DEFINITIONS = [
             "required": ["reflection"],
         },
     },
+    {
+        "name": "get_business_trajectory",
+        "description": "Analyze 8-quarter business trajectory trends for gross margin, FCF margin, ROIC, and revenue growth. Returns slope-based trend classification.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"}
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "identify_weakest_link",
+        "description": "Identify the weakest holding in the portfolio for capital recycling. Scores each position on conviction, IV upside remaining, and research freshness.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "get_preearnings_briefing",
+        "description": "Build a pre-earnings preparation briefing for a stock including thesis confirms/denies checklist, estimates, and beat/miss history.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"}
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "recalibrate_universe_scores",
+        "description": "Re-score the screener universe using ML-learned prediction accuracy weights. Updates quality scores in the database.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "run_portfolio_stress_test",
+        "description": "Run scenario-based stress tests across the full portfolio: AI disruption, rate spike, recession, sector concentration shock.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "scenario": {
+                    "type": "string",
+                    "description": "Scenario name: ai_disruption, rate_spike_200bps, recession_revenue_20pct, sector_concentration_shock, or all",
+                    "default": "all",
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "get_triaged_alerts",
+        "description": "Get news alerts triaged by severity: thesis_breaking, watch, or noise. Returns actionable alerts first.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of tickers to check. If omitted, checks portfolio positions.",
+                }
+            },
+            "required": [],
+        },
+    },
 ]
 
 
@@ -1408,8 +1478,38 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_superinvestor_positions":
         return sec_data.get_superinvestor_positions(tool_input["ticker"])
 
+    elif tool_name == "get_business_trajectory":
+        from agent.market_data import get_business_trajectory
+        ticker = tool_input.get("ticker", "")
+        result = get_business_trajectory(ticker)
+
+    elif tool_name == "identify_weakest_link":
+        from agent.ml_insights import identify_weakest_link
+        result = identify_weakest_link()
+
+    elif tool_name == "get_preearnings_briefing":
+        from agent.market_data import get_preearnings_briefing
+        ticker = tool_input.get("ticker", "")
+        result = get_preearnings_briefing(ticker)
+
+    elif tool_name == "recalibrate_universe_scores":
+        from agent.ml_insights import recalibrate_universe_scores
+        result = recalibrate_universe_scores()
+
+    elif tool_name == "run_portfolio_stress_test":
+        from agent.ml_insights import run_portfolio_stress_test
+        scenario = tool_input.get("scenario", "all")
+        result = run_portfolio_stress_test(scenario)
+
+    elif tool_name == "get_triaged_alerts":
+        from agent.market_data import get_triaged_alerts
+        tickers = tool_input.get("tickers")
+        result = get_triaged_alerts(tickers)
+
     else:
         return {"error": f"Unknown tool: {tool_name}"}
+
+    return result
 
 
 def _get_portfolio_status() -> dict:

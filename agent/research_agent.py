@@ -45,6 +45,8 @@ _RESEARCH_TOOL_NAMES = {
     "get_material_events",
     "get_competitor_analysis",
     "get_superinvestor_positions",
+    "get_business_trajectory",
+    "get_preearnings_briefing",
 }
 
 RESEARCH_TOOL_DEFINITIONS = [t for t in TOOL_DEFINITIONS if t["name"] in _RESEARCH_TOOL_NAMES]
@@ -66,6 +68,13 @@ final trade decision — your job is to surface the facts honestly and rigorousl
 
 ## Research Checklist
 Work through these in order:
+
+0.6. **Business trajectory** — call `get_business_trajectory(ticker)` to assess 8-quarter trends
+   in gross margin, FCF margin, revenue growth (YoY), and ROIC proxy.
+   - "improving" trends across multiple metrics strengthen conviction; add to `key_strengths`.
+   - "deteriorating" trends are red flags — incorporate into thesis risk section and DCF haircuts.
+   - "mixed" results warrant deeper investigation into which metrics are weakening and why.
+   Use the slope values to decide whether to raise or lower your terminal growth assumption.
 
 1. **Fundamentals** — `get_stock_fundamentals`: focus on FCF yield, ROE, ROIC (use ROE as proxy),
    gross margins, debt-to-equity, revenue growth. P/E is secondary to FCF.

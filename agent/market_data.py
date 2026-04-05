@@ -1969,3 +1969,462 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
 
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:top_n]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# News Alert Severity Classification
+# ══════════════════════════════════════════════════════════════════════════════
+
+_THESIS_BREAKING_KW = [
+    "fraud", "investigation", "sec charges", "ceo resign", "ceo fired",
+    "guidance cut", "going concern", "bankruptcy", "restatement",
+    "accounting irregularities",
+]
+_WATCH_KW = [
+    "regulatory", "competition", "market share loss", "lawsuit", "class action",
+    "short seller", "downgrade",
+]
+_NOISE_KW = [
+    "upgrade", "price target", "analyst day", "buyback", "dividend",
+]
+
+
+def _classify_alert_severity(headline: str) -> tuple[str, str]:
+    """Classify a headline into thesis_breaking/watch/noise/unknown with response protocol."""
+    title = (headline or "").lower()
+    if any(kw in title for kw in _THESIS_BREAKING_KW):
+        return "thesis_breaking", "URGENT: Review position sizing immediately"
+    if any(kw in title for kw in _WATCH_KW):
+        return "watch", "Monitor: Check next research cycle"
+    if any(kw in title for kw in _NOISE_KW):
+        return "noise", "FYI: No action needed"
+    return "unknown", "Review: Assess relevance to thesis"
+
+
+def check_news_alerts(holdings: list) -> list:
+    """
+    Fetch recent news headlines for held positions and flag material events.
+    Material events: CEO/CFO departure, restatement, acquisition/merger,
+    regulatory action, bankruptcy, guidance cut, major product failure.
+
+    Each alert now includes a `severity` field (thesis_breaking/watch/noise/unknown)
+    and a `response_protocol` field with recommended action.
+    """
+    MATERIAL_KEYWORDS = [
+        ("ceo", "cfo", "president", "resign", "depart", "step down", "fired", "replace"),
+        ("restat", "accounting", "fraud", "investigation", "sec ", "doj ", "ftc "),
+        ("acqui", "merger", "takeover", "buyout", "bid"),
+        ("bankrupt", "chapter 11", "insolvency", "default", "restructur"),
+        ("guidance", "cut", "lower", "withdraw", "miss", "disappoint"),
+        ("recall", "fda", "warning", "ban", "suspend"),
+    ]
+    SEVERITY_MAP = {0: "LEADERSHIP", 1: "LEGAL", 2: "M&A", 3: "DISTRESS", 4: "GUIDANCE", 5: "REGULATORY"}
+
+    def _check(holding):
+        ticker = holding["ticker"]
+        try:
+            news = yf.Ticker(ticker).news
+            if not news:
+                return None
+            alerts = []
+            for item in news[:10]:
+                title = (item.get("title") or "").lower()
+                for idx, keywords in enumerate(MATERIAL_KEYWORDS):
+                    if any(kw in title for kw in keywords):
+                        severity, protocol = _classify_alert_severity(item.get("title", ""))
+                        alerts.append({
+                            "headline": item.get("title"),
+                            "category": SEVERITY_MAP[idx],
+                            "severity": severity,
+                            "response_protocol": protocol,
+                            "url": item.get("link"),
+                            "published": item.get("providerPublishTime"),
+                        })
+                        break
+            if not alerts:
+                return None
+            return {
+                "ticker": ticker,
+                "alert_count": len(alerts),
+                "alerts": alerts[:3],
+                "recommended_action": "Unscheduled re-research recommended",
+            }
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for r in ex.map(_check, holdings):
+            if r:
+                results.append(r)
+    return sorted(results, key=lambda x: x["alert_count"], reverse=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Business Trajectory Tracker
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_business_trajectory(ticker: str) -> dict:
+    """
+    Analyze up to 8 quarters of key business metrics and classify the trend
+    for each using a simple linear regression slope (manual least-squares).
+
+    Metrics analyzed:
+      - gross_margin_pct
+      - fcf_margin_pct
+      - revenue_growth_pct_yoy
+      - roic_proxy (operating_income / (total_assets - current_liabilities))
+
+    Returns: ticker, metrics dict with values/slope/trend per metric,
+             overall_direction, quarters_analyzed, summary_text.
+    """
+    ticker = ticker.upper()
+
+    def _linreg_slope(values: list) -> float:
+        """Manual least-squares slope (pp/quarter). Newest value is index 0."""
+        n = len(values)
+        if n < 2:
+            return 0.0
+        # Reverse so index 0 = oldest quarter
+        y = [v for v in reversed(values)]
+        x = list(range(n))
+        x_mean = sum(x) / n
+        y_mean = sum(y) / n
+        num = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+        den = sum((x[i] - x_mean) ** 2 for i in range(n))
+        return round(num / den, 4) if den != 0 else 0.0
+
+    def _classify_trend(slope: float) -> str:
+        if slope > 0.5:
+            return "improving"
+        elif slope < -0.5:
+            return "deteriorating"
+        return "stable"
+
+    try:
+        t = yf.Ticker(ticker)
+        # Quarterly financials (columns = quarters, newest first)
+        qfin = t.quarterly_financials
+        qbs = t.quarterly_balance_sheet
+        qcf = t.quarterly_cashflow
+    except Exception as e:
+        return {
+            "ticker": ticker,
+            "error": f"Could not fetch financial data: {e}",
+            "metrics": {},
+            "overall_direction": "unknown",
+            "quarters_analyzed": 0,
+            "summary_text": f"Data fetch failed: {e}",
+        }
+
+    def _qseries(df, *keys):
+        """Extract up to 8 values from quarterly df, newest first."""
+        if df is None or df.empty:
+            return []
+        for key in keys:
+            try:
+                row = df.loc[key]
+                vals = [float(v) for v in row.values if v is not None and str(v) != "nan"]
+                if vals:
+                    return vals[:8]
+            except (KeyError, TypeError):
+                continue
+        return []
+
+    rev = _qseries(qfin, "Total Revenue", "Revenue")
+    gross = _qseries(qfin, "Gross Profit")
+    opcf = _qseries(qcf, "Operating Cash Flow", "Total Cash From Operating Activities")
+    capex = _qseries(qcf, "Capital Expenditure", "Capital Expenditures")
+    op_inc = _qseries(qfin, "Operating Income", "EBIT")
+    total_assets = _qseries(qbs, "Total Assets")
+    cur_liab = _qseries(qbs, "Current Liabilities", "Total Current Liabilities")
+
+    metrics = {}
+
+    # gross_margin_pct
+    if rev and gross:
+        n = min(len(rev), len(gross), 8)
+        vals = [round(gross[i] / rev[i] * 100, 2) for i in range(n) if rev[i] and abs(rev[i]) > 1]
+        if vals:
+            slope = _linreg_slope(vals)
+            metrics["gross_margin_pct"] = {
+                "values": vals,
+                "slope": slope,
+                "trend": _classify_trend(slope),
+            }
+
+    # fcf_margin_pct
+    if rev and opcf and capex:
+        n = min(len(rev), len(opcf), len(capex), 8)
+        fcf_vals = []
+        for i in range(n):
+            if rev[i] and abs(rev[i]) > 1:
+                fcf = opcf[i] + capex[i] if capex[i] < 0 else opcf[i] - capex[i]
+                fcf_vals.append(round(fcf / rev[i] * 100, 2))
+        if fcf_vals:
+            slope = _linreg_slope(fcf_vals)
+            metrics["fcf_margin_pct"] = {
+                "values": fcf_vals,
+                "slope": slope,
+                "trend": _classify_trend(slope),
+            }
+
+    # revenue_growth_pct_yoy (requires 9 quarters to compute 8 yoy values, best effort)
+    if len(rev) >= 5:
+        # Compare quarter i vs quarter i+4 (same quarter prior year)
+        yoy_vals = []
+        for i in range(min(len(rev) - 4, 8)):
+            prev = rev[i + 4]
+            if prev and abs(prev) > 1:
+                yoy_vals.append(round((rev[i] - prev) / abs(prev) * 100, 2))
+        if yoy_vals:
+            slope = _linreg_slope(yoy_vals)
+            metrics["revenue_growth_pct_yoy"] = {
+                "values": yoy_vals,
+                "slope": slope,
+                "trend": _classify_trend(slope),
+            }
+
+    # roic_proxy = operating_income / (total_assets - current_liabilities)
+    if op_inc and total_assets and cur_liab:
+        n = min(len(op_inc), len(total_assets), len(cur_liab), 8)
+        roic_vals = []
+        for i in range(n):
+            ic = total_assets[i] - cur_liab[i]
+            if ic and abs(ic) > 1:
+                roic_vals.append(round(op_inc[i] / ic * 100, 2))
+        if roic_vals:
+            slope = _linreg_slope(roic_vals)
+            metrics["roic_proxy"] = {
+                "values": roic_vals,
+                "slope": slope,
+                "trend": _classify_trend(slope),
+            }
+
+    quarters_analyzed = max((len(m["values"]) for m in metrics.values()), default=0)
+
+    # Overall direction
+    trends = [m["trend"] for m in metrics.values()]
+    improving = trends.count("improving")
+    deteriorating = trends.count("deteriorating")
+    if improving > deteriorating and improving >= len(trends) / 2:
+        overall_direction = "improving"
+    elif deteriorating > improving and deteriorating >= len(trends) / 2:
+        overall_direction = "deteriorating"
+    else:
+        overall_direction = "mixed"
+
+    trend_summaries = [
+        f"{name}: {data['trend']} (slope={data['slope']:+.2f} pp/qtr)"
+        for name, data in metrics.items()
+    ]
+    summary_text = (
+        f"{ticker} business trajectory ({quarters_analyzed}q analyzed): {overall_direction.upper()}. "
+        + "; ".join(trend_summaries) if trend_summaries else "Insufficient data."
+    )
+
+    return {
+        "ticker": ticker,
+        "metrics": metrics,
+        "overall_direction": overall_direction,
+        "quarters_analyzed": quarters_analyzed,
+        "summary_text": summary_text,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Pre-Earnings Preparation Briefing
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_preearnings_briefing(ticker: str) -> dict:
+    """
+    Build a structured pre-earnings preparation briefing for a stock.
+
+    Pulls: next earnings date, EPS/revenue estimates, historical beat rate,
+    stored thesis from the KB, and prior earnings sentiment tone.
+
+    Returns a briefing dict with thesis_confirms, thesis_denies, watch_metrics.
+    """
+    ticker = ticker.upper()
+    from datetime import datetime
+
+    # Earnings calendar
+    cal = get_earnings_calendar(ticker)
+    next_earnings_date = cal.get("next_earnings_date")
+
+    days_until_earnings = None
+    if next_earnings_date:
+        try:
+            ned = datetime.strptime(next_earnings_date, "%Y-%m-%d")
+            days_until_earnings = (ned - datetime.utcnow()).days
+        except Exception:
+            pass
+
+    # Historical beat rate from last 4 quarters
+    history = cal.get("last_4_quarters", [])
+    beats = [q for q in history if q.get("beat") is True]
+    historical_beat_rate = round(len(beats) / len(history), 2) if history else None
+
+    # Stored thesis from KB
+    thesis_content = None
+    try:
+        from agent.portfolio import _get_connection
+        conn = _get_connection()
+        row = conn.execute(
+            "SELECT content FROM kb_entries WHERE topic='trade_thesis' AND title LIKE ?",
+            (f"%{ticker}%",),
+        ).fetchone()
+        conn.close()
+        if row:
+            thesis_content = row["content"]
+    except Exception:
+        pass
+
+    # Fallback: watchlist entry
+    if not thesis_content:
+        try:
+            from agent.portfolio import _get_connection
+            conn = _get_connection()
+            row = conn.execute(
+                "SELECT notes FROM watchlist WHERE ticker = ?", (ticker,)
+            ).fetchone()
+            conn.close()
+            if row and row["notes"]:
+                thesis_content = row["notes"]
+        except Exception:
+            pass
+
+    # Default thesis confirms/denies based on IV investing principles
+    thesis_confirms = [
+        "Revenue growth acceleration vs. prior quarter",
+        "FCF margin expansion or positive FCF surprise",
+        "Management raises full-year guidance",
+    ]
+    thesis_denies = [
+        "Revenue miss >3% vs. consensus estimate",
+        "Gross margin compression vs. prior year quarter",
+        "Guidance cut or withdrawal of full-year outlook",
+    ]
+
+    # If we have stored thesis content, customize slightly
+    if thesis_content:
+        thesis_confirms = [
+            "Revenue growth confirms thesis trajectory",
+            "FCF margin expansion supports intrinsic value assumptions",
+            "Management commentary confirms competitive moat strength",
+        ]
+        thesis_denies = [
+            "Revenue miss >3% contradicts growth thesis",
+            "Margin compression challenges profitability assumptions",
+            "Any guidance cut undermines intrinsic value model",
+        ]
+
+    watch_metrics = [
+        "Revenue vs. consensus (beat/miss %)",
+        "EPS vs. consensus (beat/miss %)",
+        "Gross margin (QoQ and YoY trend)",
+        "FCF generation (or burn rate)",
+        "Full-year guidance revision",
+        "Management tone on competitive environment",
+    ]
+
+    # Prior sentiment
+    prior_sentiment = None
+    try:
+        from agent.portfolio import get_earnings_tone_delta
+        prior_sentiment = get_earnings_tone_delta(ticker)
+    except Exception:
+        pass
+
+    return {
+        "ticker": ticker,
+        "next_earnings_date": next_earnings_date,
+        "days_until_earnings": days_until_earnings,
+        "eps_estimate": cal.get("eps_estimate_avg"),
+        "revenue_estimate": cal.get("revenue_estimate_avg"),
+        "historical_beat_rate": historical_beat_rate,
+        "last_4_quarters_history": history,
+        "thesis_stored": bool(thesis_content),
+        "thesis_confirms": thesis_confirms,
+        "thesis_denies": thesis_denies,
+        "watch_metrics": watch_metrics,
+        "prior_sentiment": prior_sentiment,
+        "summary": (
+            f"{ticker} reports in {days_until_earnings}d "
+            f"(EPS est: {cal.get('eps_estimate_avg')}, "
+            f"beat rate: {historical_beat_rate*100:.0f}% last 4Q)."
+            if days_until_earnings is not None and historical_beat_rate is not None
+            else f"{ticker} earnings briefing prepared."
+        ),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Alert Severity Triage
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_triaged_alerts(tickers: list = None) -> dict:
+    """
+    Get news alerts triaged by severity: thesis_breaking, watch, or noise.
+
+    If tickers is provided, checks those tickers. Otherwise checks portfolio holdings.
+    Returns grouped alerts by severity tier plus top_priority item.
+    """
+    # Determine holdings to check
+    if tickers:
+        holdings = [{"ticker": t.upper()} for t in tickers]
+    else:
+        try:
+            from agent.portfolio import get_holdings
+            holdings = get_holdings()
+        except Exception:
+            holdings = []
+
+    if not holdings:
+        return {
+            "thesis_breaking": [],
+            "watch": [],
+            "noise": [],
+            "summary_counts": {"thesis_breaking": 0, "watch": 0, "noise": 0},
+            "top_priority": None,
+            "note": "No holdings to check.",
+        }
+
+    raw_alerts = check_news_alerts(holdings)
+
+    thesis_breaking = []
+    watch = []
+    noise = []
+
+    for ticker_alert in raw_alerts:
+        for alert in ticker_alert.get("alerts", []):
+            severity = alert.get("severity", "unknown")
+            entry = {
+                "ticker": ticker_alert["ticker"],
+                "headline": alert.get("headline"),
+                "category": alert.get("category"),
+                "severity": severity,
+                "response_protocol": alert.get("response_protocol"),
+                "url": alert.get("url"),
+                "published": alert.get("published"),
+            }
+            if severity == "thesis_breaking":
+                thesis_breaking.append(entry)
+            elif severity == "watch":
+                watch.append(entry)
+            elif severity == "noise":
+                noise.append(entry)
+
+    top_priority = thesis_breaking[0] if thesis_breaking else (watch[0] if watch else None)
+
+    return {
+        "thesis_breaking": thesis_breaking,
+        "watch": watch,
+        "noise": noise,
+        "summary_counts": {
+            "thesis_breaking": len(thesis_breaking),
+            "watch": len(watch),
+            "noise": len(noise),
+        },
+        "top_priority": top_priority,
+    }

@@ -709,3 +709,498 @@ def get_position_size_recommendation(ticker: str, features: dict) -> dict:
             "Always subject to 20% maximum position cap and available cash."
         ),
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Capital Recycling / Weakest Link
+# ══════════════════════════════════════════════════════════════════════════════
+
+def identify_weakest_link() -> dict:
+    """
+    Identify the weakest holding in the portfolio for potential capital recycling.
+
+    Scores each position on 3 dimensions (0-10 each):
+      - conviction_score: from prediction_tracking (high=8, medium=5, low=2)
+      - iv_upside_remaining: (iv_price - current_price) / current_price from research_cache
+      - research_freshness: days since last research
+
+    Returns ranked positions (weakest first) with a top recycle candidate.
+    """
+    from agent.portfolio import get_holdings, get_research_cache, _get_connection
+    from datetime import datetime
+
+    holdings = get_holdings()
+    if not holdings:
+        return {
+            "positions_ranked": [],
+            "weakest_link": None,
+            "recommendation": "No positions in portfolio.",
+        }
+
+    # Load prediction_tracking data for conviction levels
+    conn = _get_connection()
+    pred_rows = conn.execute(
+        "SELECT ticker, conviction_score FROM prediction_tracking ORDER BY id DESC"
+    ).fetchall()
+    conn.close()
+
+    # Build conviction map: ticker → last conviction_score
+    conviction_map = {}
+    for row in pred_rows:
+        t = row["ticker"]
+        if t not in conviction_map and row["conviction_score"] is not None:
+            conviction_map[t] = row["conviction_score"]
+
+    # Get current prices
+    current_prices = {}
+    try:
+        import yfinance as yf
+        for h in holdings:
+            try:
+                info = yf.Ticker(h["ticker"]).info
+                price = (
+                    info.get("currentPrice")
+                    or info.get("regularMarketPrice")
+                    or info.get("previousClose")
+                )
+                current_prices[h["ticker"]] = price
+            except Exception:
+                current_prices[h["ticker"]] = None
+    except ImportError:
+        pass
+
+    scored = []
+    for h in holdings:
+        ticker = h["ticker"]
+
+        # Conviction score
+        conv_raw = conviction_map.get(ticker)
+        if conv_raw is None:
+            conviction_dim = 5  # missing → neutral
+        elif conv_raw >= 8:
+            conviction_dim = 8  # high
+        elif conv_raw >= 5:
+            conviction_dim = 5  # medium
+        else:
+            conviction_dim = 2  # low
+
+        # IV upside remaining from research cache
+        upside_pct = None
+        iv_dim = 5  # missing → neutral
+        try:
+            cache = get_research_cache(ticker)
+            if cache:
+                # Look for iv_price in the report
+                iv_price = None
+                for key in ("intrinsic_value", "iv_price", "base_iv", "fair_value"):
+                    iv_price = cache.get(key)
+                    if iv_price:
+                        break
+                # Also check nested valuation keys
+                if iv_price is None:
+                    for key in ("valuation", "valuation_inputs"):
+                        sub = cache.get(key)
+                        if isinstance(sub, dict):
+                            for subkey in ("base_iv", "intrinsic_value", "fair_value"):
+                                iv_price = sub.get(subkey)
+                                if iv_price:
+                                    break
+                        if iv_price:
+                            break
+
+                current_price = current_prices.get(ticker)
+                if iv_price and current_price and current_price > 0:
+                    upside_pct = (float(iv_price) - float(current_price)) / float(current_price) * 100
+                    if upside_pct > 30:
+                        iv_dim = 8
+                    elif upside_pct >= 15:
+                        iv_dim = 5
+                    else:
+                        iv_dim = 2
+        except Exception:
+            pass
+
+        # Research freshness
+        days_since = None
+        freshness_dim = 2  # missing → stale
+        try:
+            cache = get_research_cache(ticker)
+            if cache:
+                ts_str = cache.get("_researched_at")
+                if ts_str:
+                    ts = datetime.fromisoformat(ts_str)
+                    days_since = (datetime.utcnow() - ts).days
+                    if days_since < 30:
+                        freshness_dim = 8
+                    elif days_since <= 90:
+                        freshness_dim = 5
+                    else:
+                        freshness_dim = 2
+        except Exception:
+            pass
+
+        total_score = round((conviction_dim + iv_dim + freshness_dim) / 3, 2)
+
+        scored.append({
+            "ticker": ticker,
+            "score": total_score,
+            "conviction": conv_raw,
+            "upside_pct": round(upside_pct, 1) if upside_pct is not None else None,
+            "days_since_research": days_since,
+            "recycle_candidate": total_score < 4,
+        })
+
+    # Sort weakest first
+    scored.sort(key=lambda x: x["score"])
+    weakest = scored[0] if scored else None
+
+    if weakest and weakest["recycle_candidate"]:
+        recommendation = (
+            f"Consider recycling {weakest['ticker']} (score={weakest['score']:.1f}/10). "
+            f"Low combined conviction/upside/freshness. Re-research or redeploy capital."
+        )
+    elif weakest:
+        recommendation = (
+            f"No strong recycle candidates. Weakest position: {weakest['ticker']} "
+            f"(score={weakest['score']:.1f}/10). Portfolio appears reasonably positioned."
+        )
+    else:
+        recommendation = "No positions to evaluate."
+
+    return {
+        "positions_ranked": scored,
+        "weakest_link": weakest,
+        "recommendation": recommendation,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Screener ML Recalibration
+# ══════════════════════════════════════════════════════════════════════════════
+
+def recalibrate_universe_scores() -> dict:
+    """
+    Re-score the screener universe using prediction accuracy weights.
+
+    For each ticker with prediction history:
+      new_score = old_score * 0.7 + (accuracy * 10) * 0.3
+    where accuracy = 1 - abs(outcome_price / predicted_iv - 1) clamped to [0, 1].
+
+    Also applies per-conviction-bucket multipliers based on historical postmortem data.
+    Writes updated scores back to universe_scores table.
+    """
+    from agent.portfolio import _get_connection
+
+    conn = _get_connection()
+
+    # Load universe scores
+    universe_rows = conn.execute(
+        "SELECT ticker, quality_score FROM universe_scores WHERE quality_score IS NOT NULL"
+    ).fetchall()
+    universe_map = {r["ticker"]: r["quality_score"] for r in universe_rows}
+
+    # Load prediction tracking with outcomes
+    pred_rows = conn.execute("""
+        SELECT ticker, predicted_iv, outcome_price, outcome_date, conviction
+        FROM prediction_tracking
+        WHERE outcome_price IS NOT NULL
+          AND predicted_iv IS NOT NULL
+          AND predicted_iv > 0
+    """).fetchall()
+    pred_rows = [dict(r) for r in pred_rows]
+
+    # Compute accuracy per ticker (use most recent prediction)
+    ticker_accuracy = {}
+    ticker_conviction = {}
+    for r in pred_rows:
+        t = r["ticker"]
+        raw_acc = 1.0 - abs(r["outcome_price"] / r["predicted_iv"] - 1.0)
+        acc = max(0.0, min(1.0, raw_acc))
+        # Keep best accuracy per ticker (most recent is fine since rows come ordered)
+        if t not in ticker_accuracy:
+            ticker_accuracy[t] = acc
+            ticker_conviction[t] = r.get("conviction")
+
+    # Conviction-level multipliers from IV postmortem logic
+    # Group actual returns (outcome_price/predicted_iv) by conviction
+    conviction_groups: dict[str, list] = {}
+    for r in pred_rows:
+        conv = r.get("conviction") or "medium"
+        actual_ratio = r["outcome_price"] / r["predicted_iv"]
+        conviction_groups.setdefault(conv, []).append(actual_ratio)
+
+    conviction_multipliers: dict[str, float] = {}
+    for conv, ratios in conviction_groups.items():
+        avg_ratio = sum(ratios) / len(ratios)
+        # Multiplier: if avg_ratio > 1 → stock tends to exceed IV → boost; < 1 → discount
+        conviction_multipliers[conv] = round(min(1.3, max(0.7, avg_ratio)), 3)
+
+    # Apply adjustments
+    adjustments = []
+    updated_count = 0
+    skipped_count = 0
+
+    for ticker, old_score in universe_map.items():
+        if ticker not in ticker_accuracy:
+            skipped_count += 1
+            continue
+
+        acc = ticker_accuracy[ticker]
+        new_score = old_score * 0.7 + (acc * 10) * 0.3
+
+        # Apply conviction multiplier if available
+        conv = ticker_conviction.get(ticker)
+        if conv and conv in conviction_multipliers:
+            new_score *= conviction_multipliers[conv]
+
+        new_score = round(min(10.0, max(0.0, new_score)), 3)
+        delta = round(new_score - old_score, 3)
+
+        conn.execute(
+            "UPDATE universe_scores SET quality_score = ? WHERE ticker = ?",
+            (new_score, ticker),
+        )
+        conn.commit()
+
+        adjustments.append({
+            "ticker": ticker,
+            "old_score": old_score,
+            "new_score": new_score,
+            "delta": delta,
+        })
+        updated_count += 1
+
+    conn.close()
+
+    adjustments.sort(key=lambda x: abs(x["delta"]), reverse=True)
+
+    return {
+        "updated_count": updated_count,
+        "skipped_count": skipped_count,
+        "adjustments": adjustments[:20],  # top 20 most impacted
+        "conviction_multipliers": conviction_multipliers,
+        "summary": (
+            f"Recalibrated {updated_count} tickers using prediction accuracy weights. "
+            f"{skipped_count} tickers skipped (no prediction history). "
+            f"Top adjustment: {adjustments[0]['ticker']} Δ{adjustments[0]['delta']:+.2f}"
+            if adjustments else f"Recalibrated {updated_count} tickers. {skipped_count} skipped."
+        ),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Portfolio Stress Testing
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_portfolio_stress_test(scenario: str = "all") -> dict:
+    """
+    Run scenario-based stress tests across the portfolio.
+
+    Scenarios:
+      - ai_disruption: AI commoditizes core products
+      - rate_spike_200bps: Risk-free rate rises 200bps, multiple compression
+      - recession_revenue_20pct: Recession with revenue -20%, margin compression
+      - sector_concentration_shock: Worst sector drops 40%
+      - all: run all four
+
+    Returns per-scenario portfolio impact estimates and most vulnerable scenario.
+    """
+    from agent.portfolio import get_holdings, get_research_cache
+
+    holdings = get_holdings()
+    if not holdings:
+        return {
+            "scenario_results": {},
+            "most_vulnerable_scenario": None,
+            "summary": "No holdings to stress test.",
+        }
+
+    SCENARIOS = {
+        "ai_disruption": {
+            "description": "AI commoditizes core products",
+            "sector_hits": {"Technology": -0.35, "Software": -0.40, "Services": -0.20},
+            "default_hit": -0.10,
+            "ai_risk_multiplier": 1.5,
+        },
+        "rate_spike_200bps": {
+            "description": "Risk-free rate rises 200bps, multiple compression",
+            "sector_hits": {"Real Estate": -0.25, "Utilities": -0.20, "Financial": -0.15},
+            "growth_premium_hit": -0.20,
+            "default_hit": -0.08,
+        },
+        "recession_revenue_20pct": {
+            "description": "Recession: revenue -20%, margins compress",
+            "sector_hits": {
+                "Consumer Cyclical": -0.35,
+                "Industrial": -0.30,
+                "Energy": -0.25,
+            },
+            "defensive_protection": {"Healthcare": 0.05, "Consumer Defensive": 0.05},
+            "default_hit": -0.15,
+        },
+        "sector_concentration_shock": {
+            "description": "Worst sector drops 40%",
+            "dynamic": True,
+        },
+    }
+
+    # Get sector and ai_disruption_risk per ticker from research_cache
+    ticker_sector = {}
+    ticker_ai_risk = {}
+    ticker_value = {}
+
+    try:
+        import yfinance as yf
+        for h in holdings:
+            ticker = h["ticker"]
+            # Try research cache first
+            try:
+                cache = get_research_cache(ticker)
+                if cache:
+                    sector = cache.get("sector")
+                    if not sector:
+                        for key in ("business_overview", "fundamentals"):
+                            sub = cache.get(key) or {}
+                            sector = sub.get("sector") if isinstance(sub, dict) else None
+                            if sector:
+                                break
+                    ticker_sector[ticker] = sector or "Unknown"
+                    # Check for ai_disruption_risk flag
+                    ticker_ai_risk[ticker] = bool(
+                        cache.get("ai_disruption_risk")
+                        or (isinstance(cache.get("key_risks"), list) and
+                            any("ai" in str(r).lower() for r in cache.get("key_risks", [])))
+                    )
+                else:
+                    ticker_sector[ticker] = "Unknown"
+                    ticker_ai_risk[ticker] = False
+            except Exception:
+                ticker_sector[ticker] = "Unknown"
+                ticker_ai_risk[ticker] = False
+
+            # Estimate position value
+            try:
+                info = yf.Ticker(ticker).info
+                price = (
+                    info.get("currentPrice")
+                    or info.get("regularMarketPrice")
+                    or info.get("previousClose")
+                    or h.get("avg_cost", 0)
+                )
+                ticker_value[ticker] = float(price) * float(h["shares"])
+            except Exception:
+                ticker_value[ticker] = float(h.get("avg_cost", 0)) * float(h["shares"])
+    except ImportError:
+        for h in holdings:
+            ticker = h["ticker"]
+            ticker_sector[ticker] = "Unknown"
+            ticker_ai_risk[ticker] = False
+            ticker_value[ticker] = float(h.get("avg_cost", 0)) * float(h["shares"])
+
+    total_value = sum(ticker_value.values()) or 1.0
+
+    def _run_scenario(scen_name: str, scen_cfg: dict) -> dict:
+        positions_detail = []
+
+        # Handle sector_concentration_shock dynamically
+        if scen_cfg.get("dynamic"):
+            # Find heaviest sector
+            sector_values: dict[str, float] = {}
+            for h in holdings:
+                t = h["ticker"]
+                s = ticker_sector.get(t, "Unknown")
+                sector_values[s] = sector_values.get(s, 0) + ticker_value.get(t, 0)
+            worst_sector = max(sector_values, key=lambda s: sector_values[s]) if sector_values else "Unknown"
+
+            for h in holdings:
+                t = h["ticker"]
+                pv = ticker_value.get(t, 0)
+                s = ticker_sector.get(t, "Unknown")
+                impact = -0.40 if s == worst_sector else 0.0
+                positions_detail.append({
+                    "ticker": t,
+                    "sector": s,
+                    "position_value": round(pv, 2),
+                    "estimated_impact_pct": round(impact * 100, 1),
+                })
+
+            portfolio_impact = sum(
+                (p["estimated_impact_pct"] / 100) * (ticker_value.get(p["ticker"], 0) / total_value)
+                for p in positions_detail
+            )
+            worst_pos = min(positions_detail, key=lambda p: p["estimated_impact_pct"])
+            return {
+                "description": f"Worst sector ({worst_sector}) drops 40%",
+                "portfolio_impact_pct": round(portfolio_impact * 100, 2),
+                "worst_position": worst_pos,
+                "positions_detail": positions_detail,
+            }
+
+        # Standard scenarios
+        sector_hits = scen_cfg.get("sector_hits", {})
+        defensive = scen_cfg.get("defensive_protection", {})
+        default_hit = scen_cfg.get("default_hit", -0.10)
+
+        for h in holdings:
+            t = h["ticker"]
+            pv = ticker_value.get(t, 0)
+            s = ticker_sector.get(t, "Unknown")
+
+            # Base impact from sector
+            impact = sector_hits.get(s)
+            if impact is None:
+                impact = defensive.get(s, default_hit)
+
+            # AI disruption multiplier
+            if scen_name == "ai_disruption" and ticker_ai_risk.get(t):
+                impact *= scen_cfg.get("ai_risk_multiplier", 1.5)
+                impact = max(-0.80, impact)  # floor at -80%
+
+            positions_detail.append({
+                "ticker": t,
+                "sector": s,
+                "position_value": round(pv, 2),
+                "estimated_impact_pct": round(impact * 100, 1),
+            })
+
+        portfolio_impact = sum(
+            (p["estimated_impact_pct"] / 100) * (ticker_value.get(p["ticker"], 0) / total_value)
+            for p in positions_detail
+        )
+        worst_pos = min(positions_detail, key=lambda p: p["estimated_impact_pct"])
+
+        return {
+            "description": scen_cfg["description"],
+            "portfolio_impact_pct": round(portfolio_impact * 100, 2),
+            "worst_position": worst_pos,
+            "positions_detail": positions_detail,
+        }
+
+    # Determine which scenarios to run
+    if scenario == "all":
+        run_scenarios = list(SCENARIOS.keys())
+    elif scenario in SCENARIOS:
+        run_scenarios = [scenario]
+    else:
+        return {"error": f"Unknown scenario '{scenario}'. Choose from: {', '.join(SCENARIOS.keys())}, all"}
+
+    scenario_results = {}
+    for sn in run_scenarios:
+        scenario_results[sn] = _run_scenario(sn, SCENARIOS[sn])
+
+    # Most vulnerable scenario
+    most_vulnerable = min(scenario_results, key=lambda s: scenario_results[s]["portfolio_impact_pct"])
+
+    impacts = {sn: scenario_results[sn]["portfolio_impact_pct"] for sn in scenario_results}
+    summary = (
+        f"Stress test complete ({len(scenario_results)} scenarios). "
+        f"Most vulnerable: {most_vulnerable} "
+        f"({scenario_results[most_vulnerable]['portfolio_impact_pct']:+.1f}% portfolio impact). "
+        + " | ".join(f"{sn}: {v:+.1f}%" for sn, v in impacts.items())
+    )
+
+    return {
+        "scenario_results": scenario_results,
+        "most_vulnerable_scenario": most_vulnerable,
+        "summary": summary,
+    }

@@ -1779,6 +1779,9 @@ def run_portfolio_review(model: Optional[str] = None, **kwargs) -> str:
 Please conduct a comprehensive portfolio review and take appropriate investment actions:
 
 **Step 1 — Load memory**
+- Call `get_triaged_alerts` to check for thesis-breaking news. Any `thesis_breaking` alert on a held
+  position must be investigated before new capital is deployed. `watch` alerts go on the review agenda.
+  `noise` alerts can be noted and ignored.
 - Call `get_investment_memory` to review past theses for current holdings and closed positions
 - Call `get_session_reflections` to review lessons from past sessions
 - Call `get_watchlist` — check if any watchlist candidates have hit their target price or had a meaningful pullback
@@ -1812,6 +1815,10 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Reassess intrinsic value for each holding: has it grown (thesis compounding) or shrunk (deterioration)?
 
 **Step 4 — Discover new opportunities: screen the full S&P 500 AND the international universe**
+
+- Call `recalibrate_universe_scores` before running the screener to apply ML-learned weights from
+  past prediction accuracy. This adjusts quality scores toward stocks where the agent's IV estimates
+  have historically been most accurate, sharpening the screener signal.
 
 *US screen (exhaustive):*
 - Call `get_stock_universe("sp500")` **once** — this returns all ~500 S&P 500 tickers.
@@ -1872,6 +1879,10 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - A high `bear_conviction` score (8+) on a "caution" verdict should be treated like a "reject".
 
 **Step 5 — Take action**
+- Call `identify_weakest_link` to see if any existing position should be recycled to fund the new
+  buy. A position flagged as `recycle_candidate: true` (score < 4) may be a better source of capital
+  than deploying cash — especially if conviction is low, IV upside is exhausted, or research is stale.
+  Do not recycle mechanically; assess whether the underlying thesis is intact before selling.
 - **Before any buy**, confirm the three criteria are met:
   1. A clear, durable economic moat has been identified (switching costs / network effects / cost advantage / intangibles / efficient scale)
   2. A conservative intrinsic value estimate shows the current price is ≥20% below fair value
@@ -1915,6 +1926,10 @@ Position sizing rule: maximum total hedge allocation is 20% of portfolio at any 
 This is a value investing portfolio — macro hedges are insurance, not a strategy.
 
 **Step 6 — Save reflection**
+- Call `run_portfolio_stress_test` to assess portfolio resilience across 4 scenarios: AI disruption,
+  rate spike (+200bps), recession (revenue -20%), and sector concentration shock. If any scenario
+  shows portfolio impact worse than -20%, note it in the reflection and consider whether the
+  sector/characteristic concentration warrants action before the next session.
 - Call `save_session_reflection` using the structured template defined in the tool description
 - Be specific in "Lessons for Next Session" — write rules, not vague intentions
 
