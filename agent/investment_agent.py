@@ -1793,6 +1793,11 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_ml_factor_weights` — continuous ML-derived factor weights that go beyond binary thresholds; use blended_weights and actionable_guidance when scoring screener candidates in Step 4
 - Call `prioritize_watchlist_ml` — replaces plain get_watchlist; returns watchlist ranked by ML score with current fundamentals already fetched; start with rank-1 items when doing deep research
 - Call `get_shadow_performance` — review stocks you previously passed on; note which passes were validated (stock fell) and which were mistakes (stock rose); apply lessons to this session's screening
+- Call `get_behaviour_summary` — load your own behaviour patterns from past sessions. Before
+  doing anything else, read the averages and flags. If re_researched_watchlist > 0 in recent
+  sessions, you have been wasting research budget — actively avoid repeating this. If
+  deviated_from_matrix > 0, your prior decisions were not rules-based — correct this session.
+  If workflow suggestions exist, apply them immediately without being asked.
 
 **Step 2 — Assess current state**
 - Check portfolio status (cash, holdings, P&L)
@@ -1911,11 +1916,26 @@ When unwinding hedges:
 Position sizing rule: maximum total hedge allocation is 20% of portfolio at any time.
 This is a value investing portfolio — macro hedges are insurance, not a strategy.
 
-**Step 6 — Save reflection**
-- Call `run_portfolio_stress_test` to assess portfolio resilience across 4 scenarios: AI disruption,
-  rate spike (+200bps), recession (revenue -20%), and sector concentration shock. If any scenario
-  shows portfolio impact worse than -20%, note it in the reflection and consider whether the
-  sector/characteristic concentration warrants action before the next session.
+**Step 6 — Self-audit, then save reflection**
+
+*Self-audit (do this honestly — it improves the agent over time):*
+Answer each question and call `save_session_audit` with the results:
+1. `re_researched_watchlist` — how many tickers you sent to research_stocks_parallel were
+   already on the watchlist at session start? (should be 0)
+2. `deviated_from_matrix` — how many buy/pass/watchlist decisions did NOT follow the
+   decision matrix from get_decision_thresholds? (should be 0)
+3. `duplicate_tool_calls` — how many times did you call the same tool with the same input
+   twice? (should be 0)
+4. `contradicted_prior_session` — how many conclusions directly contradicted a prior session
+   without new evidence to justify the change? (should be 0)
+5. `audit_notes` — one sentence on the biggest inefficiency this session, if any.
+
+If any count is > 0, also call `log_workflow_issue` with a concrete suggestion to prevent
+the same problem next session. severity="high" if it caused a wrong decision.
+
+*Then save the session:*
+- Call `run_portfolio_stress_test` — if any scenario shows portfolio impact worse than -20%,
+  note it in the reflection.
 - Call `save_session_reflection` using the structured template defined in the tool description
 - Be specific in "Lessons for Next Session" — write rules, not vague intentions
 

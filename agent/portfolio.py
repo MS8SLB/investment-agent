@@ -251,6 +251,25 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
             )
         """)
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS session_audit (
+                id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_date                TEXT NOT NULL,
+                tickers_screened            INTEGER DEFAULT 0,
+                tickers_researched          INTEGER DEFAULT 0,
+                buys_made                   INTEGER DEFAULT 0,
+                watchlist_added             INTEGER DEFAULT 0,
+                shadow_added                INTEGER DEFAULT 0,
+                workflow_issues_logged      INTEGER DEFAULT 0,
+                re_researched_watchlist     INTEGER DEFAULT 0,
+                deviated_from_matrix        INTEGER DEFAULT 0,
+                duplicate_tool_calls        INTEGER DEFAULT 0,
+                contradicted_prior_session  INTEGER DEFAULT 0,
+                audit_notes                 TEXT,
+                recorded_at                 TEXT NOT NULL
+            )
+        """)
+
         # Migrate existing DBs: add realized_pnl column if missing
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN realized_pnl REAL")
@@ -1781,5 +1800,153 @@ def get_watchlist_accuracy() -> dict:
         "note": (
             "hit_rate_pct = % of TRIGGERED events that led to a buy. "
             "Low hit rate means target prices are consistently missed or too conservative."
+        ),
+    }
+
+# ── Session audit + behaviour tracking ───────────────────────────────────────
+
+def save_session_audit(
+    tickers_screened: int = 0,
+    tickers_researched: int = 0,
+    buys_made: int = 0,
+    watchlist_added: int = 0,
+    shadow_added: int = 0,
+    workflow_issues_logged: int = 0,
+    re_researched_watchlist: int = 0,
+    deviated_from_matrix: int = 0,
+    duplicate_tool_calls: int = 0,
+    contradicted_prior_session: int = 0,
+    audit_notes: str = "",
+) -> dict:
+    """Save structured self-audit metrics for the current session."""
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        """INSERT INTO session_audit
+           (session_date, tickers_screened, tickers_researched, buys_made,
+            watchlist_added, shadow_added, workflow_issues_logged,
+            re_researched_watchlist, deviated_from_matrix, duplicate_tool_calls,
+            contradicted_prior_session, audit_notes, recorded_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (now[:10], tickers_screened, tickers_researched, buys_made,
+         watchlist_added, shadow_added, workflow_issues_logged,
+         re_researched_watchlist, deviated_from_matrix, duplicate_tool_calls,
+         contradicted_prior_session, audit_notes, now),
+    )
+    conn.commit()
+    conn.close()
+    flags = []
+    if re_researched_watchlist:
+        flags.append(f"re_researched_watchlist={re_researched_watchlist}")
+    if deviated_from_matrix:
+        flags.append(f"deviated_from_matrix={deviated_from_matrix}")
+    if duplicate_tool_calls:
+        flags.append(f"duplicate_tool_calls={duplicate_tool_calls}")
+    if contradicted_prior_session:
+        flags.append(f"contradicted_prior_session={contradicted_prior_session}")
+    return {
+        "saved": True,
+        "session_date": now[:10],
+        "flags": flags if flags else ["none — clean session"],
+    }
+
+
+def log_workflow_issue(issue: str, suggestion: str, severity: str = "low") -> dict:
+    """
+    Log a workflow inefficiency noticed during the session.
+    Stored in kb_entries with category='workflow_issue' for later review.
+    severity: 'low' | 'medium' | 'high'
+    """
+    import json as _json
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    content = _json.dumps({
+        "issue": issue,
+        "suggestion": suggestion,
+        "severity": severity,
+        "session_date": now[:10],
+    })
+    conn.execute(
+        """INSERT INTO kb_entries (category, ticker, content, source, created_at)
+           VALUES ('workflow_issue', NULL, ?, 'agent_self_audit', ?)""",
+        (content, now),
+    )
+    conn.commit()
+    conn.close()
+    return {"logged": True, "severity": severity, "issue": issue[:80]}
+
+
+def get_behaviour_summary(n_sessions: int = 10) -> dict:
+    """
+    Summarise agent behaviour patterns across recent sessions.
+    Surfaces trends: avg tool calls, re-research rate, deviation rate,
+    most common workflow issues. Loaded at session start so the agent
+    can compare its current behaviour to its own history.
+    """
+    import json as _json
+    conn = _get_connection()
+
+    rows = conn.execute(
+        """SELECT * FROM session_audit ORDER BY recorded_at DESC LIMIT ?""",
+        (n_sessions,),
+    ).fetchall()
+    rows = [dict(r) for r in rows]
+
+    issues = conn.execute(
+        """SELECT content FROM kb_entries
+           WHERE category = 'workflow_issue'
+           ORDER BY created_at DESC LIMIT 20"""
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        return {
+            "available": False,
+            "message": "No session audit history yet — will build after first audited session.",
+        }
+
+    n = len(rows)
+
+    def _avg(field):
+        vals = [r[field] for r in rows if r[field] is not None]
+        return round(sum(vals) / len(vals), 1) if vals else 0
+
+    # Trend: is the agent improving or regressing?
+    re_research_trend = [r["re_researched_watchlist"] for r in rows]
+    deviation_trend   = [r["deviated_from_matrix"] for r in rows]
+
+    # Parse workflow issues
+    parsed_issues = []
+    for row in issues:
+        try:
+            parsed_issues.append(_json.loads(row["content"]))
+        except Exception:
+            pass
+    high_issues = [i for i in parsed_issues if i.get("severity") == "high"]
+    recent_suggestions = [i["suggestion"] for i in parsed_issues[:5]]
+
+    return {
+        "available": True,
+        "sessions_analysed": n,
+        "averages": {
+            "tickers_screened":     _avg("tickers_screened"),
+            "tickers_researched":   _avg("tickers_researched"),
+            "buys_per_session":     _avg("buys_made"),
+            "watchlist_per_session":_avg("watchlist_added"),
+            "re_researched_watchlist": _avg("re_researched_watchlist"),
+            "deviated_from_matrix": _avg("deviated_from_matrix"),
+            "duplicate_tool_calls": _avg("duplicate_tool_calls"),
+        },
+        "flags": {
+            "re_research_last_3": sum(re_research_trend[:3]),
+            "deviation_last_3":   sum(deviation_trend[:3]),
+            "high_severity_issues": len(high_issues),
+        },
+        "recent_workflow_suggestions": recent_suggestions,
+        "interpretation": (
+            "Compare your current session behaviour against these averages. "
+            "If re_researched_watchlist > 0, you are wasting research budget on known stocks. "
+            "If deviated_from_matrix > 0, your buy/pass decisions were not rules-based. "
+            "If duplicate_tool_calls > 0, you called the same tool twice unnecessarily."
         ),
     }

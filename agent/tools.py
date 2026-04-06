@@ -1741,6 +1741,85 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_behaviour_summary",
+        "description": (
+            "Load agent behaviour patterns across recent sessions. "
+            "Call at session start alongside get_investment_memory. "
+            "Returns averages for: tickers screened/researched, buys per session, "
+            "re_researched_watchlist (wasted research budget), deviated_from_matrix "
+            "(rules not followed), duplicate_tool_calls, and recent workflow improvement "
+            "suggestions logged by the agent itself. "
+            "Compare your current session behaviour against these averages in real time."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "n_sessions": {
+                    "type": "integer",
+                    "description": "Number of past sessions to include (default 10)",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "log_workflow_issue",
+        "description": (
+            "Log a workflow inefficiency you notice during the session. "
+            "Call immediately when you spot something suboptimal — redundant tool calls, "
+            "a missing step, an instruction that produced unexpected results, a decision "
+            "you made that deviated from the rules and why. "
+            "These accumulate across sessions and surface in get_behaviour_summary so "
+            "patterns can be identified and the workflow improved. "
+            "severity: 'low' (minor friction), 'medium' (recurring waste), 'high' (caused wrong decision)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "issue": {
+                    "type": "string",
+                    "description": "What the inefficiency or problem was",
+                },
+                "suggestion": {
+                    "type": "string",
+                    "description": "Concrete suggestion to fix it in future sessions",
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "Impact level: low=minor, medium=recurring waste, high=caused wrong decision",
+                },
+            },
+            "required": ["issue", "suggestion"],
+        },
+    },
+    {
+        "name": "save_session_audit",
+        "description": (
+            "Save structured self-audit metrics at the end of every session. "
+            "Call this BEFORE save_session_reflection as part of the Step 6 self-audit. "
+            "Records objective counts and boolean flags that accumulate into behaviour patterns "
+            "visible via get_behaviour_summary in future sessions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers_screened":           {"type": "integer", "description": "Total tickers passed to screen_stocks"},
+                "tickers_researched":         {"type": "integer", "description": "Tickers sent to research_stocks_parallel"},
+                "buys_made":                  {"type": "integer", "description": "Positions opened this session"},
+                "watchlist_added":            {"type": "integer", "description": "Tickers added to watchlist"},
+                "shadow_added":               {"type": "integer", "description": "Tickers added to shadow portfolio"},
+                "workflow_issues_logged":     {"type": "integer", "description": "Times log_workflow_issue was called"},
+                "re_researched_watchlist":    {"type": "integer", "description": "Tickers already on watchlist that were re-researched (should be 0)"},
+                "deviated_from_matrix":       {"type": "integer", "description": "Times buy/pass decision deviated from decision matrix (should be 0)"},
+                "duplicate_tool_calls":       {"type": "integer", "description": "Times same tool was called twice for same input"},
+                "contradicted_prior_session": {"type": "integer", "description": "Times a conclusion contradicted a prior session without new evidence"},
+                "audit_notes":                {"type": "string",  "description": "Any additional self-audit observations"},
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "get_session_efficiency",
         "description": (
             "Get current session efficiency statistics (total tool calls, unique tools used, "
@@ -4168,6 +4247,31 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_sector_rotation_signal":
         from agent.ml_insights import get_sector_rotation_signal
         return get_sector_rotation_signal()
+    elif tool_name == "get_behaviour_summary":
+        return portfolio.get_behaviour_summary(n_sessions=tool_input.get("n_sessions", 10))
+
+    elif tool_name == "log_workflow_issue":
+        return portfolio.log_workflow_issue(
+            issue=tool_input["issue"],
+            suggestion=tool_input["suggestion"],
+            severity=tool_input.get("severity", "low"),
+        )
+
+    elif tool_name == "save_session_audit":
+        return portfolio.save_session_audit(
+            tickers_screened=tool_input.get("tickers_screened", 0),
+            tickers_researched=tool_input.get("tickers_researched", 0),
+            buys_made=tool_input.get("buys_made", 0),
+            watchlist_added=tool_input.get("watchlist_added", 0),
+            shadow_added=tool_input.get("shadow_added", 0),
+            workflow_issues_logged=tool_input.get("workflow_issues_logged", 0),
+            re_researched_watchlist=tool_input.get("re_researched_watchlist", 0),
+            deviated_from_matrix=tool_input.get("deviated_from_matrix", 0),
+            duplicate_tool_calls=tool_input.get("duplicate_tool_calls", 0),
+            contradicted_prior_session=tool_input.get("contradicted_prior_session", 0),
+            audit_notes=tool_input.get("audit_notes", ""),
+        )
+
     elif tool_name == "get_session_efficiency":
         stats = _get_session_stats()
         import datetime as _dt
