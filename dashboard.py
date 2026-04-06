@@ -7,6 +7,8 @@ Run with: streamlit run dashboard.py
 import html
 import os
 import sys
+import warnings
+warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 from datetime import datetime
 
 import pandas as pd
