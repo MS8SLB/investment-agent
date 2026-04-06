@@ -21,6 +21,7 @@ from typing import Optional
 import anthropic
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
+from agent.loop_utils import prune_messages, truncate_tool_result
 
 
 # ── Tool subset ───────────────────────────────────────────────────────────────
@@ -246,6 +247,7 @@ claims in the bull report. Then output your JSON verdict."""
         if iteration > 0:
             time.sleep(2)
 
+        messages = prune_messages(messages, max_turns=8)
         response = None
         for attempt, wait in enumerate(_RETRY_WAITS):
             try:
@@ -307,7 +309,7 @@ claims in the bull report. Then output your JSON verdict."""
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tc.id,
-                "content": json.dumps(result, default=str),
+                "content": truncate_tool_result(tc.name, json.dumps(result, default=str), max_chars=3500),
             })
         messages.append({"role": "user", "content": tool_results})
 

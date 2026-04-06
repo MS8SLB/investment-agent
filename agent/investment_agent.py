@@ -13,6 +13,7 @@ import anthropic
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
 from agent import portfolio
+from agent.loop_utils import prune_messages, truncate_tool_result
 
 
 SYSTEM_PROMPT = """You are an expert long-term investment portfolio manager running a paper trading portfolio.
@@ -1686,6 +1687,7 @@ def run_agent_session(
             time.sleep(3)
 
         # Retry with exponential backoff on rate-limit (429) and overloaded (529) errors.
+        messages = prune_messages(messages, max_turns=15)
         response = None
         last_err_label = "API limit"
         for attempt, wait in enumerate(_RETRY_WAITS):
@@ -1754,7 +1756,7 @@ def run_agent_session(
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tc.id,
-                "content": json.dumps(result, default=str),
+                "content": truncate_tool_result(tc.name, json.dumps(result, default=str), max_chars=5000),
             })
 
         messages.append({"role": "user", "content": tool_results})
