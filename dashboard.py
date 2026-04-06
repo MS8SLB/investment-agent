@@ -537,9 +537,28 @@ elif "PERFORMANCE" in page:
     from agent.portfolio import (
         get_portfolio_snapshots, get_portfolio_metrics,
         get_benchmark_comparison, get_transactions,
+        get_holdings, get_cash, save_benchmark_snapshot,
     )
+    from agent.market_data import get_stock_quote
 
     with st.spinner("LOADING PERFORMANCE DATA..."):
+        # Auto-snapshot: record today's portfolio value vs SPY so the chart
+        # always has up-to-date data without needing the agent to run.
+        try:
+            holdings = get_holdings()
+            cash = get_cash()
+            port_value = cash
+            for h in holdings:
+                q = get_stock_quote(h["ticker"])
+                price = q.get("price") or h.get("avg_cost", 0)
+                port_value += h["shares"] * price
+            spy_q = get_stock_quote("SPY")
+            spy_price = spy_q.get("price")
+            if spy_price and port_value > 0:
+                save_benchmark_snapshot(port_value, spy_price)
+        except Exception:
+            pass
+
         snapshots  = get_portfolio_snapshots(limit=500)
         spy_bench  = get_benchmark_comparison()
         metrics    = get_portfolio_metrics()

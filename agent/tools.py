@@ -4013,10 +4013,12 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         cash = status.get("cash")
         invested = status.get("total_invested_value")
         portfolio.save_reflection(tool_input["reflection"], portfolio_value, "review")
-        # Auto-snapshot for benchmark tracking
-        spy = market_data.get_stock_quote("^GSPC")
+        # Auto-snapshot for chart + benchmark tracking
+        spy = market_data.get_stock_quote("SPY")
         spy_price = spy.get("price") if "error" not in spy else None
         portfolio.save_portfolio_snapshot(portfolio_value, cash, invested, spy_price, "review")
+        if spy_price and portfolio_value:
+            portfolio.save_benchmark_snapshot(portfolio_value, spy_price)
         return {"success": True, "message": "Reflection and portfolio snapshot saved."}
 
     elif tool_name == "get_signal_performance":
