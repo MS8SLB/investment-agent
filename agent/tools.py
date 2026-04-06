@@ -1531,14 +1531,13 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_decision_thresholds",
         "description": (
-            "Return ML-calibrated thresholds for the buy/watchlist/pass decision matrix. "
-            "CALL THIS ONCE at the start of Step 5 before taking any action on research reports. "
-            "Returns mos_threshold_pct (minimum margin of safety to buy), "
-            "bear_override_conviction (caution score that triggers reject treatment), "
-            "and a ready-to-use decision_matrix dict. "
-            "Thresholds start at regime-adjusted defaults (20-28% MoS depending on regime) "
-            "and self-calibrate from actual trade outcomes as the portfolio grows. "
-            "With <10 closed trades returns regime priors; with 10+ trades blends in learned values."
+            "Return the permanent decision thresholds for the buy/watchlist/pass matrix. "
+            "CALL THIS ONCE at the start of Step 5 before acting on any research report. "
+            "Returns mos_threshold_pct (regime-adjusted, permanent — 20% NORMAL to 28% STAGFLATION), "
+            "bear_override_conviction, a ready-to-use decision_matrix, and ml_factor_guidance "
+            "showing which screener signals have predicted returns in this portfolio. "
+            "The MoS threshold is a permanent discipline rule for a 20+ year IV portfolio — "
+            "it does not change based on trade history. ML only influences candidate ranking."
         ),
         "input_schema": {
             "type": "object",
@@ -2147,14 +2146,13 @@ _MODEL_TIERS = [
     {
         "name": "get_decision_thresholds",
         "description": (
-            "Return ML-calibrated thresholds for the buy/watchlist/pass decision matrix. "
-            "CALL THIS ONCE at the start of Step 5 before taking any action on research reports. "
-            "Returns mos_threshold_pct (minimum margin of safety to buy), "
-            "bear_override_conviction (caution score that triggers reject treatment), "
-            "and a ready-to-use decision_matrix dict. "
-            "Thresholds start at regime-adjusted defaults (20-28% MoS depending on regime) "
-            "and self-calibrate from actual trade outcomes as the portfolio grows. "
-            "With <10 closed trades returns regime priors; with 10+ trades blends in learned values."
+            "Return the permanent decision thresholds for the buy/watchlist/pass matrix. "
+            "CALL THIS ONCE at the start of Step 5 before acting on any research report. "
+            "Returns mos_threshold_pct (regime-adjusted, permanent — 20% NORMAL to 28% STAGFLATION), "
+            "bear_override_conviction, a ready-to-use decision_matrix, and ml_factor_guidance "
+            "showing which screener signals have predicted returns in this portfolio. "
+            "The MoS threshold is a permanent discipline rule for a 20+ year IV portfolio — "
+            "it does not change based on trade history. ML only influences candidate ranking."
         ),
         "input_schema": {
             "type": "object",
