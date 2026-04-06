@@ -82,19 +82,23 @@ def _trade_history_backtest() -> dict:
     """
     db = _conn()
 
-    # Pull every buy with a matching sell (no LIMIT)
+    # Pull every buy with a matching sell (no LIMIT); join prediction_tracking for IV data
     rows = db.execute("""
         SELECT
             b.id AS buy_id, b.ticker, b.price AS buy_price, b.ts AS buy_date,
             s.price AS sell_price, s.ts AS sell_date,
             ts_sig.screener_score, ts_sig.peg_ratio, ts_sig.fcf_yield_pct,
-            ts_sig.relative_momentum_pct, ts_sig.sector
+            ts_sig.relative_momentum_pct, ts_sig.sector,
+            pt.conviction_score, pt.predicted_iv, pt.mos_at_decision
         FROM transactions b
         JOIN transactions s
             ON  s.ticker = b.ticker
             AND s.action = 'SELL'
             AND s.ts > b.ts
         LEFT JOIN trade_signals ts_sig ON ts_sig.transaction_id = b.id
+        LEFT JOIN prediction_tracking pt
+               ON pt.ticker = b.ticker
+              AND date(pt.decision_date) = date(b.ts)
         WHERE b.action = 'BUY'
         ORDER BY b.ts ASC
     """).fetchall()
@@ -130,6 +134,25 @@ def _trade_history_backtest() -> dict:
         vix = _vix_on_date(buy_dt)
         regime = _classify_regime(vix)
 
+        # IV accuracy: did the stock reach its predicted intrinsic value?
+        predicted_iv = t.get("predicted_iv")
+        reached_iv = bool(predicted_iv and t["sell_price"] >= predicted_iv)
+        iv_capture_pct = (
+            round((t["sell_price"] / predicted_iv - 1) * 100, 1)
+            if predicted_iv else None
+        )
+
+        # Conviction label
+        conv_score = t.get("conviction_score")
+        if conv_score is None:
+            conviction = "unknown"
+        elif conv_score >= 8:
+            conviction = "high"
+        elif conv_score >= 5:
+            conviction = "medium"
+        else:
+            conviction = "low"
+
         enriched.append({
             "ticker": t["ticker"],
             "buy_date": buy_dt,
@@ -145,7 +168,13 @@ def _trade_history_backtest() -> dict:
             "screener_score": t["screener_score"],
             "peg_ratio": t["peg_ratio"],
             "fcf_yield_pct": t["fcf_yield_pct"],
-            "sector": t["sector"],
+            "sector": t["sector"] or "Unknown",
+            "conviction": conviction,
+            "conviction_score": conv_score,
+            "predicted_iv": predicted_iv,
+            "mos_at_decision": t.get("mos_at_decision"),
+            "reached_iv": reached_iv,
+            "iv_capture_pct": iv_capture_pct,
         })
 
     n = len(enriched)
@@ -202,10 +231,69 @@ def _trade_history_backtest() -> dict:
 
     # Best and worst trades
     enriched_sorted = sorted(enriched, key=lambda t: t["return_pct"])
-    worst = [{"ticker": t["ticker"], "return_pct": t["return_pct"], "buy_date": t["buy_date"]}
+    worst = [{"ticker": t["ticker"], "return_pct": t["return_pct"], "buy_date": t["buy_date"],
+              "conviction": t["conviction"], "sector": t["sector"]}
              for t in enriched_sorted[:3]]
-    best = [{"ticker": t["ticker"], "return_pct": t["return_pct"], "buy_date": t["buy_date"]}
+    best = [{"ticker": t["ticker"], "return_pct": t["return_pct"], "buy_date": t["buy_date"],
+             "conviction": t["conviction"], "sector": t["sector"]}
             for t in enriched_sorted[-3:]][::-1]
+
+    # Conviction breakdown
+    conviction_groups: dict[str, list] = {}
+    for t in enriched:
+        conviction_groups.setdefault(t["conviction"], []).append(t["return_pct"])
+
+    def _group_stats(returns_list: list) -> dict:
+        if not returns_list:
+            return {"count": 0}
+        wins = sum(1 for r in returns_list if r > 0)
+        avg = sum(returns_list) / len(returns_list)
+        return {
+            "count": len(returns_list),
+            "win_rate_pct": round(wins / len(returns_list) * 100, 1),
+            "avg_return_pct": round(avg, 2),
+        }
+
+    conviction_breakdown = {k: _group_stats(v) for k, v in conviction_groups.items()}
+
+    # Calibration check: high > medium > low?
+    h = conviction_breakdown.get("high", {}).get("avg_return_pct")
+    m = conviction_breakdown.get("medium", {}).get("avg_return_pct")
+    lo = conviction_breakdown.get("low", {}).get("avg_return_pct")
+    if h is not None and m is not None and lo is not None:
+        calibration = "well_calibrated" if h > m > lo else "miscalibrated"
+    elif h is not None and m is not None:
+        calibration = "well_calibrated" if h > m else "miscalibrated"
+    else:
+        calibration = "insufficient_data"
+
+    # Sector breakdown
+    sector_groups: dict[str, list] = {}
+    for t in enriched:
+        sector_groups.setdefault(t["sector"], []).append(t["return_pct"])
+    sector_breakdown = {k: _group_stats(v) for k, v in sector_groups.items()}
+
+    # IV accuracy
+    iv_trades = [t for t in enriched if t["predicted_iv"] is not None]
+    if iv_trades:
+        reached = sum(1 for t in iv_trades if t["reached_iv"])
+        iv_accuracy = {
+            "trades_with_iv_target": len(iv_trades),
+            "pct_reached_iv": round(reached / len(iv_trades) * 100, 1),
+            "avg_iv_capture_pct": round(
+                sum(t["iv_capture_pct"] for t in iv_trades if t["iv_capture_pct"] is not None)
+                / len([t for t in iv_trades if t["iv_capture_pct"] is not None]), 1
+            ) if any(t["iv_capture_pct"] is not None for t in iv_trades) else None,
+            "note": (
+                "iv_capture_pct > 0 means sold above predicted intrinsic value; "
+                "< 0 means sold before reaching IV target."
+            ),
+        }
+    else:
+        iv_accuracy = {
+            "trades_with_iv_target": 0,
+            "note": "No IV targets set yet. Add predicted_iv when making buy decisions.",
+        }
 
     return {
         "mode": "trade_history",
@@ -218,6 +306,10 @@ def _trade_history_backtest() -> dict:
         "portfolio_period_return_pct": round(sum(returns), 2),
         "sp500_period_return_pct": spy_period,
         "regime_breakdown": regime_breakdown,
+        "conviction_breakdown": conviction_breakdown,
+        "calibration_status": calibration,
+        "sector_breakdown": sector_breakdown,
+        "iv_accuracy": iv_accuracy,
         "best_trades": best,
         "worst_trades": worst,
         "all_trades": enriched,

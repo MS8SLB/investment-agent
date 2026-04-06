@@ -807,3 +807,32 @@ def get_portfolio_metrics() -> dict:
             "Sharpe uses 4.5% annual risk-free rate."
         ),
     }
+
+
+def close_prediction(ticker: str, outcome_price: float) -> None:
+    """
+    Record the outcome of the most recent open prediction for a ticker.
+    Called automatically when a position is sold.
+    """
+    conn = _get_connection()
+    # Find the most recent open prediction for this ticker
+    row = conn.execute(
+        """SELECT id, price_at_decision FROM prediction_tracking
+           WHERE ticker = ? AND outcome_price IS NULL
+           ORDER BY id DESC LIMIT 1""",
+        (ticker,),
+    ).fetchone()
+    if row:
+        pred_id = row["id"]
+        price_at_decision = row["price_at_decision"] or outcome_price
+        outcome_return_pct = (outcome_price / price_at_decision - 1) * 100 if price_at_decision else None
+        conn.execute(
+            """UPDATE prediction_tracking
+               SET outcome_price = ?,
+                   outcome_date = datetime('now'),
+                   outcome_return_pct = ?
+               WHERE id = ?""",
+            (outcome_price, outcome_return_pct, pred_id),
+        )
+        conn.commit()
+    conn.close()

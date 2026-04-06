@@ -1628,6 +1628,8 @@ def _handle_sell(tool_input: dict) -> dict:
         )
         if notes:
             portfolio.save_trade_thesis(result["transaction_id"], ticker, "SELL", notes)
+        # Auto-close any open IV prediction so backtest has outcome data
+        portfolio.close_prediction(ticker, price)
     return result
 
 
