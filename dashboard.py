@@ -354,7 +354,7 @@ if "PORTFOLIO" in page:
     page_header("PORTFOLIO — LIVE OVERVIEW")
     _, _rb = st.columns([6, 1])
     with _rb:
-        if st.button("⟳  REFRESH", key="refresh_portfolio", use_container_width=True):
+        if st.button("⟳  REFRESH", key="refresh_portfolio", width="stretch"):
             st.rerun()
 
     from agent.tools import _get_portfolio_status
@@ -429,7 +429,7 @@ if "PORTFOLIO" in page:
                 "RETURN":     lambda v: ("+" if v >= 0 else "") + f"{v:.2f}%",
             })
         )
-        st.dataframe(styled, use_container_width=True, hide_index=True)
+        st.dataframe(styled, width="stretch", hide_index=True)
 
         # ── Allocation chart ─────────────────────────────────────────────────
         section("PORTFOLIO ALLOCATION")
@@ -476,7 +476,7 @@ if "PORTFOLIO" in page:
                     showarrow=False,
                 )],
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
     # ── Danger zone ──────────────────────────────────────────────────────────
@@ -526,7 +526,7 @@ elif "PERFORMANCE" in page:
     page_header("PERFORMANCE — VS S&P 500")
     _, _rb = st.columns([6, 1])
     with _rb:
-        if st.button("⟳  REFRESH", key="refresh_performance", use_container_width=True):
+        if st.button("⟳  REFRESH", key="refresh_performance", width="stretch"):
             st.rerun()
 
     from agent.portfolio import get_portfolio_snapshots
@@ -574,7 +574,7 @@ elif "PERFORMANCE" in page:
             if _col.button(
                 _label,
                 key=f"range_{_label}",
-                use_container_width=True,
+                width="stretch",
                 type="primary" if st.session_state.perf_range == _label else "secondary",
             ):
                 st.session_state.perf_range = _label
@@ -652,7 +652,7 @@ elif "PERFORMANCE" in page:
             height=420,
             hovermode="x unified",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # ── Risk metrics ──────────────────────────────────────────────────────
         from agent.portfolio import get_portfolio_metrics
@@ -740,7 +740,7 @@ elif "PERFORMANCE" in page:
                 margin=dict(l=0, r=0, t=20, b=0),
                 height=300,
             )
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width="stretch")
         else:
             st.markdown(
                 '<div style="color:#505050;font-size:12px;">Rolling return data builds over time — check back after more monthly reviews.</div>',
@@ -758,7 +758,7 @@ elif "PERFORMANCE" in page:
                 "INVESTED":        fmt_usd(s["invested_value"]),
                 "S&P 500 PRICE":   fmt_usd(s.get("benchmark_price")),
             })
-        st.dataframe(pd.DataFrame(snap_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(snap_rows), width="stretch", hide_index=True)
 
     else:
         st.markdown(
@@ -819,7 +819,7 @@ elif "TRADES" in page:
             })
 
         df = pd.DataFrame(rows)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
 
         # ── P&L chart (if sells exist) ────────────────────────────────────────
         if sells and realized:
@@ -846,7 +846,7 @@ elif "TRADES" in page:
                 height=280,
                 showlegend=False,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
