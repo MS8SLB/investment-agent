@@ -618,7 +618,8 @@ TOOL_DEFINITIONS = [
         "description": (
             "Run a fast parallel fundamental screen across a list of tickers. "
             "Fetches key metrics (P/E, revenue growth, profit margin, ROE, debt) for each ticker "
-            "and returns the top candidates ranked by a composite quality + value score. "
+            "and returns ALL scored candidates ranked by a composite quality + value score — "
+            "no artificial cap on results. "
             "Pass 50-100 tickers at a time (from get_stock_universe) for best results. "
             "Use this to discover high-quality opportunities across the full market — "
             "not just popular large caps."
@@ -630,10 +631,6 @@ TOOL_DEFINITIONS = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "List of ticker symbols to screen",
-                },
-                "top_n": {
-                    "type": "integer",
-                    "description": "Number of top candidates to return (default 40). Raise to 50+ for larger batches to avoid missing good tickers at the margin.",
                 },
             },
             "required": ["tickers"],
@@ -3070,7 +3067,8 @@ TOOL_DEFINITIONS = [
         "description": (
             "Run a fast parallel fundamental screen across a list of tickers. "
             "Fetches key metrics (P/E, revenue growth, profit margin, ROE, debt) for each ticker "
-            "and returns the top candidates ranked by a composite quality + value score. "
+            "and returns ALL scored candidates ranked by a composite quality + value score — "
+            "no artificial cap on results. "
             "Pass 50-100 tickers at a time (from get_stock_universe) for best results. "
             "Use this to discover high-quality opportunities across the full market — "
             "not just popular large caps."
@@ -3082,10 +3080,6 @@ TOOL_DEFINITIONS = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "List of ticker symbols to screen",
-                },
-                "top_n": {
-                    "type": "integer",
-                    "description": "Number of top candidates to return (default 10)",
                 },
             },
             "required": ["tickers"],
@@ -3864,8 +3858,7 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "screen_stocks":
         tickers = tool_input.get("tickers", [])
-        top_n = tool_input.get("top_n", 10)
-        return market_data.screen_stocks(tickers, top_n)
+        return market_data.screen_stocks(tickers)
 
     elif tool_name == "get_benchmark_comparison":
         return _handle_benchmark_comparison()

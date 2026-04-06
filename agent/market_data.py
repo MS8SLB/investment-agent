@@ -1987,10 +1987,10 @@ def get_stock_universe(
     return result
 
 
-def screen_stocks(tickers: list, top_n: int = 25) -> list:
+def screen_stocks(tickers: list) -> list:
     """
     Run a fast parallel fundamental screen across a list of tickers.
-    Returns the top_n candidates ranked by a composite quality + value score.
+    Returns all scored candidates ranked by a composite quality + value score.
     """
     def _fetch(ticker: str) -> Optional[dict]:
         try:
@@ -2131,7 +2131,7 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
                 results.append(res)
 
     results.sort(key=lambda x: x["score"], reverse=True)
-    return results[:top_n]
+    return results
 
 
 # ══════════════════════════════════════════════════════════════════════════════
