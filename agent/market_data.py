@@ -1,6 +1,8 @@
 """
 Market data retrieval using yfinance with Polygon.io as a fallback.
-Provides stock quotes, fundamentals, historical data, news, earnings, and analyst data.
+Fundamentals (income statement, balance sheet, ratios) use Financial Modeling Prep (FMP)
+as the primary source with yfinance as fallback. Price data stays on yfinance.
+Set FMP_API_KEY env var to enable (free tier: 250 req/day at financialmodelingprep.com).
 """
 
 import os
@@ -9,6 +11,130 @@ import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Optional
+
+
+# ── Financial Modeling Prep (primary for fundamentals) ────────────────────────
+FMP_API_KEY = os.environ.get("FMP_API_KEY")
+_FMP_BASE = "https://financialmodelingprep.com/api/v3"
+
+
+def _fmp_get(path: str, **params) -> Optional[list | dict]:
+    """Make a GET request to the FMP API. Returns parsed JSON or None on error."""
+    if not FMP_API_KEY:
+        return None
+    try:
+        url = f"{_FMP_BASE}/{path.lstrip('/')}"
+        params["apikey"] = FMP_API_KEY
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        # FMP returns [] or {} on bad tickers rather than an error status
+        if not data:
+            return None
+        return data
+    except Exception:
+        return None
+
+
+def _fmp_get_fundamentals(ticker: str) -> Optional[dict]:
+    """
+    Fetch fundamentals from FMP and return them mapped to the same keys
+    used by get_stock_fundamentals() so callers need no changes.
+    Returns None if FMP is unavailable or the ticker is unknown.
+    """
+    t = ticker.upper()
+
+    # Fetch in parallel: profile, key metrics TTM, financial growth
+    profile_data = _fmp_get(f"profile/{t}")
+    metrics_data = _fmp_get(f"key-metrics-ttm/{t}")
+    ratios_data  = _fmp_get(f"ratios-ttm/{t}")
+    growth_data  = _fmp_get(f"financial-growth/{t}", period="annual", limit=1)
+    quote_data   = _fmp_get(f"quote/{t}")
+
+    profile  = profile_data[0]  if isinstance(profile_data,  list) and profile_data  else {}
+    metrics  = metrics_data[0]  if isinstance(metrics_data,  list) and metrics_data  else {}
+    ratios   = ratios_data[0]   if isinstance(ratios_data,   list) and ratios_data   else {}
+    growth   = growth_data[0]   if isinstance(growth_data,   list) and growth_data   else {}
+    quote    = quote_data[0]    if isinstance(quote_data,    list) and quote_data    else {}
+
+    if not profile and not metrics:
+        return None
+
+    market_cap = quote.get("marketCap") or profile.get("mktCap")
+    free_cashflow = metrics.get("freeCashFlowPerShareTTM")
+    shares = profile.get("sharesOutstanding")
+    # Convert FCF per share → absolute FCF if shares available
+    fcf_abs = (free_cashflow * shares) if (free_cashflow and shares) else None
+
+    return {
+        "ticker": t,
+        "name": profile.get("companyName"),
+        "sector": profile.get("sector"),
+        "industry": profile.get("industry"),
+        "description": (profile.get("description") or "")[:500],
+        # Valuation
+        "pe_ratio":        metrics.get("peRatioTTM"),
+        "forward_pe":      ratios.get("priceEarningsRatioTTM"),   # best TTM proxy
+        "peg_ratio":       metrics.get("pegRatioTTM"),
+        "price_to_book":   metrics.get("pbRatioTTM"),
+        "price_to_sales":  metrics.get("priceToSalesRatioTTM"),
+        "ev_to_ebitda":    metrics.get("enterpriseValueOverEBITDATTM"),
+        # Profitability
+        "profit_margin":   ratios.get("netProfitMarginTTM"),
+        "roe":             metrics.get("roeTTM"),
+        "roa":             ratios.get("returnOnAssetsTTM"),
+        "revenue_growth":  growth.get("revenueGrowth"),
+        "earnings_growth": growth.get("netIncomeGrowth"),
+        # Balance sheet
+        "total_cash":      None,   # not directly in TTM metrics
+        "total_debt":      None,
+        "debt_to_equity":  metrics.get("debtToEquityTTM"),
+        "current_ratio":   metrics.get("currentRatioTTM"),
+        # Dividends
+        "dividend_yield":              ratios.get("dividendYieldTTM"),
+        "payout_ratio":                ratios.get("payoutRatioTTM"),
+        "five_year_avg_dividend_yield": None,
+        # Analyst
+        "analyst_target_price":         quote.get("priceAvg12m"),
+        "recommendation":               None,
+        "number_of_analyst_opinions":   None,
+        # Share info
+        "shares_outstanding":  shares,
+        "float_shares":        profile.get("floatShares"),
+        "insider_ownership":   None,
+        "institutional_ownership": None,
+        # Extras used by screener
+        "_market_cap":      market_cap,
+        "_free_cashflow":   fcf_abs,
+        "_volume":          quote.get("volume"),
+        "_price":           quote.get("price"),
+        "_fcf_yield":       metrics.get("freeCashFlowYieldTTM"),
+        "_week52_change":   None,   # price-based — leave to yfinance
+        "_sp52_change":     None,
+    }
+
+
+def _fmp_get_quarterly_statements(ticker: str) -> Optional[dict]:
+    """
+    Fetch quarterly income statement, balance sheet, and cash flow from FMP.
+    Returns a dict with keys: income, balance, cashflow — each a list of
+    quarterly dicts (newest first, up to 8 quarters).
+    Returns None if FMP unavailable.
+    """
+    if not FMP_API_KEY:
+        return None
+    t = ticker.upper()
+    income  = _fmp_get(f"income-statement/{t}",          period="quarter", limit=8)
+    balance = _fmp_get(f"balance-sheet-statement/{t}",   period="quarter", limit=8)
+    cashflow = _fmp_get(f"cash-flow-statement/{t}",      period="quarter", limit=8)
+    if not income and not balance and not cashflow:
+        return None
+    return {
+        "income":   income   or [],
+        "balance":  balance  or [],
+        "cashflow": cashflow or [],
+    }
 
 
 # ── Polygon.io fallback ────────────────────────────────────────────────────────
@@ -113,7 +239,16 @@ def get_stock_quote(ticker: str) -> dict:
 
 
 def get_stock_fundamentals(ticker: str) -> dict:
-    """Get fundamental data useful for long-term investing."""
+    """
+    Get fundamental data useful for long-term investing.
+    Uses FMP as primary source (more reliable financials); falls back to yfinance.
+    """
+    # Try FMP first
+    fmp = _fmp_get_fundamentals(ticker)
+    if fmp:
+        return fmp
+
+    # yfinance fallback
     try:
         t = yf.Ticker(ticker.upper())
         info = t.info
@@ -1850,28 +1985,47 @@ def screen_stocks(tickers: list, top_n: int = 25) -> list:
     """
     def _fetch(ticker: str) -> Optional[dict]:
         try:
-            info = yf.Ticker(ticker).info
-            price = (
-                info.get("currentPrice")
-                or info.get("regularMarketPrice")
-                or info.get("previousClose")
-            )
-            if not price:
-                return None
-
-            pe = info.get("trailingPE")
-            forward_pe = info.get("forwardPE")
-            peg = info.get("pegRatio")
-            revenue_growth = info.get("revenueGrowth")
-            profit_margin = info.get("profitMargins")
-            roe = info.get("returnOnEquity")
-            debt_to_equity = info.get("debtToEquity")
-            market_cap = info.get("marketCap") or 0
-            volume = info.get("regularMarketVolume") or info.get("volume") or 0
-            week52_change = info.get("52WeekChange")        # stock 52-wk return
-            sp52_change = info.get("SandP52WeekChange")     # S&P 500 52-wk return
-            free_cashflow = info.get("freeCashflow")
-            fcf_yield = (free_cashflow / market_cap) if (free_cashflow and market_cap > 0) else None
+            # Try FMP first for reliable fundamentals; fall back to yfinance
+            fmp = _fmp_get_fundamentals(ticker)
+            if fmp:
+                price      = fmp.get("_price")
+                pe         = fmp.get("pe_ratio")
+                forward_pe = fmp.get("forward_pe")
+                peg        = fmp.get("peg_ratio")
+                revenue_growth  = fmp.get("revenue_growth")
+                profit_margin   = fmp.get("profit_margin")
+                roe             = fmp.get("roe")
+                debt_to_equity  = fmp.get("debt_to_equity")
+                market_cap      = fmp.get("_market_cap") or 0
+                volume          = fmp.get("_volume") or 0
+                week52_change   = fmp.get("_week52_change")
+                sp52_change     = fmp.get("_sp52_change")
+                free_cashflow   = fmp.get("_free_cashflow")
+                fcf_yield       = fmp.get("_fcf_yield")
+                if not price:
+                    return None
+            else:
+                info = yf.Ticker(ticker).info
+                price = (
+                    info.get("currentPrice")
+                    or info.get("regularMarketPrice")
+                    or info.get("previousClose")
+                )
+                if not price:
+                    return None
+                pe             = info.get("trailingPE")
+                forward_pe     = info.get("forwardPE")
+                peg            = info.get("pegRatio")
+                revenue_growth = info.get("revenueGrowth")
+                profit_margin  = info.get("profitMargins")
+                roe            = info.get("returnOnEquity")
+                debt_to_equity = info.get("debtToEquity")
+                market_cap     = info.get("marketCap") or 0
+                volume         = info.get("regularMarketVolume") or info.get("volume") or 0
+                week52_change  = info.get("52WeekChange")
+                sp52_change    = info.get("SandP52WeekChange")
+                free_cashflow  = info.get("freeCashflow")
+                fcf_yield = (free_cashflow / market_cap) if (free_cashflow and market_cap > 0) else None
 
             score = 0.0
 
@@ -2101,43 +2255,72 @@ def get_business_trajectory(ticker: str) -> dict:
             return "deteriorating"
         return "stable"
 
-    try:
-        t = yf.Ticker(ticker)
-        # Quarterly financials (columns = quarters, newest first)
-        qfin = t.quarterly_financials
-        qbs = t.quarterly_balance_sheet
-        qcf = t.quarterly_cashflow
-    except Exception as e:
-        return {
-            "ticker": ticker,
-            "error": f"Could not fetch financial data: {e}",
-            "metrics": {},
-            "overall_direction": "unknown",
-            "quarters_analyzed": 0,
-            "summary_text": f"Data fetch failed: {e}",
-        }
+    # Try FMP first for quarterly statements (most reliable source)
+    stmts = _fmp_get_quarterly_statements(ticker)
 
-    def _qseries(df, *keys):
-        """Extract up to 8 values from quarterly df, newest first."""
-        if df is None or df.empty:
+    if stmts:
+        def _fmp_series(rows: list, *keys) -> list:
+            """Extract up to 8 quarterly values (newest first) from FMP statement rows."""
+            vals = []
+            for row in rows[:8]:
+                for k in keys:
+                    v = row.get(k)
+                    if v is not None:
+                        try:
+                            vals.append(float(v))
+                            break
+                        except (TypeError, ValueError):
+                            continue
+            return vals
+
+        inc  = stmts["income"]
+        bal  = stmts["balance"]
+        cf   = stmts["cashflow"]
+
+        rev          = _fmp_series(inc, "revenue")
+        gross        = _fmp_series(inc, "grossProfit")
+        opcf         = _fmp_series(cf,  "operatingCashFlow")
+        capex        = _fmp_series(cf,  "capitalExpenditure")
+        op_inc       = _fmp_series(inc, "operatingIncome", "ebitda")
+        total_assets = _fmp_series(bal, "totalAssets")
+        cur_liab     = _fmp_series(bal, "totalCurrentLiabilities")
+    else:
+        # Fallback: yfinance quarterly data
+        try:
+            t = yf.Ticker(ticker)
+            qfin = t.quarterly_financials
+            qbs  = t.quarterly_balance_sheet
+            qcf  = t.quarterly_cashflow
+        except Exception as e:
+            return {
+                "ticker": ticker,
+                "error": f"Could not fetch financial data: {e}",
+                "metrics": {},
+                "overall_direction": "unknown",
+                "quarters_analyzed": 0,
+                "summary_text": f"Data fetch failed: {e}",
+            }
+
+        def _qseries(df, *keys):
+            if df is None or df.empty:
+                return []
+            for key in keys:
+                try:
+                    row = df.loc[key]
+                    vals = [float(v) for v in row.values if v is not None and str(v) != "nan"]
+                    if vals:
+                        return vals[:8]
+                except (KeyError, TypeError):
+                    continue
             return []
-        for key in keys:
-            try:
-                row = df.loc[key]
-                vals = [float(v) for v in row.values if v is not None and str(v) != "nan"]
-                if vals:
-                    return vals[:8]
-            except (KeyError, TypeError):
-                continue
-        return []
 
-    rev = _qseries(qfin, "Total Revenue", "Revenue")
-    gross = _qseries(qfin, "Gross Profit")
-    opcf = _qseries(qcf, "Operating Cash Flow", "Total Cash From Operating Activities")
-    capex = _qseries(qcf, "Capital Expenditure", "Capital Expenditures")
-    op_inc = _qseries(qfin, "Operating Income", "EBIT")
-    total_assets = _qseries(qbs, "Total Assets")
-    cur_liab = _qseries(qbs, "Current Liabilities", "Total Current Liabilities")
+        rev          = _qseries(qfin, "Total Revenue", "Revenue")
+        gross        = _qseries(qfin, "Gross Profit")
+        opcf         = _qseries(qcf,  "Operating Cash Flow", "Total Cash From Operating Activities")
+        capex        = _qseries(qcf,  "Capital Expenditure", "Capital Expenditures")
+        op_inc       = _qseries(qfin, "Operating Income", "EBIT")
+        total_assets = _qseries(qbs,  "Total Assets")
+        cur_liab     = _qseries(qbs,  "Current Liabilities", "Total Current Liabilities")
 
     metrics = {}
 
