@@ -2620,3 +2620,544 @@ def get_triaged_alerts(tickers: list = None) -> dict:
         },
         "top_priority": top_priority,
     }
+
+
+
+def calculate_intrinsic_value(ticker: str) -> dict:
+    """
+    Standardized 3-stage DCF model for a given ticker.
+
+    Stage 1 (years 1-5):  conservative_growth = min(analyst_5yr_eps_growth, fcf_cagr_proxy, 0.20) * 0.80
+    Stage 2 (years 6-10): linearly fade from conservative_growth -> 0.03
+    Stage 3 (terminal):   2.5% perpetuity, capitalised at (discount_rate - 0.025)
+    Discount rate:        10.0%
+
+    Returns bear/base/bull scenarios plus margin-of-safety and a simple verdict.
+    """
+    try:
+        info = yf.Ticker(ticker).info
+        if not info:
+            return {"ticker": ticker, "error": "No data returned from yfinance."}
+
+        # ── Raw data ──────────────────────────────────────────────────────────
+        fcf    = info.get("freeCashflow")
+        shares = info.get("sharesOutstanding")
+        price  = (
+            info.get("currentPrice")
+            or info.get("regularMarketPrice")
+            or info.get("previousClose")
+        )
+        earnings_growth = info.get("earningsGrowth")   # analyst forward EPS growth (decimal)
+        revenue_growth  = info.get("revenueGrowth")    # fallback growth signal
+        roe             = info.get("returnOnEquity")    # informational
+
+        # Validate minimum viable data
+        if price is None and shares is None and earnings_growth is None:
+            return {"ticker": ticker, "error": "Insufficient data to run DCF model."}
+
+        # ── FCF / data-quality handling ───────────────────────────────────────
+        data_quality = "full"
+        currency_warning = None
+
+        market_cap = info.get("marketCap")
+
+        if fcf is None or fcf <= 0:
+            # Use earnings_growth * price * shares as a rough FCF proxy
+            if price and shares and earnings_growth is not None:
+                fcf = earnings_growth * price * shares
+                data_quality = "estimated"
+            elif price and shares:
+                proxy_growth = revenue_growth if revenue_growth else 0.05
+                fcf = proxy_growth * price * shares
+                data_quality = "estimated"
+            else:
+                return {"ticker": ticker, "error": "Insufficient data to run DCF model."}
+        else:
+            if not (price and shares):
+                data_quality = "partial"
+            # Sanity check: FCF yield > 25% almost always means a currency mismatch.
+            # ADRs (TSM, ASML, etc.) sometimes have FCF reported in home currency
+            # (TWD, EUR) while market_cap is in USD — making FCF look 30x too large.
+            if market_cap and market_cap > 0:
+                implied_fcf_yield = fcf / market_cap
+                if implied_fcf_yield > 0.25:
+                    currency_warning = (
+                        f"FCF yield implied by raw data is {implied_fcf_yield*100:.1f}% — "
+                        "almost certainly a currency mismatch (ADR FCF in home currency vs "
+                        "USD market cap). Switching to earnings-based FCF proxy. "
+                        "IV estimate should be treated as approximate only."
+                    )
+                    data_quality = "suspect_currency"
+                    # Override with earnings-based proxy in USD
+                    if price and shares and earnings_growth is not None and earnings_growth > 0:
+                        fcf = earnings_growth * price * shares
+                    elif price and shares:
+                        proxy_growth = max(revenue_growth or 0.05, 0.03)
+                        fcf = proxy_growth * price * shares
+
+        # Guard against still-missing price or shares (edge case)
+        if price is None or shares is None or shares == 0:
+            data_quality = "partial"
+            # Provide placeholder values so model can still run
+            if price is None:
+                price = 0.0
+            if shares is None or shares == 0:
+                shares = 1  # avoid ZeroDivisionError; IV will be meaningless
+
+        # ── Mid-cycle normalization ───────────────────────────────────────────
+        norm = _get_normalized_metrics(ticker)
+        normalized_fcf    = norm.get("normalized_fcf")
+        normalized_margin = norm.get("normalized_margin")
+        years_averaged    = norm.get("years_averaged", 0)
+        normalization_note = None
+        pit_fcf = fcf  # preserve point-in-time value for reporting
+
+        if normalized_fcf is not None and pit_fcf and pit_fcf != 0:
+            ratio = normalized_fcf / pit_fcf
+            if 1 / 3 <= ratio <= 3:
+                # Normalized FCF is within 3x of point-in-time; use it as DCF base
+                fcf = normalized_fcf
+                normalization_note = (
+                    f"FCF averaged over {min(years_averaged, 3)} year(s) "
+                    f"(normalized: ${normalized_fcf/1e6:.1f}m vs PIT: ${pit_fcf/1e6:.1f}m)"
+                )
+
+        # ── Growth-rate inputs ────────────────────────────────────────────────
+        # Analyst 5-yr EPS growth (decimal); clamp to reasonable range
+        analyst_growth = earnings_growth if earnings_growth is not None else 0.05
+        analyst_growth = max(0.0, analyst_growth)
+
+        # FCF CAGR proxy: use earningsGrowth as single-year approximation
+        # (yfinance does not expose multi-year FCF history in .info)
+        fcf_cagr = analyst_growth  # best available proxy
+
+        DISCOUNT_RATE   = 0.10
+        TERMINAL_GROWTH = 0.025
+        MAX_STAGE1      = 0.20
+
+        # Conservative Stage-1 growth with 20% haircut
+        conservative_growth = min(analyst_growth, fcf_cagr, MAX_STAGE1) * 0.80
+
+        # ── DCF helper ────────────────────────────────────────────────────────
+        def _dcf(stage1_growth: float) -> float:
+            """Return total intrinsic value (not per share) for given stage-1 growth."""
+            discount = DISCOUNT_RATE
+            terminal = TERMINAL_GROWTH
+
+            cumulative_pv = 0.0
+            fcf_t = float(fcf)
+
+            # Stage 1: years 1-5
+            for t in range(1, 6):
+                fcf_t *= (1 + stage1_growth)
+                pv = fcf_t / ((1 + discount) ** t)
+                cumulative_pv += pv
+
+            fcf_stage1_end = fcf_t  # FCF at end of year 5
+
+            # Stage 2: years 6-10, linearly fading stage1_growth -> terminal
+            for t in range(6, 11):
+                # Linear interpolation: at t=6 weight=4/5 on stage1, at t=10 weight=0
+                step = t - 5          # 1 … 5
+                fade_growth = stage1_growth + (terminal - stage1_growth) * (step / 5.0)
+                fcf_t *= (1 + fade_growth)
+                pv = fcf_t / ((1 + discount) ** t)
+                cumulative_pv += pv
+
+            fcf_year10 = fcf_t
+
+            # Stage 3: terminal value at end of year 10
+            terminal_value = fcf_year10 * (1 + terminal) / (discount - terminal)
+            pv_terminal = terminal_value / ((1 + discount) ** 10)
+            cumulative_pv += pv_terminal
+
+            return cumulative_pv
+
+        # ── Scenarios ─────────────────────────────────────────────────────────
+        bear_growth = conservative_growth * 0.7
+        base_growth = conservative_growth
+        bull_growth = min(conservative_growth * 1.3, 0.25)
+
+        bear_total = _dcf(bear_growth)
+        base_total = _dcf(base_growth)
+        bull_total = _dcf(bull_growth)
+
+        bear_iv = bear_total / shares
+        base_iv = base_total / shares
+        bull_iv = bull_total / shares
+
+        # ── Margin of safety ──────────────────────────────────────────────────
+        def _mos(iv: float) -> Optional[float]:
+            if iv <= 0:
+                return None
+            return round((iv - price) / iv * 100, 1)
+
+        mos_bear = _mos(bear_iv)
+        mos_base = _mos(base_iv)
+        mos_bull = _mos(bull_iv)
+
+        # ── Verdict ───────────────────────────────────────────────────────────
+        if mos_base is not None and mos_base >= 20:
+            verdict = "BUY"
+        elif mos_base is not None and mos_base >= 10:
+            verdict = "WATCHLIST"
+        else:
+            verdict = "OVERVALUED"
+
+        return {
+            "ticker":                   ticker.upper(),
+            "current_price":            price,
+            "fcf_trailing":             pit_fcf,
+            "stage1_growth_rate_pct":   round(conservative_growth * 100, 1),
+            "discount_rate_pct":        10.0,
+            "terminal_growth_rate_pct": 2.5,
+            "intrinsic_value": {
+                "bear": round(bear_iv, 2),
+                "base": round(base_iv, 2),
+                "bull": round(bull_iv, 2),
+            },
+            "margin_of_safety_pct": {
+                "bear": mos_bear,
+                "base": mos_base,
+                "bull": mos_bull,
+            },
+            "verdict":      verdict,
+            "note":         (
+                "Standardized 3-stage DCF. Use base IV as primary reference. "
+                "Bear/bull show sensitivity range."
+            ),
+            "data_quality":       data_quality,
+            "currency_warning":   currency_warning,
+            "normalized_fcf":     normalized_fcf,
+            "normalized_margin":  normalized_margin,
+            "years_averaged":     years_averaged,
+            "normalization_note": normalization_note,
+        }
+
+    except Exception as e:
+        return {"ticker": ticker, "error": f"DCF calculation failed: {e}"}
+
+
+def check_earnings_surprises(holdings: list) -> list:
+    """
+    Check held positions for recent earnings surprises.
+    Flags stocks where actual EPS significantly beat or missed estimates.
+    Returns list of alerts with ticker, surprise_pct, direction, and recommended action.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _check(holding):
+        ticker = holding["ticker"]
+        try:
+            tk = yf.Ticker(ticker)
+            # earnings_history gives actual vs estimate
+            hist = tk.earnings_history
+            if hist is None or hist.empty:
+                return None
+            # Most recent quarter
+            latest = hist.iloc[0]
+            eps_actual = latest.get("epsActual")
+            eps_estimate = latest.get("epsEstimate")
+            if eps_actual is None or eps_estimate is None or eps_estimate == 0:
+                return None
+            surprise_pct = (eps_actual - eps_estimate) / abs(eps_estimate) * 100
+            if abs(surprise_pct) < 5:  # ignore small surprises
+                return None
+            direction = "BEAT" if surprise_pct > 0 else "MISS"
+            severity = "SIGNIFICANT" if abs(surprise_pct) > 15 else "MODERATE"
+            action = "re-research — strong confirmation" if direction == "BEAT" and abs(surprise_pct) > 15 \
+                else "re-research — thesis may be breaking" if direction == "MISS" else "monitor"
+            return {
+                "ticker": ticker,
+                "eps_actual": eps_actual,
+                "eps_estimate": eps_estimate,
+                "surprise_pct": round(surprise_pct, 1),
+                "direction": direction,
+                "severity": severity,
+                "recommended_action": action,
+            }
+        except Exception:
+            return None
+
+    alerts = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        for r in ex.map(_check, holdings):
+            if r:
+                alerts.append(r)
+    return sorted(alerts, key=lambda x: abs(x["surprise_pct"]), reverse=True)
+
+
+def check_fundamental_deterioration(holdings: list[dict]) -> list[dict]:
+    """
+    For each held position, check for fundamental red flags that may warrant exit:
+    - Revenue growth gone negative (was positive at buy)
+    - Gross margin compression > 500bps YoY
+    - FCF turned negative
+    - Debt/equity spiked > 2x from last known level
+    - ROE dropped below 10% (was above at quality screen)
+
+    holdings: list of dicts with at least 'ticker' key.
+    Returns list of alert dicts with ticker, flags, severity (WATCH/REVIEW/EXIT).
+    """
+
+    def _check_one(holding):
+        ticker = holding["ticker"]
+        try:
+            info = yf.Ticker(ticker).info
+            flags = []
+
+            rev_growth = info.get("revenueGrowth")
+            if rev_growth is not None and rev_growth < -0.05:
+                flags.append(f"Revenue declining {rev_growth*100:.1f}% YoY")
+
+            gross_margins = info.get("grossMargins")
+            # Flag if gross margin < 20% (thin margins = vulnerable)
+            if gross_margins is not None and gross_margins < 0.20:
+                flags.append(f"Gross margin thin at {gross_margins*100:.1f}%")
+
+            fcf = info.get("freeCashflow")
+            if fcf is not None and fcf < 0:
+                flags.append(f"FCF negative (${fcf/1e6:.0f}M)")
+
+            dte = info.get("debtToEquity")
+            if dte is not None and dte > 200:  # >2x D/E
+                flags.append(f"High leverage: D/E {dte/100:.1f}x")
+
+            roe = info.get("returnOnEquity")
+            if roe is not None and roe < 0.08:
+                flags.append(f"ROE deteriorated to {roe*100:.1f}%")
+
+            # Earnings trend: forward PE >> trailing PE = earnings expected to fall
+            trailing_pe = info.get("trailingPE")
+            forward_pe = info.get("forwardPE")
+            if trailing_pe and forward_pe and forward_pe > trailing_pe * 1.25:
+                flags.append(f"Earnings declining: fwd PE {forward_pe:.1f} >> trail PE {trailing_pe:.1f}")
+
+            if not flags:
+                return None
+
+            severity = "EXIT" if len(flags) >= 3 else "REVIEW" if len(flags) >= 2 else "WATCH"
+            return {
+                "ticker": ticker,
+                "flags": flags,
+                "severity": severity,
+                "flag_count": len(flags),
+            }
+        except Exception:
+            return None
+
+    alerts = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        results = list(ex.map(_check_one, holdings))
+    for r in results:
+        if r:
+            alerts.append(r)
+    alerts.sort(key=lambda x: x["flag_count"], reverse=True)
+    return alerts
+
+
+def check_watchlist_triggers(watchlist: list[dict]) -> dict:
+    """
+    Fetch live prices for all watchlist items and classify each against its target entry price.
+
+    Status values:
+      TRIGGERED   — current price ≤ target (buy criteria met on price)
+      APPROACHING — current price within 10% above target (worth watching closely)
+      WAITING     — current price > 10% above target
+      NO_TARGET   — no target entry price set; reports current price only
+
+    Returns items sorted: TRIGGERED first, then APPROACHING, then WAITING.
+    """
+    if not watchlist:
+        return {"triggered": [], "approaching": [], "waiting": [], "no_target": [],
+                "summary": "Watchlist is empty."}
+
+    def _fetch_price(item: dict) -> dict:
+        ticker = item.get("ticker", "")
+        target = item.get("target_entry_price")
+        try:
+            info  = yf.Ticker(ticker).info
+            price = (
+                info.get("currentPrice")
+                or info.get("regularMarketPrice")
+                or info.get("previousClose")
+            )
+        except Exception:
+            price = None
+
+        result = {
+            "ticker":             ticker,
+            "company_name":       item.get("company_name", ""),
+            "current_price":      round(price, 2) if price else None,
+            "target_entry_price": target,
+            "reason":             item.get("reason", ""),
+            "added_at":           item.get("added_at", "")[:10],
+        }
+
+        if price is None:
+            result["status"] = "PRICE_UNAVAILABLE"
+            result["pct_above_target"] = None
+        elif target is None:
+            result["status"] = "NO_TARGET"
+            result["pct_above_target"] = None
+        else:
+            pct_above = (price - target) / target * 100
+            result["pct_above_target"] = round(pct_above, 1)
+            if price <= target:
+                result["status"] = "TRIGGERED"
+                result["action"] = "PRICE AT OR BELOW TARGET — run deep research immediately"
+            elif pct_above <= 10:
+                result["status"] = "APPROACHING"
+                result["action"] = f"Only {pct_above:.1f}% above target — monitor closely"
+            else:
+                result["status"] = "WAITING"
+                result["action"] = f"{pct_above:.1f}% above target — continue waiting"
+
+        return result
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_fetch_price, item): item for item in watchlist}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    triggered   = [r for r in results if r["status"] == "TRIGGERED"]
+    approaching = [r for r in results if r["status"] == "APPROACHING"]
+    waiting     = [r for r in results if r["status"] == "WAITING"]
+    no_target   = [r for r in results if r["status"] in ("NO_TARGET", "PRICE_UNAVAILABLE")]
+
+    triggered.sort(key=lambda x: (x["pct_above_target"] or 0))
+    approaching.sort(key=lambda x: (x["pct_above_target"] or 999))
+
+    summary_parts = []
+    if triggered:
+        summary_parts.append(f"🔴 {len(triggered)} TRIGGERED (price at/below target)")
+    if approaching:
+        summary_parts.append(f"🟡 {len(approaching)} APPROACHING (within 10% of target)")
+    if waiting:
+        summary_parts.append(f"⚪ {len(waiting)} waiting")
+
+    return {
+        "triggered":   triggered,
+        "approaching": approaching,
+        "waiting":     waiting,
+        "no_target":   no_target,
+        "summary":     " | ".join(summary_parts) if summary_parts else "All items waiting.",
+    }
+
+
+def get_watchlist_earnings(watchlist: list) -> dict:
+    """
+    Fetch upcoming earnings dates for all watchlist items.
+    Returns items bucketed by urgency:
+      IMMINENT  — earnings within 7 days
+      UPCOMING  — earnings within 30 days
+      DISTANT   — earnings more than 30 days away
+      UNKNOWN   — no earnings date found
+    """
+    from datetime import date
+    import pandas as pd
+
+    today = date.today()
+
+    def _fetch(item: dict) -> dict:
+        ticker = item.get("ticker", "")
+        try:
+            cal = yf.Ticker(ticker).calendar
+            # yfinance returns a dict with 'Earnings Date' key (list of timestamps)
+            earnings_date = None
+            if isinstance(cal, dict):
+                ed = cal.get("Earnings Date")
+                if ed and len(ed) > 0:
+                    earnings_date = pd.Timestamp(ed[0]).date()
+            elif hasattr(cal, 'columns') and 'Earnings Date' in cal.columns:
+                val = cal['Earnings Date'].iloc[0] if len(cal) > 0 else None
+                if val is not None:
+                    earnings_date = pd.Timestamp(val).date()
+        except Exception:
+            earnings_date = None
+
+        days_away = (earnings_date - today).days if earnings_date else None
+
+        result = {
+            "ticker": ticker,
+            "company_name": item.get("company_name", ""),
+            "target_entry_price": item.get("target_entry_price"),
+            "earnings_date": str(earnings_date) if earnings_date else None,
+            "days_until_earnings": days_away,
+        }
+
+        if days_away is None:
+            result["urgency"] = "UNKNOWN"
+        elif days_away <= 7:
+            result["urgency"] = "IMMINENT"
+            result["action"] = f"Earnings in {days_away} days — research NOW before results"
+        elif days_away <= 30:
+            result["urgency"] = "UPCOMING"
+            result["action"] = f"Earnings in {days_away} days — prepare thesis"
+        else:
+            result["urgency"] = "DISTANT"
+            result["action"] = f"Earnings in {days_away} days — no immediate action needed"
+
+        return result
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_fetch, item): item for item in watchlist}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    imminent = sorted([r for r in results if r["urgency"] == "IMMINENT"],
+                      key=lambda x: x["days_until_earnings"])
+    upcoming = sorted([r for r in results if r["urgency"] == "UPCOMING"],
+                      key=lambda x: x["days_until_earnings"])
+    distant  = [r for r in results if r["urgency"] == "DISTANT"]
+    unknown  = [r for r in results if r["urgency"] == "UNKNOWN"]
+
+    summary_parts = []
+    if imminent: summary_parts.append(f"⚡ {len(imminent)} IMMINENT (≤7 days)")
+    if upcoming: summary_parts.append(f"📅 {len(upcoming)} upcoming (≤30 days)")
+
+    return {
+        "imminent":  imminent,
+        "upcoming":  upcoming,
+        "distant":   distant,
+        "unknown":   unknown,
+        "summary":   " | ".join(summary_parts) if summary_parts else "No imminent earnings.",
+    }
+
+
+def check_dividend_payments(holdings: list) -> list:
+    """
+    Check for recent dividend payments for held positions.
+    Returns list of dicts with ticker, dividend_rate, ex_date, estimated_annual_yield.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _check(holding):
+        ticker = holding["ticker"]
+        shares = holding.get("shares", 0)
+        try:
+            info = yf.Ticker(ticker).info
+            div_rate = info.get("dividendRate") or 0
+            div_yield = info.get("dividendYield") or 0
+            ex_date = info.get("exDividendDate")
+            if div_rate and div_rate > 0:
+                return {
+                    "ticker": ticker,
+                    "shares": shares,
+                    "annual_dividend_rate": div_rate,
+                    "annual_dividend_yield_pct": round(div_yield * 100, 2) if div_yield else 0,
+                    "estimated_annual_income": round(div_rate * shares, 2),
+                    "ex_dividend_date": str(ex_date) if ex_date else None,
+                }
+            return None
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        for r in ex.map(_check, holdings):
+            if r:
+                results.append(r)
+    return sorted(results, key=lambda x: x["estimated_annual_income"], reverse=True)

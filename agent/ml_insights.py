@@ -1204,3 +1204,139 @@ def run_portfolio_stress_test(scenario: str = "all") -> dict:
         "most_vulnerable_scenario": most_vulnerable,
         "summary": summary,
     }
+
+
+
+def detect_regime_change() -> dict:
+    """
+    Detect the current macro regime, compare to last persisted regime,
+    and save if it changed (or if no history exists).
+
+    Returns:
+        {
+          "current_regime": str,
+          "previous_regime": str | None,
+          "changed": bool,
+          "days_since_last_detection": int | None,
+          "change_summary": str,   # human-readable description
+          "indicators": dict,      # raw indicator values
+        }
+    """
+    from agent.portfolio import get_last_regime, save_regime
+    from datetime import datetime, timezone
+
+    # Run current detection
+    regime, _rationale, macro = _detect_regime()
+    current = regime
+    rates = (macro.get("rates") or {})
+    indicators = {
+        "vix": (macro.get("sentiment") or {}).get("vix"),
+        "gdp_growth": None,
+        "core_cpi": None,
+        "ten_yr_yield": rates.get("ten_yr_treasury_yield_pct"),
+        "yield_inverted": (rates.get("yield_curve_spread") or 0) < -0.3,
+    }
+    # Try to pull GDP/CPI from FRED if available (already attempted in _detect_regime)
+    try:
+        from agent import external_data
+        econ = external_data.get_economic_indicators()
+        if "error" not in econ:
+            indicators["gdp_growth"] = (
+                econ.get("indicators", {}).get("real_gdp_growth_pct", {}).get("value")
+            )
+            indicators["core_cpi"] = (
+                econ.get("indicators", {}).get("core_cpi_yoy_pct", {}).get("yoy_pct")
+            )
+    except Exception:
+        pass
+
+    last = get_last_regime()
+    previous = last["regime"] if last else None
+
+    # Compute days since last detection
+    days_since = None
+    if last:
+        try:
+            last_dt = datetime.fromisoformat(last["detected_at"])
+            if last_dt.tzinfo is None:
+                last_dt = last_dt.replace(tzinfo=timezone.utc)
+            days_since = (datetime.now(timezone.utc) - last_dt).days
+        except Exception:
+            pass
+
+    changed = previous is None or current != previous
+
+    # Always save if no history, or if regime changed, or if >7 days since last save
+    if changed or days_since is None or days_since >= 7:
+        save_regime(current, previous, indicators)
+
+    if changed and previous:
+        change_summary = f"REGIME CHANGE: {previous} → {current}"
+    elif previous is None:
+        change_summary = f"Initial regime detected: {current}"
+    else:
+        change_summary = f"Regime stable: {current} (last checked {days_since}d ago)"
+
+    return {
+        "current_regime": current,
+        "previous_regime": previous,
+        "changed": changed and previous is not None,
+        "days_since_last_detection": days_since,
+        "change_summary": change_summary,
+        "indicators": indicators,
+    }
+
+
+def conviction_position_size(conviction_score: int, regime: str, portfolio_equity: float) -> dict:
+    """
+    Calculate position size scaling with conviction score.
+
+    Base sizes by regime (already defined in _REGIME_PRIORS):
+      RISK_ON: 15%, NORMAL: 12%, INFLATIONARY: 10%, RISK_OFF: 8%, STAGFLATION: 6%
+
+    Conviction multipliers:
+      9-10: 1.0x (full position)
+       7-8: 0.75x
+       5-6: 0.5x (minimum viable — agent should rarely buy below 6)
+
+    Returns:
+      {
+        "base_pct": float,          # regime base %
+        "conviction_multiplier": float,
+        "final_pct": float,         # base * multiplier
+        "dollar_amount": float,     # final_pct * portfolio_equity
+        "rationale": str,
+      }
+    """
+    _BASE = {
+        "RISK_ON": 0.15, "NORMAL": 0.12, "INFLATIONARY": 0.10,
+        "RISK_OFF": 0.08, "STAGFLATION": 0.06,
+    }
+    base = _BASE.get(regime, 0.10)
+
+    if conviction_score >= 9:
+        multiplier = 1.0
+    elif conviction_score >= 7:
+        multiplier = 0.75
+    else:
+        multiplier = 0.5
+
+    final_pct = base * multiplier
+    dollar = portfolio_equity * final_pct
+
+    rationale = (
+        f"Conviction {conviction_score}/10 → {multiplier:.0%} of {regime} base "
+        f"({base:.0%}) = {final_pct:.1%} of equity = ${dollar:,.0f}"
+    )
+    return {
+        "base_pct": round(base, 4),
+        "conviction_multiplier": multiplier,
+        "final_pct": round(final_pct, 4),
+        "dollar_amount": round(dollar, 2),
+        "rationale": rationale,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 5. IV Post-mortem Loop + KB Feedback
+# ══════════════════════════════════════════════════════════════════════════════

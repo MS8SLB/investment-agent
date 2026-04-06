@@ -19,6 +19,624 @@ _MODEL_TIERS = [
     "claude-haiku-4-5-20251001",
     "claude-sonnet-4-6",
     "claude-opus-4-6",
+    # ── restored: calculate_intrinsic_value
+
+    {
+        "name": "calculate_intrinsic_value",
+        "description": (
+            "Standardised 3-stage DCF model for a single stock. Produces consistent, "
+            "comparable intrinsic value estimates across all sessions and subagents.\n\n"
+            "Model parameters (fixed, non-negotiable):\n"
+            "  Stage 1 (yr 1-5):  conservative FCF/earnings growth, haircutted by 20%\n"
+            "  Stage 2 (yr 6-10): linear fade from Stage 1 rate → 2.5% terminal\n"
+            "  Stage 3 (terminal): 2.5% perpetuity growth\n"
+            "  Discount rate:     10.0%\n\n"
+            "Returns bear/base/bull IV per share and margin of safety at current price. "
+            "Use the BASE scenario as the primary IV reference. "
+            "Call this for every finalist before making a buy or watchlist decision — "
+            "it replaces informal IV estimates with a standardised, auditable number."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    # ── restored: check_concentration_limits
+
+    {
+        "name": "check_concentration_limits",
+        "description": (
+            "Check if a proposed buy order would breach portfolio concentration limits. "
+            "Hard limits: max 10% in any single position, max 30% in any one sector. "
+            "Returns whether the buy is allowed, any violations, and the max_allowed_buy "
+            "amount that stays within limits. "
+            "MUST be called before every buy_stock execution. If not allowed, either reduce "
+            "the buy amount to max_allowed_buy or skip the trade."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "sector": {
+                    "type": "string",
+                    "description": "Sector of the stock (e.g. Technology, Healthcare)",
+                },
+                "buy_amount": {
+                    "type": "number",
+                    "description": "Proposed dollar amount to invest",
+                },
+            },
+            "required": ["ticker", "sector", "buy_amount"],
+        },
+    },
+    # ── restored: check_dividend_payments
+
+    {
+        "name": "check_dividend_payments",
+        "description": (
+            "Check held positions for dividend payments. Returns annual dividend rate, "
+            "yield %, estimated annual income per holding, and ex-dividend dates. "
+            "Dividends are treated as additional cash income for reinvestment. "
+            "Call during portfolio review to account for dividend income in total return calculations."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "holdings": {"type": "array", "items": {"type": "object"},
+                            "description": "List of holdings with ticker and shares keys"}
+            },
+            "required": ["holdings"],
+        },
+    },
+    # ── restored: check_earnings_surprises
+
+    {
+        "name": "check_earnings_surprises",
+        "description": (
+            "Check held positions for recent earnings surprises (actual EPS vs estimate). "
+            "Flags significant beats (>15% above estimate) and misses (>15% below). "
+            "A large miss on a held position triggers re-research — the original thesis "
+            "may be breaking. A large beat may warrant adding to the position. "
+            "Call this alongside check_fundamental_deterioration in Step 2."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "holdings": {"type": "array", "items": {"type": "object"},
+                            "description": "List of holdings with at least a ticker key"}
+            },
+            "required": ["holdings"],
+        },
+    },
+    # ── restored: check_fundamental_deterioration
+
+    {
+        "name": "check_fundamental_deterioration",
+        "description": (
+            "Check all held positions for fundamental deterioration that may warrant exit. "
+            "Flags: revenue declining YoY, FCF turned negative, gross margin < 20%, "
+            "high leverage (D/E > 2x), ROE < 8%, earnings declining (fwd PE >> trailing PE). "
+            "Returns severity ratings: WATCH (1 flag), REVIEW (2 flags), EXIT (3+ flags). "
+            "Call this at the start of each session alongside portfolio status. "
+            "This is a long-term portfolio — exits are fundamentals-driven, not price-driven."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "holdings": {
+                    "type": "array",
+                    "description": "List of held positions, each with at least a 'ticker' key",
+                    "items": {"type": "object"},
+                }
+            },
+            "required": ["holdings"],
+        },
+    },
+    # ── restored: check_portfolio_correlation
+
+    {
+        "name": "check_portfolio_correlation",
+        "description": (
+            "Compute 1-year price correlation between a candidate stock and all current portfolio "
+            "holdings. Returns a warning + sizing adjustment if the candidate is highly correlated "
+            "with existing positions (avg correlation > 0.6 or any pair > 0.7). Call before "
+            "buy_stock to avoid accidentally concentrating factor exposure."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol of the candidate to check",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    # ── restored: check_position_drift
+
+    {
+        "name": "check_position_drift",
+        "description": (
+            "Check if any existing portfolio positions have drifted above concentration limits "
+            "through price appreciation. A position bought at 8% can grow to 15% without "
+            "triggering the buy-time check. Returns positions > 12% (limit: 10%) and sectors "
+            "> 33% (limit: 30%) with trim recommendations. Call at session start alongside "
+            "check_fundamental_deterioration."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: check_watchlist_staleness
+
+    {
+        "name": "check_watchlist_staleness",
+        "description": (
+            "Return watchlist entries that haven't been re-evaluated in 60+ days. These entries "
+            "may have hit their target price (missed entry), had their thesis invalidated, or "
+            "represent opportunities that need fresh research. Use this at the start of a session "
+            "to prioritise re-evaluation of aging watchlist entries."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "min_age_days": {
+                    "type": "integer",
+                    "description": "Minimum age in days to consider stale (default 60)",
+                }
+            },
+            "required": [],
+        },
+    },
+    # ── restored: check_watchlist_triggers
+
+    {
+        "name": "check_watchlist_triggers",
+        "description": (
+            "Fetch live prices for every watchlist item and compare against target entry prices.\n\n"
+            "Returns four buckets:\n"
+            "  TRIGGERED   — price is AT or BELOW the target. Run deep research immediately.\n"
+            "  APPROACHING — price is within 10% above target. Watch closely this session.\n"
+            "  WAITING     — price is more than 10% above target. No action needed.\n"
+            "  NO_TARGET   — no target price set; current price reported for reference.\n\n"
+            "Call this at the start of every session BEFORE the universe screen. "
+            "If any items are TRIGGERED, prioritise them for deep research in Step 4 — "
+            "they may already be actionable without needing to screen the full universe."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    # ── restored: detect_financial_anomalies
+
+    {
+        "name": "detect_financial_anomalies",
+        "description": (
+            "Detect statistical anomalies in a company's financial ratios by computing z-scores vs "
+            "its own 5-year history and sector peers. Use this to catch peak earnings traps "
+            "(margins at multi-year highs) or potential dislocations (margins at multi-year lows). "
+            "Call before finalising your intrinsic value estimate. "
+            "Returns: anomalies (temporal z-scores), sector_anomalies (cross-sectional), "
+            "overall_flag ('clean'/'watch'/'flagged'), summary. "
+            "If overall_flag is 'flagged', incorporate the interpretations into your normalisation assumptions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "screener_data": {
+                    "type": "object",
+                    "description": "Optional screener row for cross-sectional peer comparison (profit_margin_pct, revenue_growth_pct, roe_pct)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    # ── restored: discover_universe_parallel
+
+    {
+        "name": "discover_universe_parallel",
+        "description": (
+            "Two-layer universe screen. Uses a cached quality score (stable fundamentals: "
+            "revenue growth, margins, ROE, debt) to shortlist the top 150 names from ~700 tickers, "
+            "then fetches fresh valuation metrics (FCF yield, PEG, momentum) for those 150 only. "
+            "Returns 'top_candidates': top 60 globally ranked by combined quality+valuation score.\n\n"
+            "Each candidate includes quality_score, valuation_score, combined_score, and a "
+            "'universe' field ('us_sp500' or 'international'). "
+            "Pass top_candidates directly to research_stocks_parallel — no screening calls needed.\n\n"
+            "If the quality cache is empty it auto-runs a full refresh (~10 min first time). "
+            "Call refresh_universe_scores to manually rebuild the cache (do quarterly or when "
+            "quality_cache_age_days > 90)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: get_conviction_calibration
+
+    {
+        "name": "get_conviction_calibration",
+        "description": (
+            "Analyse whether conviction scores actually predict returns in this portfolio. "
+            "Groups reconciled predictions by conviction bucket (low 5-6, medium 7-8, high 9-10) "
+            "and computes avg_return, win_rate, avg_alpha per bucket. "
+            "Diagnoses whether high conviction (9-10) is genuinely more accurate than medium (7-8). "
+            "Returns calibration_status: 'well_calibrated', 'miscalibrated_high', or 'insufficient_data'. "
+            "Use this to validate position sizing multipliers — if miscalibrated, reduce high-conviction sizing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: get_conviction_position_size
+
+    {
+        "name": "get_conviction_position_size",
+        "description": (
+            "Calculate the appropriate position size for a stock given its conviction score "
+            "and the current macro regime. Call this BEFORE placing any buy order to determine "
+            "how many dollars to allocate. Conviction 9-10 = full position, 7-8 = 75%, "
+            "5-6 = 50%. Regime sets the base size (RISK_ON=15%, NORMAL=12%, etc.)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "conviction_score": {"type": "integer", "description": "Conviction score 1-10 from the research report"},
+                "regime": {"type": "string", "description": "Current macro regime (RISK_ON/NORMAL/INFLATIONARY/RISK_OFF/STAGFLATION)"},
+                "portfolio_equity": {"type": "number", "description": "Total portfolio equity value in dollars (cash + holdings market value)"},
+            },
+            "required": ["conviction_score", "regime", "portfolio_equity"],
+        },
+    },
+    # ── restored: get_earnings_tone_trend
+
+    {
+        "name": "get_earnings_tone_trend",
+        "description": (
+            "Get the earnings call sentiment trend for a ticker over the last 3-4 quarters. "
+            "Returns tone direction (positive/negative/neutral) per quarter plus a delta signal. "
+            "Use this to detect management confidence deterioration before it shows in financials. "
+            "A deteriorating trend (delta < -0.1) is an early warning sign that warrants thesis review."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol, e.g. AAPL, MSFT",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    # ── restored: get_market_iv_context
+
+    {
+        "name": "get_market_iv_context",
+        "description": (
+            "Aggregate recent research cache to quantify market-level valuation. "
+            "Answers: 'What % of the researched universe currently offers ≥20% margin of safety?' "
+            "High % = cheap market, easier to find opportunities. "
+            "Low % = expensive market, require higher quality bar. "
+            "Returns: at_mos_pct, avg_mos_pct, market_signal ('cheap'/'fair'/'expensive'), sector_breakdown. "
+            "Call this in Step 1 to calibrate the opportunity bar for the session."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: get_regime_change_status
+
+    {
+        "name": "get_regime_change_status",
+        "description": (
+            "Detect the current macro regime and compare it to the last recorded regime. "
+            "Returns whether the regime has changed since the previous run, how many days ago "
+            "the last regime was recorded, and a human-readable change summary. "
+            "Call this at the start of every session to check for macro shifts that may require "
+            "portfolio rebalancing — a regime change from RISK_ON to RISK_OFF, for example, "
+            "should trigger a full portfolio review even mid-cycle."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: get_sector_rotation_signal
+
+    {
+        "name": "get_sector_rotation_signal",
+        "description": (
+            "Analyse sector distribution across portfolio, recently researched stocks, and the "
+            "full universe to detect availability bias (systematically over/under-researching "
+            "certain sectors) and portfolio tilts vs. the opportunity set. Use at session start "
+            "to ensure the session explores underweight sectors if warranted."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: get_session_efficiency
+
+    {
+        "name": "get_session_efficiency",
+        "description": (
+            "Get current session efficiency statistics (total tool calls, unique tools used, "
+            "duration) and the last 10 sessions' history for comparison. Call near the end of "
+            "a session before save_session_reflection to log efficiency and identify waste "
+            "patterns over time."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "notes": {
+                    "type": "string",
+                    "description": "Optional notes about this session (e.g. why tool count was high)",
+                },
+                "stocks_researched": {
+                    "type": "integer",
+                    "description": "Number of stocks researched this session",
+                },
+                "stocks_bought": {
+                    "type": "integer",
+                    "description": "Number of stocks bought this session",
+                },
+                "stocks_watchlisted": {
+                    "type": "integer",
+                    "description": "Number of stocks added to watchlist this session",
+                },
+            },
+            "required": [],
+        },
+    },
+    # ── restored: get_stored_thesis
+
+    {
+        "name": "get_stored_thesis",
+        "description": (
+            "Retrieve the stored investment thesis for a ticker from previous research sessions. "
+            "Call this when re-researching a watchlist or portfolio stock to check consistency "
+            "with your original reasoning. Returns original moat assessment, IV estimate, and "
+            "key thesis points so you can explicitly note what changed."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                }
+            },
+            "required": ["ticker"],
+        },
+    },
+    # ── restored: get_watchlist_earnings
+
+    {
+        "name": "get_watchlist_earnings",
+        "description": (
+            "Fetch upcoming earnings dates for every watchlist item and bucket by urgency:\n"
+            "  IMMINENT — earnings within 7 days: research the stock NOW, before results land\n"
+            "  UPCOMING — earnings within 30 days: prepare thesis, set target entry\n"
+            "  DISTANT  — earnings >30 days away: no immediate action needed\n\n"
+            "Call this in Step 1 every session alongside check_watchlist_triggers. "
+            "IMMINENT items must be reviewed in Step 4 even if their price hasn't hit target — "
+            "earnings can create sudden entry opportunities or confirm thesis breaks."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    # ── restored: get_watchlist_history
+
+    {
+        "name": "get_watchlist_history",
+        "description": (
+            "Return the history of watchlist lifecycle events: when items were TRIGGERED "
+            "(price hit target), APPROACHING, BOUGHT, or REMOVED. "
+            "Use this periodically to audit IV estimate accuracy — if TSM was triggered at $230 "
+            "but never bought and is now $180, that tells you the IV estimate was wrong. "
+            "Pass an optional ticker to filter to one stock's history."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Optional: filter to a specific ticker's history",
+                },
+            },
+            "required": [],
+        },
+    },
+    # ── restored: log_prediction
+
+    {
+        "name": "log_prediction",
+        "description": (
+            "Log an investment decision for later reconciliation. Call this AFTER every "
+            "buy, watchlist, or pass decision with the conviction score, intrinsic value, "
+            "and current price. After 90 days, reconcile_predictions will compare the "
+            "prediction against actual outcomes to measure the agent's accuracy over time."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string"},
+                "action": {"type": "string", "enum": ["buy", "watchlist", "pass"]},
+                "conviction_score": {"type": "integer"},
+                "predicted_iv": {"type": "number", "description": "Intrinsic value from DCF"},
+                "price_at_decision": {"type": "number"},
+                "mos_pct": {"type": "number", "description": "Margin of safety %"},
+            },
+            "required": ["ticker", "action"],
+        },
+    },
+    # ── restored: query_kb
+
+    {
+        "name": "query_kb",
+        "description": (
+            "Search the investment knowledge base for relevant notes, frameworks, and company insights. "
+            "Use this when you need specific knowledge about: a company (e.g. 'Sygnity TSS sidecar thesis'), "
+            "a valuation methodology (e.g. 'FCF normalisation'), a failure mode (e.g. 'peak earnings trap'), "
+            "or a sector framework (e.g. 'serial acquirer red flags'). "
+            "Returns the top matching KB entries ranked by relevance. "
+            "More efficient than re-deriving from first principles — check the KB first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Free-text search query, e.g. 'VMS serial acquirer reinvestment rate'",
+                },
+                "topic": {
+                    "type": "string",
+                    "description": (
+                        "Optional topic filter: vms_playbook | iv_methodology | failure_mode | "
+                        "framework | company | sector | lesson"
+                    ),
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum entries to return (default 3, max 10)",
+                    "default": 3,
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    # ── restored: reconcile_predictions
+
+    {
+        "name": "reconcile_predictions",
+        "description": (
+            "Reconcile past predictions against actual outcomes. Finds all decisions made "
+            ">90 days ago that haven't been reviewed, fetches current prices, and updates "
+            "the record with actual return and alpha vs SPY. Call this quarterly to measure "
+            "prediction accuracy and identify systematic biases."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    # ── restored: run_iv_postmortem
+
+    {
+        "name": "run_iv_postmortem",
+        "description": (
+            "Analyse past IV (intrinsic value) predictions vs actual outcomes. "
+            "For each reconciled prediction with a predicted_iv, computes iv_accuracy_pct = "
+            "(outcome_price / predicted_iv - 1) * 100. Groups by conviction bucket (5-6, 7-8, 9-10) "
+            "and by sector. Saves calibration insights to the knowledge base automatically. "
+            "Call this quarterly alongside reconcile_predictions to refine your IV methodology. "
+            "Returns: total_analysed, conviction_calibration, sector_calibration, insights, kb_notes_saved."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    # ── restored: save_kb_note
+
+    {
+        "name": "save_kb_note",
+        "description": (
+            "Save a new note to the investment knowledge base, or update an existing one. "
+            "Use this to persist insights discovered during research that would be valuable "
+            "in future sessions: company-specific observations, updated theses, sector patterns, "
+            "or lessons from mistakes. Notes are searchable via query_kb. "
+            "If a note with the same title already exists, it will be updated."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": (
+                        "Category: vms_playbook | iv_methodology | failure_mode | "
+                        "framework | company | sector | lesson"
+                    ),
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Short title for the note (used for deduplication), e.g. 'Topicus Q4 2025 update'",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The knowledge content to store",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of tags for retrieval: ticker symbols, company names, keywords",
+                },
+            },
+            "required": ["topic", "title", "content"],
+        },
+    },
+    # ── restored: save_management_profile
+
+    {
+        "name": "save_management_profile",
+        "description": (
+            "Save a management quality assessment to the knowledge base for future sessions. "
+            "Call this after completing the capital allocation / management quality step of "
+            "research. The profile will be retrieved next time this company is researched, "
+            "avoiding redundant re-derivation of management quality from scratch."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol (required)",
+                },
+                "company_name": {
+                    "type": "string",
+                    "description": "Company name",
+                },
+                "quality_score": {
+                    "type": "integer",
+                    "description": "Management quality score 1-10 (required)",
+                },
+                "capital_allocation_rating": {
+                    "type": "string",
+                    "description": "Capital allocation rating: excellent|good|average|poor",
+                    "enum": ["excellent", "good", "average", "poor"],
+                },
+                "key_green_flags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of positive management qualities",
+                },
+                "key_red_flags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of negative management qualities or concerns",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "2-4 sentence management assessment (required)",
+                },
+            },
+            "required": ["ticker", "quality_score", "summary"],
+        },
+    },
 ]
 
 
@@ -1573,6 +2191,197 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         from agent.market_data import get_triaged_alerts
         tickers = tool_input.get("tickers")
         result = get_triaged_alerts(tickers)
+
+    elif tool_name == "calculate_intrinsic_value":
+        return market_data.calculate_intrinsic_value(tool_input["ticker"])
+    elif tool_name == "check_concentration_limits":
+        return portfolio.check_concentration_limits(
+            ticker=tool_input["ticker"],
+            sector=tool_input["sector"],
+            buy_amount=tool_input["buy_amount"],
+        )
+    elif tool_name == "check_dividend_payments":
+        from agent.market_data import check_dividend_payments
+        return {"dividends": check_dividend_payments(tool_input["holdings"])}
+    elif tool_name == "check_earnings_surprises":
+        from agent.market_data import check_earnings_surprises
+        return {"surprises": check_earnings_surprises(tool_input["holdings"])}
+    elif tool_name == "check_fundamental_deterioration":
+        from agent.market_data import check_fundamental_deterioration
+        return {"alerts": check_fundamental_deterioration(tool_input["holdings"])}
+    elif tool_name == "check_portfolio_correlation":
+        from agent.ml_insights import check_portfolio_correlation
+        return check_portfolio_correlation(tool_input["ticker"])
+    elif tool_name == "check_position_drift":
+        return portfolio.check_position_drift()
+    elif tool_name == "check_watchlist_staleness":
+        return {"stale_entries": portfolio.get_stale_watchlist_entries(tool_input.get("min_age_days", 60))}
+    elif tool_name == "check_watchlist_triggers":
+        watchlist = portfolio.get_watchlist()
+        result = market_data.check_watchlist_triggers(watchlist)
+        # Log any newly triggered items
+        for item in result.get("triggered", []):
+            portfolio.log_watchlist_event(
+                ticker=item["ticker"],
+                event_type="TRIGGERED",
+                price=item.get("current_price"),
+                target_price=item.get("target_entry_price"),
+                notes=f"Price {item.get('current_price')} hit target {item.get('target_entry_price')}",
+            )
+        return result
+    elif tool_name == "detect_financial_anomalies":
+        return market_data.detect_financial_anomalies(
+            ticker=tool_input["ticker"],
+            screener_data=tool_input.get("screener_data"),
+        )
+    elif tool_name == "discover_universe_parallel":
+        meta = portfolio.get_universe_scores_meta()
+
+        # Auto-refresh if cache is empty or stale (>90 days)
+        age = meta.get("days_since_refresh")
+        if meta["count"] == 0 or (age is not None and age > 90):
+            sp500 = market_data.get_stock_universe("sp500")
+            intl  = market_data.get_international_universe()
+            us_tickers   = sp500.get("tickers", [])
+            intl_tickers = intl.get("tickers", [])
+            scored = market_data.score_quality_universe(us_tickers, intl_tickers)
+            portfolio.save_universe_scores(scored)
+            meta = portfolio.get_universe_scores_meta()
+
+        # Load top quality names from cache
+        quality_candidates = portfolio.get_universe_scores(top_n=150)
+
+        # Fetch fresh valuation metrics and re-rank by combined score
+        enriched = market_data.get_fresh_valuation(quality_candidates)
+
+        top_candidates = enriched[:60]
+
+        return {
+            "top_candidates": top_candidates,
+            "total_candidates_evaluated": len(enriched),
+            "quality_cache_size": meta["count"],
+            "quality_cache_age_days": meta["days_since_refresh"],
+            "note": (
+                f"Quality scores cached for {meta['count']} tickers "
+                f"(last refreshed {meta['days_since_refresh']} days ago). "
+                f"Fetched fresh valuation for top {len(quality_candidates)} quality names. "
+                f"Returning top {len(top_candidates)} by combined quality+valuation score. "
+                "Call refresh_universe_scores to rebuild the quality cache (do this quarterly "
+                "or when the cache is >90 days old)."
+            ),
+        }
+    elif tool_name == "get_conviction_calibration":
+        return ml_insights.get_conviction_calibration()
+    elif tool_name == "get_conviction_position_size":
+        from agent.ml_insights import conviction_position_size
+        return conviction_position_size(
+            conviction_score=tool_input["conviction_score"],
+            regime=tool_input["regime"],
+            portfolio_equity=tool_input["portfolio_equity"],
+        )
+    elif tool_name == "get_earnings_tone_trend":
+        return portfolio.get_earnings_tone_delta(tool_input["ticker"])
+    elif tool_name == "get_market_iv_context":
+        return ml_insights.get_market_iv_context()
+    elif tool_name == "get_regime_change_status":
+        from agent.ml_insights import detect_regime_change
+        return detect_regime_change()
+    elif tool_name == "get_sector_rotation_signal":
+        from agent.ml_insights import get_sector_rotation_signal
+        return get_sector_rotation_signal()
+    elif tool_name == "get_session_efficiency":
+        stats = _get_session_stats()
+        import datetime as _dt
+        session_date = _dt.date.today().isoformat()
+        sid = portfolio.save_session_efficiency(
+            session_date=session_date,
+            total_tool_calls=stats["total_tool_calls"],
+            unique_tools_used=stats["unique_tools_used"],
+            stocks_researched=tool_input.get("stocks_researched", 0),
+            stocks_bought=tool_input.get("stocks_bought", 0),
+            stocks_watchlisted=tool_input.get("stocks_watchlisted", 0),
+            duration_seconds=stats["duration_seconds"],
+            notes=tool_input.get("notes"),
+        )
+        history = portfolio.get_session_efficiency_history(limit=5)
+        return {"saved_id": sid, "current_session": stats, "recent_sessions": history}
+    elif tool_name == "get_stored_thesis":
+        return portfolio.get_stored_thesis(tool_input["ticker"])
+    elif tool_name == "get_watchlist_earnings":
+        watchlist = portfolio.get_watchlist()
+        return market_data.get_watchlist_earnings(watchlist)
+    elif tool_name == "get_watchlist_history":
+        ticker = tool_input.get("ticker")
+        return portfolio.get_watchlist_history(ticker=ticker)
+    elif tool_name == "log_prediction":
+        from agent.portfolio import log_prediction
+        log_prediction(
+            ticker=tool_input["ticker"],
+            action=tool_input["action"],
+            conviction_score=tool_input.get("conviction_score"),
+            predicted_iv=tool_input.get("predicted_iv"),
+            price_at_decision=tool_input.get("price_at_decision"),
+            mos_pct=tool_input.get("mos_pct"),
+        )
+        return {"logged": True, "ticker": tool_input["ticker"], "action": tool_input["action"]}
+    elif tool_name == "query_kb":
+        from agent.knowledge_base import query_kb
+        return {
+            "results": query_kb(
+                tool_input["query"],
+                topic=tool_input.get("topic"),
+                max_results=tool_input.get("max_results", 3),
+            )
+        }
+    elif tool_name == "reconcile_predictions":
+        import yfinance as yf
+        from agent.portfolio import get_pending_reconciliations, update_prediction_outcome, get_prediction_accuracy
+        from agent.market_data import get_spy_price
+        pending = get_pending_reconciliations(min_age_days=90)
+        reconciled = []
+        spy_now = get_spy_price() or 0
+        for pred in pending:
+            try:
+                info = yf.Ticker(pred["ticker"]).info
+                current_price = info.get("regularMarketPrice") or info.get("previousClose")
+                if not current_price or not pred["price_at_decision"]:
+                    continue
+                ret_pct = (current_price - pred["price_at_decision"]) / pred["price_at_decision"] * 100
+                # Approximate SPY return over same period (rough — would need historical SPY)
+                update_prediction_outcome(pred["id"], current_price, round(ret_pct, 2), 0)
+                reconciled.append({"ticker": pred["ticker"], "return_pct": round(ret_pct, 2)})
+            except Exception:
+                continue
+        accuracy = get_prediction_accuracy()
+        return {"reconciled_count": len(reconciled), "reconciled": reconciled, "accuracy": accuracy}
+    elif tool_name == "run_iv_postmortem":
+        return ml_insights.run_iv_postmortem()
+    elif tool_name == "save_kb_note":
+        from agent.knowledge_base import save_kb_note
+        return save_kb_note(
+            topic=tool_input["topic"],
+            title=tool_input["title"],
+            content=tool_input["content"],
+            tags=tool_input.get("tags"),
+        )
+    elif tool_name == "save_management_profile":
+        from agent.knowledge_base import save_kb_note
+        ticker = tool_input["ticker"].upper()
+        name = tool_input.get("company_name", ticker)
+        score = tool_input["quality_score"]
+        rating = "⭐" * min(score, 5)
+        content = f"Quality score: {score}/10 | Capital allocation: {tool_input.get('capital_allocation_rating', 'N/A')}\n\n"
+        content += f"Summary: {tool_input['summary']}\n\n"
+        if tool_input.get("key_green_flags"):
+            content += "Green flags:\n" + "\n".join(f"- {f}" for f in tool_input["key_green_flags"]) + "\n\n"
+        if tool_input.get("key_red_flags"):
+            content += "Red flags:\n" + "\n".join(f"- {f}" for f in tool_input["key_red_flags"]) + "\n"
+        return save_kb_note(
+            topic="management",
+            title=f"{ticker} management quality",
+            content=content,
+            tags=[ticker, name, f"score_{score}", tool_input.get("capital_allocation_rating", "")],
+        )
 
     else:
         return {"error": f"Unknown tool: {tool_name}"}
