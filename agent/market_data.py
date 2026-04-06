@@ -197,6 +197,15 @@ def _polygon_get_news(ticker: str, limit: int = 5) -> list[dict]:
         return [{"error": f"Polygon news error: {e}"}]
 
 
+def get_spy_price() -> Optional[float]:
+    """Fetch current SPY price."""
+    try:
+        info = yf.Ticker("SPY").info
+        return info.get("regularMarketPrice") or info.get("previousClose")
+    except Exception:
+        return None
+
+
 def get_stock_quote(ticker: str) -> dict:
     """
     Get current price and basic info for a ticker.

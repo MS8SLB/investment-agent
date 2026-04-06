@@ -146,11 +146,126 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
             )
         """)
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS universe_scores (
+                ticker      TEXT PRIMARY KEY,
+                universe    TEXT NOT NULL,
+                name        TEXT,
+                sector      TEXT,
+                industry    TEXT,
+                quality_score   REAL NOT NULL,
+                revenue_growth  REAL,
+                profit_margin   REAL,
+                roe             REAL,
+                debt_to_equity  REAL,
+                scored_at   TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS watchlist_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker      TEXT NOT NULL,
+                event_type  TEXT NOT NULL,
+                price       REAL,
+                target_price REAL,
+                pct_vs_target REAL,
+                notes       TEXT,
+                recorded_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS research_cache (
+                ticker          TEXT PRIMARY KEY,
+                report_json     TEXT NOT NULL,
+                recommendation  TEXT,
+                conviction_score REAL,
+                price_at_research REAL,
+                researched_at   TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS regime_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                regime TEXT NOT NULL,
+                previous_regime TEXT,
+                vix REAL,
+                gdp_growth REAL,
+                core_cpi REAL,
+                ten_yr_yield REAL,
+                yield_inverted INTEGER,
+                detected_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS benchmark_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                portfolio_value REAL NOT NULL,
+                spy_price REAL NOT NULL,
+                spy_shares_equivalent REAL NOT NULL,
+                recorded_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS prediction_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                action TEXT NOT NULL,
+                conviction_score INTEGER,
+                predicted_iv REAL,
+                price_at_decision REAL,
+                mos_at_decision REAL,
+                decision_date TEXT NOT NULL,
+                outcome_price REAL,
+                outcome_return_pct REAL,
+                outcome_vs_spy_pct REAL,
+                outcome_date TEXT,
+                outcome_notes TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS earnings_call_sentiment (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker       TEXT NOT NULL,
+                quarter      TEXT NOT NULL,
+                sentiment_score REAL NOT NULL,
+                tone_direction  TEXT NOT NULL,
+                beat_miss       TEXT,
+                key_signals     TEXT NOT NULL DEFAULT '[]',
+                raw_summary     TEXT,
+                analyzed_at     TEXT NOT NULL,
+                UNIQUE(ticker, quarter)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS session_efficiency (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_date  TEXT NOT NULL,
+                total_tool_calls  INTEGER DEFAULT 0,
+                unique_tools_used INTEGER DEFAULT 0,
+                stocks_researched INTEGER DEFAULT 0,
+                stocks_bought     INTEGER DEFAULT 0,
+                stocks_watchlisted INTEGER DEFAULT 0,
+                duration_seconds  INTEGER,
+                notes         TEXT,
+                recorded_at   TEXT NOT NULL
+            )
+        """)
+
         # Migrate existing DBs: add realized_pnl column if missing
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN realized_pnl REAL")
         except sqlite3.OperationalError:
             pass  # Column already exists
+
+        # Migrate existing DBs: add sector and archetype columns to prediction_tracking
+        try:
+            conn.execute("ALTER TABLE prediction_tracking ADD COLUMN sector TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE prediction_tracking ADD COLUMN archetype TEXT")
+        except sqlite3.OperationalError:
+            pass
 
         # Seed initial state only if not present
         existing = conn.execute("SELECT id FROM portfolio_state WHERE id = 1").fetchone()
@@ -882,3 +997,756 @@ def get_total_dividends_received() -> float:
     result = conn.execute("SELECT COALESCE(SUM(total_amount), 0) FROM dividends").fetchone()
     conn.close()
     return result[0]
+
+
+# ── Universe quality score cache ──────────────────────────────────────────────
+
+def save_universe_scores(scores: list[dict]) -> None:
+    """Persist quality scores for the full ticker universe. Overwrites existing rows."""
+    now = datetime.utcnow().isoformat()
+    conn = _get_connection()
+    with conn:
+        for s in scores:
+            conn.execute("""
+                INSERT INTO universe_scores
+                    (ticker, universe, name, sector, industry,
+                     quality_score, revenue_growth, profit_margin,
+                     roe, debt_to_equity, scored_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(ticker) DO UPDATE SET
+                    universe=excluded.universe,
+                    name=excluded.name,
+                    sector=excluded.sector,
+                    industry=excluded.industry,
+                    quality_score=excluded.quality_score,
+                    revenue_growth=excluded.revenue_growth,
+                    profit_margin=excluded.profit_margin,
+                    roe=excluded.roe,
+                    debt_to_equity=excluded.debt_to_equity,
+                    scored_at=excluded.scored_at
+            """, (
+                s["ticker"], s["universe"], s.get("name"), s.get("sector"), s.get("industry"),
+                s["quality_score"], s.get("revenue_growth"), s.get("profit_margin"),
+                s.get("roe"), s.get("debt_to_equity"), now,
+            ))
+    conn.close()
+
+
+def get_universe_scores(top_n: int = 150) -> list[dict]:
+    """Return top_n tickers ranked by quality_score, with cache metadata."""
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT ticker, universe, name, sector, industry,
+               quality_score, revenue_growth, profit_margin, roe, debt_to_equity, scored_at
+        FROM universe_scores
+        ORDER BY quality_score DESC
+        LIMIT ?
+    """, (top_n,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_universe_scores_meta() -> dict:
+    """Return count and age of the universe quality score cache."""
+    conn = _get_connection()
+    row = conn.execute("""
+        SELECT COUNT(*) as count, MIN(scored_at) as oldest, MAX(scored_at) as newest
+        FROM universe_scores
+    """).fetchone()
+    conn.close()
+    if not row or row["count"] == 0:
+        return {"count": 0, "oldest": None, "newest": None, "days_since_refresh": None}
+    newest = row["newest"]
+    try:
+        delta = datetime.utcnow() - datetime.fromisoformat(newest)
+        days = delta.days
+    except Exception:
+        days = None
+    return {"count": row["count"], "oldest": row["oldest"], "newest": newest, "days_since_refresh": days}
+
+
+# ── Watchlist history ─────────────────────────────────────────────────────────
+
+def log_watchlist_event(ticker: str, event_type: str, price: float = None,
+                        target_price: float = None, notes: str = None) -> None:
+    """Log a watchlist lifecycle event (TRIGGERED, APPROACHING, BOUGHT, REMOVED)."""
+    pct = round((price - target_price) / target_price * 100, 1) if (price and target_price) else None
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            """INSERT INTO watchlist_history (ticker, event_type, price, target_price,
+               pct_vs_target, notes, recorded_at) VALUES (?,?,?,?,?,?,?)""",
+            (ticker.upper(), event_type, price, target_price, pct, notes,
+             datetime.utcnow().isoformat()),
+        )
+    conn.close()
+
+
+def get_watchlist_history(ticker: str = None, limit: int = 50) -> list[dict]:
+    """Return watchlist lifecycle events, optionally filtered by ticker."""
+    conn = _get_connection()
+    if ticker:
+        rows = conn.execute(
+            """SELECT ticker, event_type, price, target_price, pct_vs_target, notes, recorded_at
+               FROM watchlist_history WHERE ticker=? ORDER BY recorded_at DESC LIMIT ?""",
+            (ticker.upper(), limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT ticker, event_type, price, target_price, pct_vs_target, notes, recorded_at
+               FROM watchlist_history ORDER BY recorded_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_stale_watchlist_entries(min_age_days: int = 60) -> list:
+    """Return watchlist entries that haven't been re-evaluated in min_age_days days."""
+    import datetime as _dt
+    cutoff = (datetime.utcnow() - _dt.timedelta(days=min_age_days)).isoformat()
+    conn = _get_connection()
+    rows = conn.execute(
+        "SELECT ticker, company_name, reason, target_entry_price, added_at FROM watchlist WHERE added_at < ? ORDER BY added_at ASC",
+        (cutoff,)
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        try:
+            added = datetime.fromisoformat(r["added_at"])
+            age_days = (datetime.utcnow() - added).days
+        except Exception:
+            age_days = min_age_days
+        result.append({
+            "ticker": r["ticker"],
+            "company_name": r["company_name"],
+            "reason": r["reason"],
+            "target_entry_price": r["target_entry_price"],
+            "added_at": r["added_at"],
+            "age_days": age_days,
+            "staleness": "very_stale" if age_days > 180 else "stale",
+            "action_needed": "Re-research: thesis may have changed or price target may have been hit",
+        })
+    return result
+
+
+# ── Research cache ────────────────────────────────────────────────────────────
+
+def save_research_cache(ticker: str, report: dict, price: float = None) -> None:
+    """Cache a completed research report for a ticker."""
+    import json as _json
+    conn = _get_connection()
+    with conn:
+        conn.execute("""
+            INSERT INTO research_cache
+                (ticker, report_json, recommendation, conviction_score, price_at_research, researched_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ticker) DO UPDATE SET
+                report_json=excluded.report_json,
+                recommendation=excluded.recommendation,
+                conviction_score=excluded.conviction_score,
+                price_at_research=excluded.price_at_research,
+                researched_at=excluded.researched_at
+        """, (
+            ticker.upper(),
+            _json.dumps(report),
+            report.get("recommendation"),
+            report.get("conviction_score"),
+            price,
+            datetime.utcnow().isoformat(),
+        ))
+    conn.close()
+
+
+def get_research_cache(ticker: str) -> Optional[dict]:
+    """Return a cached research report for ticker, or None if not found."""
+    import json as _json
+    conn = _get_connection()
+    row = conn.execute(
+        """SELECT report_json, recommendation, conviction_score,
+                  price_at_research, researched_at
+           FROM research_cache WHERE ticker = ?""",
+        (ticker.upper(),),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        report = _json.loads(row["report_json"])
+    except Exception:
+        return None
+    report["_cached"] = True
+    report["_researched_at"] = row["researched_at"]
+    report["_price_at_research"] = row["price_at_research"]
+    return report
+
+
+def is_research_cache_valid(
+    ticker: str,
+    current_price: float = None,
+    max_age_days: int = 30,
+    max_price_move_pct: float = 10.0,
+) -> tuple[bool, str]:
+    """
+    Check whether the cached research report for ticker is still usable.
+    Returns (is_valid: bool, reason: str).
+    """
+    conn = _get_connection()
+    row = conn.execute(
+        "SELECT price_at_research, researched_at FROM research_cache WHERE ticker = ?",
+        (ticker.upper(),),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return False, "no cache"
+
+    try:
+        age = datetime.utcnow() - datetime.fromisoformat(row["researched_at"])
+        age_days = age.days
+    except Exception:
+        return False, "invalid timestamp"
+
+    if age_days > max_age_days:
+        return False, f"cache is {age_days} days old (max {max_age_days})"
+
+    if current_price and row["price_at_research"]:
+        move_pct = abs(current_price - row["price_at_research"]) / row["price_at_research"] * 100
+        if move_pct > max_price_move_pct:
+            return False, f"price moved {move_pct:.1f}% since research (max {max_price_move_pct}%)"
+
+    return True, f"cache valid ({age_days}d old)"
+
+
+# ── Regime history ────────────────────────────────────────────────────────────
+
+def save_regime(regime: str, previous_regime: str = None, indicators: dict = None) -> None:
+    """Persist the current detected regime to history."""
+    conn = _get_connection()
+    ind = indicators or {}
+    conn.execute(
+        """INSERT INTO regime_history
+           (regime, previous_regime, vix, gdp_growth, core_cpi, ten_yr_yield, yield_inverted, detected_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            regime,
+            previous_regime,
+            ind.get("vix"),
+            ind.get("gdp_growth"),
+            ind.get("core_cpi"),
+            ind.get("ten_yr_yield"),
+            1 if ind.get("yield_inverted") else 0,
+            datetime.utcnow().isoformat(),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_last_regime() -> Optional[dict]:
+    """Return the most recently saved regime record, or None."""
+    conn = _get_connection()
+    row = conn.execute(
+        "SELECT regime, previous_regime, detected_at FROM regime_history ORDER BY detected_at DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    if row:
+        return {"regime": row[0], "previous_regime": row[1], "detected_at": row[2]}
+    return None
+
+
+def get_regime_history(limit: int = 10) -> list[dict]:
+    """Return recent regime history records."""
+    conn = _get_connection()
+    rows = conn.execute(
+        "SELECT regime, previous_regime, detected_at FROM regime_history ORDER BY detected_at DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return [{"regime": r[0], "previous_regime": r[1], "detected_at": r[2]} for r in rows]
+
+
+# ── SPY benchmark tracking ────────────────────────────────────────────────────
+
+def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
+    """Save a daily portfolio vs SPY snapshot."""
+    conn = _get_connection()
+    first = conn.execute(
+        "SELECT spy_price, spy_shares_equivalent FROM benchmark_snapshots ORDER BY recorded_at ASC LIMIT 1"
+    ).fetchone()
+    if first:
+        spy_shares = first[1]
+    else:
+        spy_shares = portfolio_value / spy_price if spy_price > 0 else 0
+    conn.execute(
+        "INSERT INTO benchmark_snapshots (portfolio_value, spy_price, spy_shares_equivalent, recorded_at) VALUES (?, ?, ?, ?)",
+        (portfolio_value, spy_price, spy_shares, datetime.utcnow().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_benchmark_comparison() -> dict:
+    """Compare current portfolio value vs what SPY would be worth."""
+    conn = _get_connection()
+    first = conn.execute(
+        "SELECT portfolio_value, spy_price, spy_shares_equivalent, recorded_at FROM benchmark_snapshots ORDER BY recorded_at ASC LIMIT 1"
+    ).fetchone()
+    latest = conn.execute(
+        "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots ORDER BY recorded_at DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+
+    if not first or not latest:
+        return {"available": False, "message": "No benchmark data yet — run the agent at least once"}
+
+    start_portfolio = first[0]
+    start_spy_price = first[1]
+    spy_shares = first[2]
+    start_date = first[3][:10]
+
+    current_portfolio = latest[0]
+    current_spy_price = latest[1]
+    current_date = latest[2][:10]
+
+    spy_current_value = spy_shares * current_spy_price
+
+    portfolio_return = (current_portfolio - start_portfolio) / start_portfolio if start_portfolio else 0
+    spy_return = (spy_current_value - start_portfolio) / start_portfolio if start_portfolio else 0
+    alpha = portfolio_return - spy_return
+
+    return {
+        "available": True,
+        "start_date": start_date,
+        "current_date": current_date,
+        "portfolio_return_pct": round(portfolio_return * 100, 2),
+        "spy_return_pct": round(spy_return * 100, 2),
+        "alpha_pct": round(alpha * 100, 2),
+        "beating_market": alpha > 0,
+        "portfolio_value": round(current_portfolio, 2),
+        "spy_equivalent_value": round(spy_current_value, 2),
+        "start_portfolio_value": round(start_portfolio, 2),
+    }
+
+
+# ── Earnings call sentiment ───────────────────────────────────────────────────
+
+def save_earnings_sentiment(ticker: str, quarter: str, sentiment_score: float,
+                             tone_direction: str, beat_miss: str = None,
+                             key_signals: list = None, raw_summary: str = None) -> None:
+    """Upsert earnings call sentiment for a ticker/quarter."""
+    import json as _json
+    conn = _get_connection()
+    with conn:
+        conn.execute("""
+            INSERT INTO earnings_call_sentiment
+                (ticker, quarter, sentiment_score, tone_direction, beat_miss,
+                 key_signals, raw_summary, analyzed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ticker, quarter) DO UPDATE SET
+                sentiment_score=excluded.sentiment_score,
+                tone_direction=excluded.tone_direction,
+                beat_miss=excluded.beat_miss,
+                key_signals=excluded.key_signals,
+                raw_summary=excluded.raw_summary,
+                analyzed_at=excluded.analyzed_at
+        """, (
+            ticker.upper(), quarter, sentiment_score, tone_direction, beat_miss,
+            _json.dumps(key_signals or []), raw_summary,
+            datetime.utcnow().isoformat(),
+        ))
+    conn.close()
+
+
+def get_earnings_tone_delta(ticker: str, quarters: int = 4) -> dict:
+    """
+    Return sentiment trend for last N quarters.
+    Returns trend direction and delta vs oldest quarter in window.
+    """
+    import json as _json
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT quarter, sentiment_score, tone_direction, beat_miss, key_signals, analyzed_at
+        FROM earnings_call_sentiment
+        WHERE ticker = ?
+        ORDER BY analyzed_at DESC
+        LIMIT ?
+    """, (ticker.upper(), quarters)).fetchall()
+    conn.close()
+
+    if not rows:
+        return {
+            "ticker": ticker.upper(),
+            "quarters": [],
+            "delta": None,
+            "trend": "insufficient_data",
+            "signal": "No earnings call sentiment data available for this ticker.",
+        }
+
+    q_list = []
+    for r in rows:
+        try:
+            signals = _json.loads(r["key_signals"]) if r["key_signals"] else []
+        except Exception:
+            signals = []
+        q_list.append({
+            "quarter": r["quarter"],
+            "sentiment_score": r["sentiment_score"],
+            "tone_direction": r["tone_direction"],
+            "beat_miss": r["beat_miss"],
+            "key_signals": signals,
+            "analyzed_at": r["analyzed_at"],
+        })
+
+    if len(q_list) < 2:
+        return {
+            "ticker": ticker.upper(),
+            "quarters": q_list,
+            "delta": None,
+            "trend": "insufficient_data",
+            "signal": "Need >=2 quarters of data to compute trend.",
+        }
+
+    delta = round(q_list[0]["sentiment_score"] - q_list[-1]["sentiment_score"], 3)
+    if delta > 0.1:
+        trend = "improving"
+    elif delta < -0.1:
+        trend = "deteriorating"
+    else:
+        trend = "stable"
+
+    latest_score = q_list[0]["sentiment_score"]
+    latest_tone = q_list[0]["tone_direction"]
+    signal = (
+        f"Management tone is {trend} over last {len(q_list)} quarters "
+        f"(delta={delta:+.3f}). Latest quarter: {latest_tone} "
+        f"(score={latest_score:.3f})."
+    )
+
+    return {
+        "ticker": ticker.upper(),
+        "quarters": q_list,
+        "delta": delta,
+        "trend": trend,
+        "signal": signal,
+    }
+
+
+# ── Prediction tracking / quarterly reconciliation ────────────────────────────
+
+def log_prediction(ticker: str, action: str, conviction_score: int = None,
+                   predicted_iv: float = None, price_at_decision: float = None,
+                   mos_pct: float = None) -> None:
+    """Log an agent decision for later reconciliation."""
+    conn = _get_connection()
+    conn.execute(
+        """INSERT INTO prediction_tracking
+           (ticker, action, conviction_score, predicted_iv, price_at_decision,
+            mos_at_decision, decision_date)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (ticker, action, conviction_score, predicted_iv, price_at_decision,
+         mos_pct, datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_pending_reconciliations(min_age_days: int = 90) -> list:
+    """Return predictions older than min_age_days that haven't been reconciled."""
+    import datetime as _datetime
+    conn = _get_connection()
+    cutoff = (datetime.utcnow().replace(hour=0, minute=0, second=0) -
+              _datetime.timedelta(days=min_age_days)).isoformat()
+    rows = conn.execute(
+        """SELECT id, ticker, action, conviction_score, predicted_iv,
+                  price_at_decision, mos_at_decision, decision_date
+           FROM prediction_tracking
+           WHERE outcome_date IS NULL AND decision_date < ?
+           ORDER BY decision_date ASC""",
+        (cutoff,)
+    ).fetchall()
+    conn.close()
+    return [{"id": r[0], "ticker": r[1], "action": r[2], "conviction_score": r[3],
+             "predicted_iv": r[4], "price_at_decision": r[5], "mos_at_decision": r[6],
+             "decision_date": r[7]} for r in rows]
+
+
+def update_prediction_outcome(prediction_id: int, outcome_price: float,
+                               outcome_return_pct: float, outcome_vs_spy_pct: float,
+                               notes: str = None) -> None:
+    """Fill in the actual outcome for a prediction."""
+    conn = _get_connection()
+    conn.execute(
+        """UPDATE prediction_tracking SET outcome_price=?, outcome_return_pct=?,
+           outcome_vs_spy_pct=?, outcome_date=?, outcome_notes=? WHERE id=?""",
+        (outcome_price, outcome_return_pct, outcome_vs_spy_pct,
+         datetime.utcnow().isoformat(), notes, prediction_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_prediction_accuracy() -> dict:
+    """Summarise historical prediction accuracy."""
+    conn = _get_connection()
+    rows = conn.execute(
+        """SELECT action, conviction_score, outcome_return_pct, outcome_vs_spy_pct
+           FROM prediction_tracking WHERE outcome_date IS NOT NULL"""
+    ).fetchall()
+    conn.close()
+    if not rows:
+        return {"available": False, "message": "No reconciled predictions yet"}
+    buys = [r for r in rows if r[0] == "buy"]
+    avg_return = sum(r[2] for r in buys) / len(buys) if buys else 0
+    avg_alpha = sum(r[3] for r in buys) / len(buys) if buys else 0
+    win_rate = sum(1 for r in buys if r[2] and r[2] > 0) / len(buys) if buys else 0
+    high_conv = [r for r in buys if r[1] and r[1] >= 8]
+    return {
+        "available": True,
+        "total_predictions": len(rows),
+        "buy_predictions": len(buys),
+        "avg_return_pct": round(avg_return, 2),
+        "avg_alpha_pct": round(avg_alpha, 2),
+        "win_rate_pct": round(win_rate * 100, 1),
+        "high_conviction_count": len(high_conv),
+        "high_conviction_avg_return": round(sum(r[2] for r in high_conv) / len(high_conv), 2) if high_conv else None,
+    }
+
+
+def get_stored_thesis(ticker: str) -> dict:
+    """Retrieve the stored investment thesis for a ticker from previous research sessions."""
+    from agent.knowledge_base import query_kb
+    ticker = ticker.upper()
+    conn = _get_connection()
+    thesis_row = conn.execute(
+        "SELECT ticker, action, thesis, created_at FROM trade_thesis WHERE ticker=? ORDER BY created_at DESC LIMIT 1",
+        (ticker,)
+    ).fetchone()
+    watchlist_row = conn.execute(
+        "SELECT ticker, company_name, reason, target_entry_price, added_at FROM watchlist WHERE ticker=?",
+        (ticker,)
+    ).fetchone()
+    conn.close()
+
+    price_row = None
+    if thesis_row:
+        inner_conn = _get_connection()
+        price_row = inner_conn.execute(
+            "SELECT price_at_decision FROM prediction_tracking WHERE ticker=? ORDER BY decision_date DESC LIMIT 1",
+            (ticker,)
+        ).fetchone()
+        inner_conn.close()
+
+    kb = query_kb(ticker, max_results=3)
+    kb_notes = kb if isinstance(kb, list) else kb.get("results", []) if isinstance(kb, dict) else []
+
+    return {
+        "ticker": ticker,
+        "has_trade_thesis": thesis_row is not None,
+        "thesis": thesis_row["thesis"] if thesis_row else None,
+        "action": thesis_row["action"] if thesis_row else None,
+        "recorded_at": thesis_row["created_at"] if thesis_row else None,
+        "price_at_decision": price_row["price_at_decision"] if price_row else None,
+        "watchlist_entry": dict(watchlist_row) if watchlist_row else None,
+        "kb_notes": kb_notes,
+    }
+
+
+# ── Concentration limits ──────────────────────────────────────────────────────
+
+def check_concentration_limits(
+    ticker: str,
+    sector: str,
+    buy_amount: float,
+    max_position_pct: float = 0.10,
+    max_sector_pct: float = 0.30,
+) -> dict:
+    """
+    Check if a proposed buy would breach concentration limits.
+    Call this before executing any buy order.
+    """
+    from agent import market_data as _market_data
+
+    cash = get_cash()
+    holdings = get_holdings()
+
+    total_market_value = 0.0
+    enriched = []
+    for h in holdings:
+        try:
+            quote = _market_data.get_stock_quote(h["ticker"])
+            price = quote.get("price") if "error" not in quote else None
+            h_sector = quote.get("sector", "") if "error" not in quote else ""
+        except Exception:
+            price = None
+            h_sector = ""
+
+        if price:
+            mv = h["shares"] * price
+        else:
+            mv = h["shares"] * h["avg_cost"]
+
+        total_market_value += mv
+        enriched.append({
+            "ticker": h["ticker"],
+            "market_value": mv,
+            "sector": h_sector,
+        })
+
+    total_value = cash + total_market_value
+
+    if total_value <= 0:
+        return {
+            "allowed": True,
+            "violations": [],
+            "max_allowed_buy": buy_amount,
+            "current_position_pct": 0,
+            "current_sector_pct": 0,
+            "post_buy_position_pct": 0,
+            "post_buy_sector_pct": 0,
+        }
+
+    ticker_upper = ticker.upper()
+    current_pos_value = sum(
+        h["market_value"] for h in enriched if h["ticker"] == ticker_upper
+    )
+
+    current_sector_value = sum(
+        h["market_value"]
+        for h in enriched
+        if h["sector"] and h["sector"].lower() == sector.lower()
+    )
+
+    new_total = total_value + buy_amount
+    post_pos_pct = (current_pos_value + buy_amount) / new_total
+    post_sector_pct = (current_sector_value + buy_amount) / new_total
+
+    violations = []
+    if post_pos_pct > max_position_pct:
+        violations.append(
+            f"Position limit breach: {ticker_upper} would be {post_pos_pct:.1%} of portfolio "
+            f"(max {max_position_pct:.0%})"
+        )
+    if post_sector_pct > max_sector_pct:
+        violations.append(
+            f"Sector limit breach: {sector} would be {post_sector_pct:.1%} of portfolio "
+            f"(max {max_sector_pct:.0%})"
+        )
+
+    max_by_position = max(0.0, max_position_pct * new_total - current_pos_value)
+    max_by_sector = max(0.0, max_sector_pct * new_total - current_sector_value)
+    max_allowed = min(max_by_position, max_by_sector, buy_amount)
+    if max_allowed < buy_amount and max_allowed > 0:
+        new_total2 = total_value + max_allowed
+        max_allowed = min(
+            max_position_pct * new_total2 - current_pos_value,
+            max_sector_pct * new_total2 - current_sector_value,
+            buy_amount,
+        )
+        max_allowed = max(0.0, max_allowed)
+
+    return {
+        "allowed": len(violations) == 0,
+        "violations": violations,
+        "current_position_pct": round(current_pos_value / total_value, 4),
+        "current_sector_pct": round(current_sector_value / total_value, 4),
+        "post_buy_position_pct": round(post_pos_pct, 4),
+        "post_buy_sector_pct": round(post_sector_pct, 4),
+        "max_allowed_buy": round(max_allowed, 2),
+    }
+
+
+# ── Position drift ────────────────────────────────────────────────────────────
+
+def check_position_drift() -> dict:
+    """Flag positions that have drifted above concentration limits through price appreciation."""
+    holdings = get_holdings()
+    if not holdings:
+        return {"drifted_positions": [], "drifted_sectors": [], "has_drift": False}
+
+    cash = get_cash()
+    from agent import market_data as _md
+
+    enriched = []
+    total_mv = 0.0
+    for h in holdings:
+        try:
+            quote = _md.get_stock_quote(h["ticker"])
+            price = quote.get("price") if "error" not in quote else h["avg_cost"]
+            sector = quote.get("sector", "Unknown")
+        except Exception:
+            price = h["avg_cost"]
+            sector = "Unknown"
+        mv = h["shares"] * (price or h["avg_cost"])
+        total_mv += mv
+        enriched.append({**h, "current_price": price, "market_value": mv, "sector": sector})
+
+    total_portfolio = total_mv + cash
+    if total_portfolio <= 0:
+        return {"drifted_positions": [], "drifted_sectors": [], "has_drift": False}
+
+    drifted_positions = []
+    sector_mv: dict = {}
+    for h in enriched:
+        pct = h["market_value"] / total_portfolio * 100
+        sector_mv[h["sector"]] = sector_mv.get(h["sector"], 0.0) + h["market_value"]
+        if pct > 12.0:
+            drifted_positions.append({
+                "ticker": h["ticker"],
+                "current_weight_pct": round(pct, 1),
+                "target_max_pct": 10.0,
+                "excess_pct": round(pct - 10.0, 1),
+                "market_value": round(h["market_value"], 2),
+                "recommendation": f"Consider trimming ${round((pct-10)/100*total_portfolio,0):.0f} to restore 10% max weight",
+            })
+
+    drifted_sectors = []
+    for sector, mv in sector_mv.items():
+        pct = mv / total_portfolio * 100
+        if pct > 33.0:
+            drifted_sectors.append({
+                "sector": sector,
+                "current_weight_pct": round(pct, 1),
+                "target_max_pct": 30.0,
+                "excess_pct": round(pct - 30.0, 1),
+            })
+
+    return {
+        "drifted_positions": drifted_positions,
+        "drifted_sectors": drifted_sectors,
+        "has_drift": bool(drifted_positions or drifted_sectors),
+        "total_portfolio_value": round(total_portfolio, 2),
+        "checked_at": datetime.utcnow().isoformat(),
+    }
+
+
+# ── Session efficiency ────────────────────────────────────────────────────────
+
+def save_session_efficiency(session_date: str, total_tool_calls: int,
+                             unique_tools_used: int, stocks_researched: int = 0,
+                             stocks_bought: int = 0, stocks_watchlisted: int = 0,
+                             duration_seconds: int = None, notes: str = None) -> int:
+    conn = _get_connection()
+    with conn:
+        cur = conn.execute(
+            """INSERT INTO session_efficiency
+               (session_date, total_tool_calls, unique_tools_used, stocks_researched,
+                stocks_bought, stocks_watchlisted, duration_seconds, notes, recorded_at)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (session_date, total_tool_calls, unique_tools_used, stocks_researched,
+             stocks_bought, stocks_watchlisted, duration_seconds, notes,
+             datetime.utcnow().isoformat())
+        )
+    return cur.lastrowid
+
+
+def get_session_efficiency_history(limit: int = 10) -> list:
+    conn = _get_connection()
+    rows = conn.execute(
+        """SELECT session_date, total_tool_calls, unique_tools_used, stocks_researched,
+                  stocks_bought, stocks_watchlisted, duration_seconds, notes, recorded_at
+           FROM session_efficiency ORDER BY recorded_at DESC LIMIT ?""", (limit,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
