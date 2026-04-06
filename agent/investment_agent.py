@@ -1820,52 +1820,27 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 **Step 4 — Discover new opportunities: screen the full S&P 500 AND the international universe**
 
 - Call `recalibrate_universe_scores` before running the screener to apply ML-learned weights from
-  past prediction accuracy. This adjusts quality scores toward stocks where the agent's IV estimates
-  have historically been most accurate, sharpening the screener signal.
+  past prediction accuracy.
 
-*US screen (exhaustive):*
-- Call `get_stock_universe("sp500")` **once** — this returns all ~500 S&P 500 tickers.
-- Split the returned list into batches of 100 and call `screen_stocks` on each batch
-  (5-6 calls total). This gives you exhaustive, deterministic coverage of the entire index —
-  no ticker is missed due to random sampling.
+*Screening — two calls, one combined result:*
+1. Call `get_stock_universe("sp500")` — returns all ~500 S&P 500 tickers.
+2. Call `get_international_universe()` — returns ~200 major non-US tickers.
+3. Merge both lists into one combined list.
+4. Call `screen_stocks` **once** with the full combined list. The screener runs all tickers in
+   parallel internally and returns a **single globally ranked list sorted by composite score**.
+   Do NOT split into batches — one call gives you one clean sorted list with no aggregation needed.
 
-*International screen (every session — do not skip):*
-- Call `get_international_universe()` **once** — returns ~200 major non-US companies across
-  Europe, Asia-Pacific, Latin America, Canada, and India (mix of US-listed ADRs and
-  foreign-suffix tickers). This is the ONLY way to surface international opportunities;
-  they are not in the S&P 500 universe.
-- Split into batches of 60-80 tickers and call `screen_stocks` on each batch (3-4 calls).
-  Foreign-suffix tickers that lack yfinance data are automatically skipped — this is normal.
-- Treat international and US screener results as a single combined pool of candidates.
-  Do not deprioritise international names just because they are less familiar. Some of the
-  world's best-moat businesses (ASML, Novo Nordisk, Hermès, Keyence, CSL) are non-US.
+*Finalist selection — purely mechanical, no judgment:*
+- Take the **top 6 entries by `score`** from the screener result. That is your research list.
+- Do not swap in names you recognise. Do not skip entries because they are unfamiliar.
+- Do not apply additional filters beyond what the screener already computed.
+- If any of the top 6 are already held or already on the watchlist from this session, replace
+  them with the next highest-scoring entry. Otherwise take positions 1–6 as-is.
 
-*Screening criteria (same for US and international):*
-  1. `fcf_yield_pct` > 3% — real cash generation, not accounting profits
-  2. High ROE/margins — evidence of a moat generating excess returns on capital
-  3. Low debt — financial resilience and capital allocation flexibility
-  4. `peg_ratio` < 2 — not wildly overpriced relative to growth
-  **Ignore `relative_momentum_pct` as a quality filter.** Momentum is market sentiment, not business
-  value. A stock with negative momentum but strong FCF and a clear moat may be exactly the kind of
-  temporarily-out-of-favour opportunity this strategy targets. The best buys often look uncomfortable.
-- Apply lessons from `get_signal_performance` and `get_ml_factor_weights` — weight signals that have
-  actually predicted returns in this portfolio; discount signals that show no predictive edge
-- Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies
-  that are temporarily cheap, not the most popular stocks at peak valuations
-- From all screener results (US + international combined), select the **top 6 by composite score**
-  that also pass all three gates: (a) `fcf_yield_pct` > 2.5%, (b) `profit_margin_pct` > 15%,
-  (c) `debt_to_equity` < 2.0. If fewer than 6 pass all gates, take the top however many do.
-  Do NOT substitute gut feel or name recognition for these objective criteria — rank by score, pick top 6.
-- Optional: call `run_backtest(mode="momentum", tickers=[...screener candidates...], holding_days=90)`
-  to validate whether momentum has been a predictive factor in this universe recently.
-  If momentum_premium_pct > 5 (top-momentum tercile beat bottom by >5pp), weight
-  relative_momentum_pct more heavily when ranking screener finalists.
-- Call `research_stocks_parallel` with those tickers and their screener rows in `tickers_with_data`.
+- Call `research_stocks_parallel` with those 6 tickers and their screener rows in `tickers_with_data`.
   Pass a concise `context` string covering: current macro regime, sector exposure weights, available
-  cash, intrinsic value investment mandate (moat required, 20% margin of safety required), and any
-  signal requirements from `get_signal_performance` / `get_ml_factor_weights`.
-  Each subagent runs the full 15-tool research checklist and returns a structured JSON report with
-  moat assessment, intrinsic value estimate, and margin of safety. Reports arrive sorted by conviction.
+  cash, intrinsic value investment mandate (moat required, 20% margin of safety required).
+  Each subagent runs the full research checklist and returns a structured JSON report.
 - Use the returned reports to shortlist tickers with recommendation "buy" for further challenge.
   You do NOT need to call individual research tools on finalists — the subagents have already done it.
 

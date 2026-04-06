@@ -2139,7 +2139,7 @@ def screen_stocks(tickers: list) -> list:
 
     results: list[dict] = []
 
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=32) as executor:
         futures = {executor.submit(_fetch, t): t for t in tickers}
         for future in as_completed(futures):
             res = future.result()
