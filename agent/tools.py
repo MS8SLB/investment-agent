@@ -13,7 +13,7 @@ from agent import market_data, portfolio, sec_data, external_data, ml_insights
 # Set once per session before running the agentic loop so handle_tool_call
 # can forward the right model to research and bear-case subagents.
 
-_CURRENT_MODEL: str | None = None
+_CURRENT_MODEL: Optional[str] = None
 
 _MODEL_TIERS = [
     "claude-haiku-4-5-20251001",
@@ -662,7 +662,7 @@ def _bear_case_model(model: str) -> str:
     return _BEAR_TIER.get(model, model)
 
 
-def _effective_model() -> str | None:
+def _effective_model() -> Optional[str]:
     """Return the currently set model context, or None (subagent will use its own default)."""
     return _CURRENT_MODEL
 

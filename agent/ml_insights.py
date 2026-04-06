@@ -1215,9 +1215,9 @@ def detect_regime_change() -> dict:
     Returns:
         {
           "current_regime": str,
-          "previous_regime": str | None,
+          "previous_regime": Optional[str],
           "changed": bool,
-          "days_since_last_detection": int | None,
+          "days_since_last_detection": Optional[int],
           "change_summary": str,   # human-readable description
           "indicators": dict,      # raw indicator values
         }
