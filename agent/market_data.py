@@ -1389,6 +1389,22 @@ def get_hedge_recommendations(equity_pct: Optional[float] = None, cash_pct: Opti
         total_hedge_pct = 20.0
 
     # ── Hedge warranted? ──────────────────────────────────────────────────────
+    # No equity positions = no portfolio to protect; skip hedging entirely.
+    if equity_pct is not None and equity_pct == 0:
+        return {
+            "regime": regime,
+            "hedge_warranted": False,
+            "no_hedge_rationale": (
+                "Portfolio has no equity positions — there is nothing to hedge. "
+                "Build equity positions first; hedges are insurance for existing holdings."
+            ),
+            "recommendations": [],
+            "total_recommended_hedge_pct": 0,
+            "equity_pct_input": equity_pct,
+            "cash_pct_input": cash_pct,
+            "regime_signals": [],
+        }
+
     hedge_warranted = regime in ("RISK_OFF", "INFLATIONARY", "STAGFLATION", "HIGH_RATES")
     no_hedge_rationale = None
     if not hedge_warranted:

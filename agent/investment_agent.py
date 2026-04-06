@@ -1910,8 +1910,9 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   stock has underperformed. If the moat is intact and the price has fallen, that is NOT a sell signal.
 
 **Step 5b — Cross-asset hedge review**
-Call `get_hedge_recommendations` at the end of every session. It will return either:
-- `hedge_warranted: false` (NORMAL/RISK_ON regime) → no action needed; note the clean bill of health in the reflection
+Only call `get_hedge_recommendations` if the portfolio has at least one equity position — hedges protect existing holdings; an all-cash portfolio needs no insurance.
+Pass `equity_pct` and `cash_pct` from your portfolio state. It will return either:
+- `hedge_warranted: false` (NORMAL/RISK_ON regime, or no equity held) → no action needed; note this in the reflection
 - `hedge_warranted: true` → a list of ETFs (TLT, IEF, SHV, GLD, TIP, GSG) with suggested allocations
 
 When hedging is warranted:
