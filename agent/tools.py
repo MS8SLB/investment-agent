@@ -712,22 +712,31 @@ TOOL_DEFINITIONS = [
             "only — no look-ahead on fundamentals. Pass your current screener "
             "candidates as tickers to validate the momentum signal. "
             "Requires tickers list.\n\n"
+            "  'fundamental_history' — Simulates the screener running at every "
+            "quarter-end since start_year (default 2015) using real historical "
+            "fundamentals from FMP. For each quarter where a stock scores ≥ "
+            "score_threshold, records a simulated buy and measures 1q/2q/4q "
+            "forward returns vs S&P 500. Answers: would this screening approach "
+            "have generated alpha over 10 years? Requires FMP_API_KEY. Uses up "
+            "to max_tickers (default 20) from universe_scores or a passed list. "
+            "Run this once after building a universe to validate the strategy.\n\n"
             "Call 'trade_history' and 'signal_cohorts' in Step 1 once you have "
             "≥5 closed trades. Call 'momentum' in Step 4 after screening to "
-            "validate momentum as a factor before weighting it in decisions."
+            "validate momentum as a factor before weighting it in decisions. "
+            "Call 'fundamental_history' once to validate the strategy historically."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "mode": {
                     "type": "string",
-                    "enum": ["trade_history", "signal_cohorts", "momentum"],
+                    "enum": ["trade_history", "signal_cohorts", "momentum", "fundamental_history"],
                     "description": "Which backtest to run.",
                 },
                 "tickers": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Required for mode='momentum'. Pass screener candidate tickers.",
+                    "description": "Required for mode='momentum'. Optional for 'fundamental_history' (defaults to universe_scores).",
                 },
                 "holding_days": {
                     "type": "integer",
@@ -735,6 +744,18 @@ TOOL_DEFINITIONS = [
                         "For mode='momentum': how many days ago the simulated entry was. "
                         "Default 90 (one quarter). Use 180 or 365 for longer horizons."
                     ),
+                },
+                "start_year": {
+                    "type": "integer",
+                    "description": "For mode='fundamental_history': earliest year to simulate from. Default 2015.",
+                },
+                "score_threshold": {
+                    "type": "number",
+                    "description": "For mode='fundamental_history': minimum screener score to count as a buy signal. Default 6.0.",
+                },
+                "max_tickers": {
+                    "type": "integer",
+                    "description": "For mode='fundamental_history': max tickers to process (default 20, respects FMP free tier).",
                 },
             },
             "required": ["mode"],
@@ -1393,6 +1414,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
             mode=tool_input["mode"],
             tickers=tool_input.get("tickers"),
             holding_days=tool_input.get("holding_days", 90),
+            start_year=tool_input.get("start_year", 2015),
+            score_threshold=tool_input.get("score_threshold", 6.0),
+            max_tickers=tool_input.get("max_tickers", 20),
         )
 
     elif tool_name == "add_to_shadow_portfolio":

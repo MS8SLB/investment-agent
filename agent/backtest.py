@@ -551,19 +551,351 @@ def _momentum_backtest(tickers: list[str], holding_days: int = 90) -> dict:
     }
 
 
+# ── Mode 4: Fundamental history backtest (FMP-powered) ───────────────────────
+
+def _score_quarter(q_inc: dict, q_bal: dict, q_cf: dict,
+                   prev_inc: Optional[dict], price: float) -> tuple[float, dict]:
+    """
+    Compute the screener score for one historical quarter using the same
+    logic as screen_stocks(), but limited to what FMP historical statements
+    provide. Returns (score, signal_dict).
+    """
+    score = 0.0
+    signals: dict = {}
+
+    revenue      = q_inc.get("revenue") or 0
+    gross_profit = q_inc.get("grossProfit") or 0
+    net_income   = q_inc.get("netIncome") or 0
+    op_income    = q_inc.get("operatingIncome") or 0
+    op_cf        = q_cf.get("operatingCashFlow") or 0
+    capex        = q_cf.get("capitalExpenditure") or 0      # usually negative in FMP
+    total_debt   = q_bal.get("totalDebt") or 0
+    equity       = q_bal.get("totalStockholdersEquity") or 1
+    shares       = q_bal.get("commonStock") or q_bal.get("sharesOutstanding") or 0
+    current_assets  = q_bal.get("totalCurrentAssets") or 0
+    current_liabs   = q_bal.get("totalCurrentLiabilities") or 1
+    eps          = q_inc.get("eps") or q_inc.get("epsdiluted") or None
+
+    # Revenue growth YoY (requires prior year same quarter)
+    revenue_growth = None
+    if prev_inc and revenue and prev_inc.get("revenue"):
+        revenue_growth = (revenue - prev_inc["revenue"]) / abs(prev_inc["revenue"])
+        signals["revenue_growth"] = round(revenue_growth * 100, 1)
+        if revenue_growth > 0.08:
+            score += 2
+        if revenue_growth > 0.20:
+            score += 1
+
+    # Net profit margin
+    profit_margin = net_income / revenue if revenue else None
+    if profit_margin is not None:
+        signals["profit_margin_pct"] = round(profit_margin * 100, 1)
+        if profit_margin > 0.10:
+            score += 2
+
+    # ROE
+    roe = net_income / equity if equity else None
+    if roe is not None:
+        signals["roe_pct"] = round(roe * 100, 1)
+        if roe > 0.15:
+            score += 2
+
+    # P/E ratio (trailing, using quarter EPS annualised)
+    pe = None
+    if eps and eps > 0 and price:
+        pe = price / (eps * 4)
+        signals["pe"] = round(pe, 1)
+        if 5 < pe < 20:
+            score += 2
+        elif pe < 30:
+            score += 1
+
+    # Debt / equity
+    de = total_debt / equity if equity else None
+    if de is not None:
+        signals["debt_to_equity"] = round(de, 2)
+        if de < 1.0:
+            score += 1
+
+    # FCF yield (market cap = price * shares if available)
+    market_cap = price * shares if (price and shares) else None
+    fcf = op_cf + capex if capex < 0 else op_cf - capex
+    fcf_yield = fcf / market_cap if (market_cap and market_cap > 0) else None
+    if fcf_yield is not None:
+        signals["fcf_yield_pct"] = round(fcf_yield * 100, 1)
+        if fcf_yield > 0.05:
+            score += 2
+        elif fcf_yield > 0.02:
+            score += 1
+
+    # Current ratio
+    cr = current_assets / current_liabs if current_liabs else None
+    if cr is not None:
+        signals["current_ratio"] = round(cr, 2)
+
+    signals["score"] = score
+    return score, signals
+
+
+def _get_price_on_date(ticker: str, date_str: str,
+                       price_cache: dict) -> Optional[float]:
+    """Return closing price on or just after date_str. Caches full history per ticker."""
+    if ticker not in price_cache:
+        try:
+            hist = yf.Ticker(ticker).history(period="max")
+            price_cache[ticker] = hist["Close"] if not hist.empty else None
+        except Exception:
+            price_cache[ticker] = None
+
+    series = price_cache.get(ticker)
+    if series is None or series.empty:
+        return None
+
+    target = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+    # Find the first trading day on or after target
+    for ts, price in series.items():
+        ts_date = ts.date() if hasattr(ts, "date") else ts
+        if ts_date >= target:
+            return round(float(price), 2)
+    return None
+
+
+def _fundamental_history_backtest(
+    tickers: Optional[list[str]] = None,
+    start_year: int = 2015,
+    score_threshold: float = 6.0,
+    holding_quarters: int = 4,
+    max_tickers: int = 20,
+) -> dict:
+    """
+    Simulate the agent's screener running at every quarter-end since start_year
+    using real historical fundamentals from FMP.
+
+    For each quarter where a ticker scores ≥ score_threshold:
+      - Record a simulated buy at that quarter's closing price
+      - Measure 1q / 2q / 4q forward returns vs S&P 500
+
+    Answers: "Would this screening approach have generated alpha historically?"
+    """
+    import os
+    fmp_key = os.environ.get("FMP_API_KEY")
+    if not fmp_key:
+        return {
+            "mode": "fundamental_history",
+            "error": "FMP_API_KEY not set. This mode requires Financial Modeling Prep API access.",
+        }
+
+    # Default universe: tickers from universe_scores DB + any passed in
+    db = _conn()
+    db_tickers = [r[0] for r in db.execute(
+        "SELECT ticker FROM universe_scores ORDER BY quality_score DESC LIMIT 50"
+    ).fetchall()]
+    db.close()
+
+    universe = list(dict.fromkeys((tickers or []) + db_tickers))[:max_tickers]
+    if not universe:
+        return {"mode": "fundamental_history", "error": "No tickers to backtest. Pass tickers or run screener first."}
+
+    import requests
+    FMP_BASE = "https://financialmodelingprep.com/api/v3"
+
+    def _fmp(path, **params):
+        params["apikey"] = fmp_key
+        try:
+            r = requests.get(f"{FMP_BASE}/{path}", params=params, timeout=15)
+            return r.json() if r.status_code == 200 else []
+        except Exception:
+            return []
+
+    price_cache: dict = {}
+    signals_by_quarter: list[dict] = []
+    tickers_processed = 0
+    tickers_skipped = 0
+
+    for ticker in universe:
+        inc_rows  = _fmp(f"income-statement/{ticker}",        period="quarter", limit=40)
+        bal_rows  = _fmp(f"balance-sheet-statement/{ticker}", period="quarter", limit=40)
+        cf_rows   = _fmp(f"cash-flow-statement/{ticker}",     period="quarter", limit=40)
+
+        if not inc_rows or len(inc_rows) < 5:
+            tickers_skipped += 1
+            continue
+
+        # Index by date for alignment
+        bal_map = {r["date"]: r for r in bal_rows}
+        cf_map  = {r["date"]: r for r in cf_rows}
+
+        # Newest first → reverse for chronological iteration
+        inc_chrono = list(reversed(inc_rows))
+
+        tickers_processed += 1
+
+        for idx, q_inc in enumerate(inc_chrono):
+            date_str = q_inc.get("date", "")
+            if not date_str or int(date_str[:4]) < start_year:
+                continue
+
+            q_bal = bal_map.get(date_str, {})
+            q_cf  = cf_map.get(date_str, {})
+            # Same quarter prior year for YoY growth
+            prev_inc = inc_chrono[idx - 4] if idx >= 4 else None
+
+            price = _get_price_on_date(ticker, date_str, price_cache)
+            if not price:
+                continue
+
+            score, signal_detail = _score_quarter(q_inc, q_bal, q_cf, prev_inc, price)
+            if score < score_threshold:
+                continue
+
+            # Measure forward returns at 1q (~63 days), 2q (~126 days), 4q (~252 days)
+            fwd_returns: dict = {}
+            spy_returns: dict = {}
+            for label, days in [("1q", 63), ("2q", 126), ("4q", 252)]:
+                fwd_date = (datetime.strptime(date_str[:10], "%Y-%m-%d") + timedelta(days=days)).strftime("%Y-%m-%d")
+                fwd_price = _get_price_on_date(ticker, fwd_date, price_cache)
+                if fwd_price:
+                    fwd_returns[label] = round((fwd_price / price - 1) * 100, 2)
+                spy_ret = _sp500_return(date_str[:10], fwd_date)
+                if spy_ret is not None:
+                    spy_returns[label] = spy_ret
+
+            vix   = _vix_on_date(date_str[:10])
+            regime = _classify_regime(vix)
+
+            signals_by_quarter.append({
+                "ticker":   ticker,
+                "date":     date_str[:10],
+                "price":    price,
+                "score":    score,
+                "signals":  signal_detail,
+                "regime":   regime,
+                "vix":      vix,
+                "fwd_returns":  fwd_returns,
+                "spy_returns":  spy_returns,
+                "alphas": {
+                    k: round(fwd_returns[k] - spy_returns.get(k, 0), 2)
+                    for k in fwd_returns
+                },
+            })
+
+    if not signals_by_quarter:
+        return {
+            "mode": "fundamental_history",
+            "tickers_processed": tickers_processed,
+            "tickers_skipped":   tickers_skipped,
+            "message": f"No buy signals generated above score threshold {score_threshold}. "
+                       "Try lowering score_threshold or adding more tickers.",
+        }
+
+    # ── Aggregate stats ──────────────────────────────────────────────────────
+
+    def _agg(subset: list, horizon: str = "4q") -> dict:
+        rets = [s["fwd_returns"].get(horizon) for s in subset if horizon in s["fwd_returns"]]
+        alps = [s["alphas"].get(horizon) for s in subset if horizon in s["alphas"]]
+        if not rets:
+            return {"signals": len(subset), "insufficient_data": True}
+        wins = sum(1 for r in rets if r > 0)
+        return {
+            "signals":        len(subset),
+            "win_rate_pct":   round(wins / len(rets) * 100, 1),
+            "avg_return_pct": round(sum(rets) / len(rets), 2),
+            "avg_alpha_pct":  round(sum(alps) / len(alps), 2) if alps else None,
+            "best_pct":       round(max(rets), 2),
+            "worst_pct":      round(min(rets), 2),
+        }
+
+    overall_1q = _agg(signals_by_quarter, "1q")
+    overall_2q = _agg(signals_by_quarter, "2q")
+    overall_4q = _agg(signals_by_quarter, "4q")
+
+    # By score bucket
+    high_score  = [s for s in signals_by_quarter if s["score"] >= 9]
+    med_score   = [s for s in signals_by_quarter if 6 <= s["score"] < 9]
+
+    # By regime
+    by_regime: dict[str, list] = {}
+    for s in signals_by_quarter:
+        by_regime.setdefault(s["regime"], []).append(s)
+    regime_breakdown = {k: _agg(v, "4q") for k, v in by_regime.items()}
+
+    # By ticker
+    by_ticker: dict[str, list] = {}
+    for s in signals_by_quarter:
+        by_ticker.setdefault(s["ticker"], []).append(s)
+    ticker_breakdown = {k: _agg(v, "4q") for k, v in by_ticker.items()}
+
+    # Best / worst individual signals (4q horizon)
+    ranked = sorted(
+        [s for s in signals_by_quarter if "4q" in s["fwd_returns"]],
+        key=lambda s: s["fwd_returns"]["4q"],
+    )
+    best_signals  = [{"ticker": s["ticker"], "date": s["date"], "score": s["score"],
+                      "return_4q_pct": s["fwd_returns"]["4q"], "alpha_4q_pct": s["alphas"].get("4q")}
+                     for s in ranked[-5:][::-1]]
+    worst_signals = [{"ticker": s["ticker"], "date": s["date"], "score": s["score"],
+                      "return_4q_pct": s["fwd_returns"]["4q"], "alpha_4q_pct": s["alphas"].get("4q")}
+                     for s in ranked[:5]]
+
+    avg_alpha_4q = overall_4q.get("avg_alpha_pct")
+    summary = (
+        f"Fundamental history backtest: {len(signals_by_quarter)} buy signals across "
+        f"{tickers_processed} tickers since {start_year} (score ≥ {score_threshold}). "
+        f"4-quarter forward return: avg {overall_4q.get('avg_return_pct', 'n/a')}%, "
+        f"win rate {overall_4q.get('win_rate_pct', 'n/a')}%, "
+        f"avg alpha vs SPY {avg_alpha_4q:+.1f}%." if avg_alpha_4q is not None
+        else f"Processed {tickers_processed} tickers."
+    )
+
+    return {
+        "mode": "fundamental_history",
+        "parameters": {
+            "start_year": start_year,
+            "score_threshold": score_threshold,
+            "holding_quarters": holding_quarters,
+            "tickers_processed": tickers_processed,
+            "tickers_skipped": tickers_skipped,
+            "total_signals": len(signals_by_quarter),
+        },
+        "overall": {
+            "1_quarter_hold": overall_1q,
+            "2_quarter_hold": overall_2q,
+            "4_quarter_hold": overall_4q,
+        },
+        "score_buckets": {
+            "high_score_gte_9": _agg(high_score,  "4q"),
+            "med_score_6_to_9": _agg(med_score,   "4q"),
+        },
+        "regime_breakdown": regime_breakdown,
+        "ticker_breakdown":  ticker_breakdown,
+        "best_signals":      best_signals,
+        "worst_signals":     worst_signals,
+        "summary":           summary,
+    }
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
-def run_backtest(mode: str, tickers: Optional[list[str]] = None, holding_days: int = 90) -> dict:
+def run_backtest(
+    mode: str,
+    tickers: Optional[list[str]] = None,
+    holding_days: int = 90,
+    start_year: int = 2015,
+    score_threshold: float = 6.0,
+    holding_quarters: int = 4,
+    max_tickers: int = 20,
+) -> dict:
     """
-    Run a backtest in one of three modes.
+    Run a backtest in one of four modes.
 
     Args:
-        mode: "trade_history" | "signal_cohorts" | "momentum"
-        tickers: required for mode="momentum"; ignored otherwise
-        holding_days: for mode="momentum", how far back the simulated entry was
-
-    Returns:
-        Structured backtest results dict.
+        mode: "trade_history" | "signal_cohorts" | "momentum" | "fundamental_history"
+        tickers: for mode="momentum" (required) or "fundamental_history" (optional)
+        holding_days: for mode="momentum"
+        start_year: for mode="fundamental_history" (default 2015)
+        score_threshold: for mode="fundamental_history" (default 6.0)
+        holding_quarters: for mode="fundamental_history" (default 4)
+        max_tickers: for mode="fundamental_history" (default 20, stays within FMP free tier)
     """
     if mode == "trade_history":
         return _trade_history_backtest()
@@ -573,5 +905,13 @@ def run_backtest(mode: str, tickers: Optional[list[str]] = None, holding_days: i
         if not tickers:
             return {"mode": "momentum", "error": "tickers list required for momentum mode"}
         return _momentum_backtest(tickers, holding_days=holding_days)
+    elif mode == "fundamental_history":
+        return _fundamental_history_backtest(
+            tickers=tickers,
+            start_year=start_year,
+            score_threshold=score_threshold,
+            holding_quarters=holding_quarters,
+            max_tickers=max_tickers,
+        )
     else:
-        return {"error": f"Unknown mode '{mode}'. Use: trade_history, signal_cohorts, or momentum"}
+        return {"error": f"Unknown mode '{mode}'. Use: trade_history, signal_cohorts, momentum, fundamental_history"}
