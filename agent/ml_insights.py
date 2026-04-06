@@ -1340,3 +1340,547 @@ def conviction_position_size(conviction_score: int, regime: str, portfolio_equit
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. IV Post-mortem Loop + KB Feedback
 # ══════════════════════════════════════════════════════════════════════════════
+
+
+def check_portfolio_correlation(ticker: str) -> dict:
+    """
+    Compute 1-year price correlation between a candidate stock and all current
+    portfolio holdings. Returns a warning + sizing guidance if the candidate is
+    highly correlated with existing positions.
+    """
+    try:
+        holdings = portfolio.get_holdings()
+        if not holdings:
+            return {"ticker": ticker, "warning": False, "message": "No existing holdings"}
+
+        held_tickers = [h["ticker"] for h in holdings]
+        all_tickers = list(dict.fromkeys([ticker] + held_tickers))  # deduplicate, preserve order
+
+        data = yf.download(all_tickers, period="1y", auto_adjust=True, progress=False)
+
+        # Handle MultiIndex columns (multiple tickers) vs single-level (one ticker)
+        if hasattr(data.columns, "levels"):
+            prices = data["Close"]
+        else:
+            prices = data
+
+        returns = prices.pct_change().dropna()
+
+        correlations = {}
+        candidate_col = ticker if ticker in returns.columns else None
+        if candidate_col is None:
+            return {"ticker": ticker, "warning": False, "error": "Candidate ticker not found in downloaded data"}
+
+        for t in held_tickers:
+            if t in returns.columns and t != ticker:
+                corr = returns[candidate_col].corr(returns[t])
+                if not np.isnan(corr):
+                    correlations[t] = round(float(corr), 3)
+
+        high_corr = {t: c for t, c in correlations.items() if abs(c) > 0.7}
+        avg_corr = float(np.mean(list(correlations.values()))) if correlations else 0.0
+        warning = bool(high_corr) or avg_corr > 0.6
+
+        if warning:
+            sizing_guidance = (
+                f"REDUCE to 0.5x normal size — portfolio correlation {avg_corr:.2f}, "
+                f"high pairs: {high_corr}"
+            )
+        else:
+            sizing_guidance = f"Correlation acceptable (avg={avg_corr:.2f}). Normal sizing."
+
+        return {
+            "ticker": ticker,
+            "warning": warning,
+            "correlations": correlations,
+            "high_correlation_pairs": high_corr,
+            "avg_portfolio_correlation": round(avg_corr, 3),
+            "sizing_guidance": sizing_guidance,
+        }
+    except Exception as e:
+        return {"ticker": ticker, "warning": False, "error": str(e)}
+
+
+def get_conviction_calibration() -> dict:
+    """
+    Analyse prediction accuracy grouped by conviction score bucket.
+
+    Uses prediction_tracking to answer: "Is conviction=8 actually more accurate
+    than conviction=6 in this portfolio?"
+
+    Returns calibration table + recommended sizing adjustments.
+    """
+    from agent.portfolio import _get_connection
+
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT conviction_score, outcome_return_pct, outcome_vs_spy_pct
+        FROM prediction_tracking
+        WHERE outcome_date IS NOT NULL
+          AND outcome_return_pct IS NOT NULL
+    """).fetchall()
+    conn.close()
+
+    rows = [dict(r) for r in rows]
+
+    if not rows:
+        return {
+            "available": False,
+            "calibration_status": "insufficient_data",
+            "buckets": {},
+            "sizing_guidance": "No reconciled predictions available yet.",
+            "note": "Call reconcile_predictions to populate outcome data.",
+        }
+
+    def _bucket(score):
+        if score is None:
+            return None
+        if score >= 9:
+            return "high_9_10"
+        elif score >= 7:
+            return "medium_7_8"
+        elif score >= 5:
+            return "low_5_6"
+        return None
+
+    groups = {}
+    for r in rows:
+        b = _bucket(r.get("conviction_score"))
+        if b:
+            groups.setdefault(b, []).append(r)
+
+    buckets = {}
+    for bucket_name, bucket_rows in groups.items():
+        if len(bucket_rows) < 3:
+            buckets[bucket_name] = {"count": len(bucket_rows), "note": "insufficient_data (<3)"}
+            continue
+        returns = [float(r["outcome_return_pct"]) for r in bucket_rows]
+        alphas = [float(r["outcome_vs_spy_pct"]) for r in bucket_rows if r.get("outcome_vs_spy_pct") is not None]
+        avg_return = round(sum(returns) / len(returns), 2)
+        win_rate = round(sum(1 for x in returns if x > 0) / len(returns) * 100, 1)
+        avg_alpha = round(sum(alphas) / len(alphas), 2) if alphas else None
+        buckets[bucket_name] = {
+            "count": len(bucket_rows),
+            "avg_return": avg_return,
+            "win_rate": win_rate,
+            "avg_alpha": avg_alpha,
+        }
+
+    # Determine calibration status
+    high = buckets.get("high_9_10", {})
+    medium = buckets.get("medium_7_8", {})
+    low = buckets.get("low_5_6", {})
+
+    h_return = high.get("avg_return")
+    m_return = medium.get("avg_return")
+    l_return = low.get("avg_return")
+
+    any_insufficient = any(
+        b.get("note") == "insufficient_data (<3)"
+        for b in [high, medium, low]
+        if b
+    ) or len(groups) < 2
+
+    if any_insufficient or (h_return is None and m_return is None):
+        calibration_status = "insufficient_data"
+        sizing_guidance = "Need ≥3 predictions per bucket to assess calibration."
+    elif h_return is not None and m_return is not None and h_return > m_return:
+        if l_return is None or m_return > l_return:
+            calibration_status = "well_calibrated"
+        else:
+            calibration_status = "well_calibrated"
+        h_wr = high.get("win_rate", 0)
+        h_avg = h_return
+        sizing_guidance = (
+            f"conviction_9+ historically delivers {h_avg:.1f}% avg return with "
+            f"{h_wr:.0f}% win rate — full sizing appropriate"
+        )
+    elif h_return is not None and m_return is not None and h_return < m_return:
+        calibration_status = "miscalibrated_high"
+        sizing_guidance = (
+            "High conviction (9-10) has underperformed medium conviction (7-8) historically. "
+            "Consider capping position size at 0.85x base for conviction 9-10 until recalibrated."
+        )
+    else:
+        calibration_status = "insufficient_data"
+        sizing_guidance = "Insufficient cross-bucket data to assess calibration."
+
+    note = (
+        "Calibration status: "
+        + ("conviction correctly ranks returns — sizing multipliers are well-grounded." if calibration_status == "well_calibrated"
+           else "high conviction overestimates returns — review whether 9+ scores are being assigned too liberally." if calibration_status == "miscalibrated_high"
+           else "more reconciled data needed before drawing conclusions.")
+    )
+
+    return {
+        "available": True,
+        "buckets": buckets,
+        "calibration_status": calibration_status,
+        "sizing_guidance": sizing_guidance,
+        "note": note,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 7. Market-level MoS Context
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def get_market_iv_context() -> dict:
+    """
+    Aggregate recent research cache to quantify market-level valuation.
+
+    Answers: "What % of the researched universe currently offers ≥20% MoS?"
+    High % = cheap market, easier to find opportunities.
+    Low % = expensive market, require higher quality bar.
+
+    Returns market valuation signal + sector breakdown.
+    """
+    import json as _json
+    from datetime import datetime, timedelta
+    from agent.portfolio import _get_connection
+
+    cutoff = (datetime.utcnow() - timedelta(days=90)).isoformat()
+
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT rc.ticker, rc.report_json, rc.recommendation, rc.conviction_score,
+               us.sector
+        FROM research_cache rc
+        LEFT JOIN universe_scores us ON us.ticker = rc.ticker
+        WHERE rc.researched_at >= ?
+    """, (cutoff,)).fetchall()
+    conn.close()
+
+    rows = [dict(r) for r in rows]
+
+    if not rows:
+        return {
+            "available": False,
+            "message": "No research cache entries in the last 90 days.",
+            "market_signal": "unknown",
+        }
+
+    mos_values = []
+    at_mos_count = 0
+    sector_data = {}
+
+    for r in rows:
+        mos = None
+        try:
+            report = _json.loads(r["report_json"]) if r["report_json"] else {}
+            # Try valuation_inputs first, then top-level
+            vi = report.get("valuation_inputs", {})
+            mos = (
+                vi.get("margin_of_safety_pct")
+                or vi.get("margin_of_safety")
+                or report.get("margin_of_safety_pct")
+                or report.get("margin_of_safety")
+            )
+            if mos is None:
+                # Try intrinsic_value section
+                iv_section = report.get("intrinsic_value", {})
+                mos = iv_section.get("margin_of_safety_pct") or iv_section.get("margin_of_safety")
+        except Exception:
+            pass
+
+        if mos is not None:
+            try:
+                mos = float(mos)
+            except (TypeError, ValueError):
+                mos = None
+
+        if mos is not None:
+            mos_values.append(mos)
+            at_mos = mos >= 20
+            if at_mos:
+                at_mos_count += 1
+
+            sec = r.get("sector") or "Unknown"
+            sector_data.setdefault(sec, {"total": 0, "at_mos": 0})
+            sector_data[sec]["total"] += 1
+            if at_mos:
+                sector_data[sec]["at_mos"] += 1
+
+    total_researched = len(rows)
+
+    if not mos_values:
+        return {
+            "available": True,
+            "total_researched": total_researched,
+            "mos_data_available": 0,
+            "message": "Research cache found but no MoS data extractable from reports.",
+            "market_signal": "unknown",
+        }
+
+    mos_data_count = len(mos_values)
+    at_mos_pct = round(at_mos_count / mos_data_count * 100, 1)
+    avg_mos = round(sum(mos_values) / len(mos_values), 1)
+
+    if at_mos_pct > 40:
+        market_signal = "cheap"
+    elif at_mos_pct >= 20:
+        market_signal = "fair"
+    else:
+        market_signal = "expensive"
+
+    sector_breakdown = {}
+    for sec, d in sector_data.items():
+        pct = round(d["at_mos"] / d["total"] * 100, 1) if d["total"] > 0 else 0
+        sector_breakdown[sec] = {
+            "total": d["total"],
+            "at_mos": d["at_mos"],
+            "pct_at_mos": pct,
+        }
+
+    return {
+        "available": True,
+        "total_researched": total_researched,
+        "mos_data_available": mos_data_count,
+        "at_mos_count": at_mos_count,
+        "at_mos_pct": at_mos_pct,
+        "avg_mos_pct": avg_mos,
+        "market_signal": market_signal,
+        "sector_breakdown": sector_breakdown,
+        "interpretation": (
+            f"{at_mos_pct:.0f}% of recently researched stocks offer ≥20% margin of safety. "
+            f"Market appears {market_signal}. "
+            + ("High availability of opportunities — be selective but active." if market_signal == "cheap"
+               else "Moderate opportunity set — apply strict moat and quality filters." if market_signal == "fair"
+               else "Few stocks at required margin of safety — raise the quality bar; prefer cash over stretching valuation.")
+        ),
+    }
+
+
+def get_sector_rotation_signal() -> dict:
+    """
+    Detect sector availability bias and portfolio tilt vs. opportunity set.
+    Compares: (1) portfolio sector weights, (2) recently researched sector distribution,
+    (3) full universe sector distribution.
+    """
+    import sqlite3
+    conn = portfolio._get_connection()
+
+    # Portfolio sector weights (use cost basis as proxy for weight)
+    holdings = portfolio.get_holdings()
+    cash = portfolio.get_cash()
+    portfolio_sector_mv: dict = {}
+    total_portfolio_cost = cash
+    for h in holdings:
+        row = conn.execute("SELECT sector FROM universe_scores WHERE ticker=?", (h["ticker"],)).fetchone()
+        sector = row["sector"] if row and row["sector"] else "Unknown"
+        cost = h["shares"] * h["avg_cost"]
+        portfolio_sector_mv[sector] = portfolio_sector_mv.get(sector, 0) + cost
+        total_portfolio_cost += cost
+
+    portfolio_weights = {
+        s: round(v / total_portfolio_cost * 100, 1)
+        for s, v in portfolio_sector_mv.items()
+    } if total_portfolio_cost > 0 else {}
+
+    # Recently researched sector distribution (last 60 days)
+    cache_rows = conn.execute("""
+        SELECT rc.ticker, us.sector
+        FROM research_cache rc
+        LEFT JOIN universe_scores us ON rc.ticker = us.ticker
+        WHERE rc.researched_at > datetime('now', '-60 days')
+    """).fetchall()
+    researched_by_sector: dict = {}
+    for r in cache_rows:
+        s = r["sector"] or "Unknown"
+        researched_by_sector[s] = researched_by_sector.get(s, 0) + 1
+    total_researched = sum(researched_by_sector.values()) or 1
+    researched_weights = {s: round(c / total_researched * 100, 1) for s, c in researched_by_sector.items()}
+
+    # Universe sector distribution
+    universe_rows = conn.execute(
+        "SELECT sector, COUNT(*) as cnt FROM universe_scores WHERE sector IS NOT NULL GROUP BY sector"
+    ).fetchall()
+    conn.close()
+    total_universe = sum(r["cnt"] for r in universe_rows) or 1
+    universe_weights = {r["sector"]: round(r["cnt"] / total_universe * 100, 1) for r in universe_rows}
+
+    # Availability bias: sectors researched significantly more/less than universe weight
+    availability_bias = []
+    for s, rw in researched_weights.items():
+        uw = universe_weights.get(s, 0)
+        if uw > 0:
+            tilt = rw - uw
+            if abs(tilt) > 10:
+                availability_bias.append({
+                    "sector": s,
+                    "researched_pct": rw,
+                    "universe_pct": uw,
+                    "tilt": round(tilt, 1),
+                    "signal": "over-researching" if tilt > 0 else "under-researching",
+                })
+
+    # Portfolio tilt vs. opportunity set
+    portfolio_tilts = []
+    for s, pw in portfolio_weights.items():
+        rw = researched_weights.get(s, 0)
+        tilt = pw - rw
+        if abs(tilt) > 15:
+            portfolio_tilts.append({
+                "sector": s,
+                "portfolio_pct": pw,
+                "opportunity_set_pct": rw,
+                "tilt": round(tilt, 1),
+                "signal": "portfolio overweight vs opportunity set" if tilt > 0 else "portfolio underweight vs opportunity set",
+            })
+
+    bias_summary = (
+        f"Availability bias in: {', '.join(f['sector'] + ' (' + ('+' if f['tilt'] > 0 else '') + str(f['tilt']) + '%)' for f in availability_bias)}"
+        if availability_bias else "No significant availability bias detected."
+    )
+
+    return {
+        "portfolio_sector_weights": portfolio_weights,
+        "researched_sector_distribution": researched_weights,
+        "universe_sector_distribution": universe_weights,
+        "availability_bias_flags": availability_bias,
+        "portfolio_tilt_flags": portfolio_tilts,
+        "total_stocks_researched_60d": total_researched,
+        "summary": bias_summary,
+    }
+
+
+def run_iv_postmortem() -> dict:
+    """
+    Analyse past IV predictions vs actual outcomes. Save calibration insights to KB.
+
+    For each reconciled prediction (has outcome_price + predicted_iv):
+    - Compute iv_accuracy_pct = (outcome_price / predicted_iv - 1) * 100
+      positive = IV was too conservative (stock exceeded estimate)
+      negative = IV was too high (stock never reached estimate)
+    - Group by conviction bucket and by sector (via universe_scores join)
+    - Save KB notes: per-bucket calibration, per-sector bias patterns
+    - Return summary dict
+    """
+    from agent.portfolio import DB_PATH, _get_connection
+    from agent.knowledge_base import save_kb_note
+
+    conn = _get_connection()
+    rows = conn.execute("""
+        SELECT pt.ticker, pt.conviction_score, pt.predicted_iv, pt.outcome_price,
+               pt.outcome_return_pct, us.sector
+        FROM prediction_tracking pt
+        LEFT JOIN universe_scores us ON us.ticker = pt.ticker
+        WHERE pt.outcome_date IS NOT NULL
+          AND pt.predicted_iv IS NOT NULL
+          AND pt.predicted_iv > 0
+          AND pt.outcome_price IS NOT NULL
+    """).fetchall()
+    conn.close()
+
+    rows = [dict(r) for r in rows]
+
+    if len(rows) < 3:
+        return {
+            "available": False,
+            "message": "Insufficient data — need ≥3 reconciled predictions with IV estimates",
+        }
+
+    # Compute iv_accuracy_pct for each row
+    for r in rows:
+        r["iv_accuracy_pct"] = (r["outcome_price"] / r["predicted_iv"] - 1) * 100
+
+    total_analysed = len(rows)
+
+    # Group by conviction bucket
+    def _bucket(score):
+        if score is None:
+            return None
+        if score >= 9:
+            return "9-10"
+        elif score >= 7:
+            return "7-8"
+        elif score >= 5:
+            return "5-6"
+        return None
+
+    conviction_groups = {}
+    for r in rows:
+        b = _bucket(r.get("conviction_score"))
+        if b:
+            conviction_groups.setdefault(b, []).append(r["iv_accuracy_pct"])
+
+    conviction_calibration = {}
+    kb_notes_saved = 0
+    insights = []
+
+    for bucket, accuracies in conviction_groups.items():
+        avg = round(sum(accuracies) / len(accuracies), 2)
+        std = round(float(np.std(accuracies)), 2) if len(accuracies) > 1 else None
+        count = len(accuracies)
+        conviction_calibration[bucket] = {"avg_iv_accuracy_pct": avg, "std": std, "count": count}
+        if count >= 3:
+            direction = "underestimating" if avg > 0 else "overestimating"
+            insight = (
+                f"Conviction {bucket}: {direction} IV by {abs(avg):.1f}% on average "
+                f"(n={count}, std={std}). "
+                + ("Stock typically exceeds IV estimate." if avg > 0
+                   else "Stock typically falls short of IV estimate.")
+            )
+            insights.append(insight)
+            save_kb_note(
+                topic="iv_methodology",
+                title=f"IV calibration: conviction {bucket}",
+                content=(
+                    f"Historical IV accuracy for conviction bucket {bucket}: avg_iv_accuracy_pct={avg}%, "
+                    f"std={std}%, n={count}. "
+                    f"Interpretation: when conviction is {bucket}, the IV estimate is typically "
+                    f"{direction} actual outcome by {abs(avg):.1f}%. "
+                    f"Consider {'raising' if avg > 5 else 'lowering' if avg < -5 else 'keeping'} "
+                    f"IV estimates for this conviction range."
+                ),
+                tags=["conviction", "calibration", "postmortem"],
+            )
+            kb_notes_saved += 1
+
+    # Group by sector (only sectors with ≥3 data points)
+    sector_groups = {}
+    for r in rows:
+        sec = r.get("sector")
+        if sec:
+            sector_groups.setdefault(sec, []).append(r["iv_accuracy_pct"])
+
+    sector_calibration = {}
+    for sector, accuracies in sector_groups.items():
+        count = len(accuracies)
+        if count < 3:
+            continue
+        avg = round(sum(accuracies) / len(accuracies), 2)
+        sector_calibration[sector] = {"avg_iv_accuracy_pct": avg, "count": count}
+        direction = "underestimating" if avg > 0 else "overestimating"
+        insight = (
+            f"{sector}: {direction} IV by {abs(avg):.1f}% on average (n={count})"
+        )
+        insights.append(insight)
+        save_kb_note(
+            topic="iv_methodology",
+            title=f"IV calibration: {sector} sector",
+            content=(
+                f"Historical IV accuracy for {sector} sector: avg_iv_accuracy_pct={avg}%, n={count}. "
+                f"Interpretation: IV estimates for {sector} stocks are typically "
+                f"{direction} actual outcome by {abs(avg):.1f}%. "
+                f"Consider {'adding a premium to' if avg > 5 else 'applying a haircut to' if avg < -5 else 'no adjustment needed for'} "
+                f"IV estimates in this sector."
+            ),
+            tags=[sector, "calibration", "postmortem"],
+        )
+        kb_notes_saved += 1
+
+    return {
+        "available": True,
+        "total_analysed": total_analysed,
+        "conviction_calibration": conviction_calibration,
+        "sector_calibration": sector_calibration,
+        "insights": insights,
+        "kb_notes_saved": kb_notes_saved,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 6. Conviction Calibration from Prediction History
+# ══════════════════════════════════════════════════════════════════════════════

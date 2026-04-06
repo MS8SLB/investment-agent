@@ -1750,3 +1750,36 @@ def get_session_efficiency_history(limit: int = 10) -> list:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+
+def get_watchlist_accuracy() -> dict:
+    """
+    Analyse historical watchlist trigger accuracy.
+    For each TRIGGERED event, check if a subsequent BOUGHT event exists.
+    Returns hit rate, avg pct vs target at trigger, and per-ticker history.
+    """
+    conn = _get_connection()
+    rows = conn.execute(
+        """SELECT ticker, event_type, price, target_price, pct_vs_target, recorded_at
+           FROM watchlist_history ORDER BY ticker, recorded_at"""
+    ).fetchall()
+    conn.close()
+    events = [dict(r) for r in rows]
+
+    triggered = [e for e in events if e["event_type"] == "TRIGGERED"]
+    bought    = {e["ticker"] for e in events if e["event_type"] == "BOUGHT"}
+
+    converted = [t for t in triggered if t["ticker"] in bought]
+    hit_rate  = round(len(converted) / len(triggered) * 100, 1) if triggered else None
+
+    return {
+        "total_triggers": len(triggered),
+        "converted_to_buy": len(converted),
+        "hit_rate_pct": hit_rate,
+        "triggered_items": triggered,
+        "note": (
+            "hit_rate_pct = % of TRIGGERED events that led to a buy. "
+            "Low hit rate means target prices are consistently missed or too conservative."
+        ),
+    }

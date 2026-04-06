@@ -3161,3 +3161,518 @@ def check_dividend_payments(holdings: list) -> list:
             if r:
                 results.append(r)
     return sorted(results, key=lambda x: x["estimated_annual_income"], reverse=True)
+
+
+def _get_normalized_metrics(ticker: str) -> dict:
+    """
+    Fetch 3-year average FCF, profit margin, and ROE to reduce point-in-time distortions.
+    Returns dict with normalized_fcf, normalized_margin, normalized_roe, years_averaged.
+    Falls back to None values if insufficient history.
+    """
+    try:
+        tk = yf.Ticker(ticker)
+        cf = tk.cash_flow  # columns = annual periods, rows = line items
+        inc = tk.income_stmt
+
+        result = {"normalized_fcf": None, "normalized_margin": None, "normalized_roe": None, "years_averaged": 0}
+
+        # FCF = Operating Cash Flow - CapEx
+        fcf_values = []
+        if cf is not None and not cf.empty:
+            # Look for operating cash flow row
+            ocf_rows = [r for r in cf.index if "Operating" in str(r) and "Cash" in str(r)]
+            capex_rows = [r for r in cf.index if "Capital" in str(r) and ("Expenditure" in str(r) or "Expenditures" in str(r))]
+            if ocf_rows:
+                ocf_series = cf.loc[ocf_rows[0]].dropna()
+                capex_series = cf.loc[capex_rows[0]].dropna() if capex_rows else None
+                for col in list(ocf_series.index)[:4]:  # up to 4 years
+                    ocf = ocf_series.get(col)
+                    capex = capex_series.get(col, 0) if capex_series is not None else 0
+                    if ocf is not None and not (isinstance(ocf, float) and (ocf != ocf)):
+                        fcf = float(ocf) - abs(float(capex or 0))
+                        if abs(fcf) > 0:
+                            fcf_values.append(fcf)
+
+        # Profit margin = Net Income / Revenue
+        margin_values = []
+        if inc is not None and not inc.empty:
+            ni_rows = [r for r in inc.index if "Net Income" in str(r) and "Common" not in str(r)]
+            rev_rows = [r for r in inc.index if "Total Revenue" in str(r) or r == "Revenue"]
+            if ni_rows and rev_rows:
+                ni_series = inc.loc[ni_rows[0]].dropna()
+                rev_series = inc.loc[rev_rows[0]].dropna()
+                for col in list(ni_series.index)[:4]:
+                    ni = ni_series.get(col)
+                    rev = rev_series.get(col)
+                    if ni and rev and float(rev) > 0:
+                        margin_values.append(float(ni) / float(rev))
+
+        years = min(len(fcf_values), 4)
+        if fcf_values:
+            result["normalized_fcf"] = sum(fcf_values[:3]) / min(len(fcf_values), 3)
+        if margin_values:
+            result["normalized_margin"] = sum(margin_values[:3]) / min(len(margin_values), 3)
+        result["years_averaged"] = years
+        return result
+    except Exception:
+        return {"normalized_fcf": None, "normalized_margin": None, "normalized_roe": None, "years_averaged": 0}
+
+
+def detect_financial_anomalies(ticker: str, screener_data: dict = None) -> dict:
+    """
+    Detect statistical anomalies in a company's financial ratios.
+
+    Computes z-scores for key metrics vs:
+    (a) The company's own 5-year historical average (temporal z-score)
+    (b) Sector peers from the universe_scores table (cross-sectional z-score)
+
+    Returns flagged anomalies with direction and interpretation.
+    Positive outliers (z > +2): potential peak earnings trap
+    Negative outliers (z < -2): potential temporary dislocation / opportunity
+    """
+    import numpy as np
+    import yfinance as yf
+    from agent.portfolio import _get_connection
+
+    ticker = ticker.upper()
+    anomalies = []
+    sector_anomalies = []
+
+    # ── Fetch yfinance annual financials ──────────────────────────────────────
+    try:
+        t = yf.Ticker(ticker)
+        fin = t.financials          # income statement, columns = years
+        bs = t.balance_sheet
+        cf = t.cashflow
+    except Exception as e:
+        return {
+            "ticker": ticker,
+            "anomalies": [],
+            "sector_anomalies": [],
+            "overall_flag": "clean",
+            "summary": f"Could not fetch financial data: {e}",
+        }
+
+    def _series(df, *keys):
+        """Try multiple row labels; return the first found as a list (newest first)."""
+        if df is None or df.empty:
+            return []
+        for key in keys:
+            try:
+                row = df.loc[key]
+                vals = [float(v) for v in row.values if v is not None and str(v) != "nan"]
+                if vals:
+                    return vals
+            except (KeyError, TypeError):
+                continue
+        return []
+
+    # Revenue
+    rev = _series(fin, "Total Revenue", "Revenue")
+    # Gross profit
+    gross = _series(fin, "Gross Profit")
+    # Net income
+    net = _series(fin, "Net Income", "Net Income Common Stockholders")
+    # Free cash flow (operating CF - capex)
+    opcf = _series(cf, "Operating Cash Flow", "Total Cash From Operating Activities")
+    capex = _series(cf, "Capital Expenditure", "Capital Expenditures")
+
+    def _pct_list(numerator, denominator):
+        """Compute numerator/denominator pct for each year (aligned)."""
+        results = []
+        for n, d in zip(numerator, denominator):
+            if d and abs(d) > 1:
+                results.append(n / d * 100)
+        return results
+
+    def _growth_list(vals):
+        """Compute YoY growth % from a list (newest first)."""
+        results = []
+        for i in range(len(vals) - 1):
+            if vals[i + 1] and abs(vals[i + 1]) > 1:
+                results.append((vals[i] - vals[i + 1]) / abs(vals[i + 1]) * 100)
+        return results
+
+    # Compute FCF
+    fcf = []
+    for o, c in zip(opcf, capex):
+        # capex is typically negative in yfinance
+        fcf.append(o + c if c < 0 else o - c)
+
+    gross_margin = _pct_list(gross, rev)
+    fcf_margin = _pct_list(fcf, rev)
+    fcf_conversion = _pct_list(fcf, net) if net else []
+    rev_growth = _growth_list(rev)
+
+    metric_series = {
+        "gross_margin_pct": gross_margin,
+        "fcf_margin_pct": fcf_margin,
+        "fcf_conversion": fcf_conversion,
+        "revenue_growth_pct": rev_growth,
+    }
+
+    interpretations = {
+        "gross_margin_pct": {
+            "above": "Gross margin at 5-year high — potential peak earnings trap, normalise before DCF",
+            "below": "Gross margin at 5-year low — temporary compression or structural deterioration?",
+        },
+        "fcf_margin_pct": {
+            "above": "FCF margin well above historical norm — check for working capital release or one-time items",
+            "below": "FCF margin below historical norm — potential structural FCF deterioration",
+        },
+        "fcf_conversion": {
+            "above": "FCF conversion well above historical norm — check for working capital harvest or deferred capex",
+            "below": "FCF conversion below historical norm — earnings quality concern; check accruals",
+        },
+        "revenue_growth_pct": {
+            "above": "Revenue growth at multi-year high — verify sustainability; mean-reversion risk in DCF",
+            "below": "Revenue growth at multi-year low — cyclical trough or fundamental slowdown?",
+        },
+    }
+
+    for metric, series in metric_series.items():
+        if len(series) < 3:
+            continue
+        current = series[0]
+        historical = series[1:]  # exclude current
+        mean = float(np.mean(historical))
+        std = float(np.std(historical))
+        if std < 0.01:
+            continue
+        z = (current - mean) / std
+
+        if abs(z) < 1.5:
+            continue
+
+        severity = "significant" if abs(z) >= 2.0 else "notable"
+        direction = "above_norm" if z > 0 else "below_norm"
+        interp_key = "above" if z > 0 else "below"
+        interpretation = interpretations.get(metric, {}).get(interp_key, "")
+
+        anomalies.append({
+            "metric": metric,
+            "current_value": round(current, 2),
+            "5yr_mean": round(mean, 2),
+            "temporal_z": round(z, 2),
+            "severity": severity,
+            "direction": direction,
+            "interpretation": interpretation,
+        })
+
+    # ── Cross-sectional z-score vs sector peers ───────────────────────────────
+    try:
+        conn = _get_connection()
+        sector_row = conn.execute(
+            "SELECT sector FROM universe_scores WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        sector = sector_row["sector"] if sector_row else None
+
+        if sector:
+            peer_rows = conn.execute("""
+                SELECT ticker, profit_margin, revenue_growth, roe
+                FROM universe_scores
+                WHERE sector = ? AND ticker != ?
+                LIMIT 50
+            """, (sector, ticker)).fetchall()
+            peers = [dict(r) for r in peer_rows]
+        else:
+            peers = []
+        conn.close()
+    except Exception:
+        peers = []
+        sector = None
+
+    if len(peers) >= 5 and screener_data:
+        peer_metrics = {
+            "profit_margin": [p["profit_margin"] for p in peers if p.get("profit_margin") is not None],
+            "revenue_growth": [p["revenue_growth"] for p in peers if p.get("revenue_growth") is not None],
+            "roe": [p["roe"] for p in peers if p.get("roe") is not None],
+        }
+        stock_metrics = {
+            "profit_margin": screener_data.get("profit_margin_pct"),
+            "revenue_growth": screener_data.get("revenue_growth_pct"),
+            "roe": screener_data.get("roe_pct"),
+        }
+        for metric, peer_vals in peer_metrics.items():
+            if len(peer_vals) < 5:
+                continue
+            stock_val = stock_metrics.get(metric)
+            if stock_val is None:
+                continue
+            mean = float(np.mean(peer_vals))
+            std = float(np.std(peer_vals))
+            if std < 0.01:
+                continue
+            z = (stock_val - mean) / std
+            if abs(z) < 1.5:
+                continue
+            severity = "significant" if abs(z) >= 2.0 else "notable"
+            direction = "above_norm" if z > 0 else "below_norm"
+            sector_anomalies.append({
+                "metric": metric,
+                "stock_value": round(stock_val, 2),
+                "sector_mean": round(mean, 2),
+                "cross_sectional_z": round(z, 2),
+                "severity": severity,
+                "direction": direction,
+                "n_peers": len(peer_vals),
+                "interpretation": (
+                    f"{metric} is {'well above' if z > 0 else 'well below'} {sector} sector average "
+                    f"(z={z:.1f}, n={len(peer_vals)} peers)"
+                ),
+            })
+
+    # Overall flag
+    significant_count = sum(1 for a in anomalies if a["severity"] == "significant")
+    significant_count += sum(1 for a in sector_anomalies if a["severity"] == "significant")
+
+    if significant_count >= 2:
+        overall_flag = "flagged"
+    elif anomalies or sector_anomalies:
+        overall_flag = "watch"
+    else:
+        overall_flag = "clean"
+
+    notable_items = [a["interpretation"] for a in anomalies if a["interpretation"]]
+    summary = (
+        f"Found {len(anomalies)} temporal and {len(sector_anomalies)} cross-sectional anomalies. "
+        + (f"Key flags: {'; '.join(notable_items[:3])}" if notable_items else "No material anomalies detected.")
+    )
+
+    return {
+        "ticker": ticker,
+        "anomalies": anomalies,
+        "sector_anomalies": sector_anomalies,
+        "overall_flag": overall_flag,
+        "summary": summary,
+    }
+
+
+def get_fresh_valuation(candidates: list[dict]) -> list[dict]:
+    """
+    Enrich a list of quality-scored candidates with fresh price-driven metrics.
+    Fetches: FCF yield, PEG ratio, forward PE, and 52-week momentum.
+    Returns the same list with valuation_score added and candidates re-ranked
+    by combined (quality + valuation) score.
+
+    Valuation factors (max score = 9):
+      +3  peg < 1.0
+      +2  peg < 1.5  (or pe 5-20)
+      +1  peg < 2.5  (or pe < 30)
+      +1  forward_pe < trailing_pe * 0.9
+      +2  fcf_yield > 5%
+      +1  fcf_yield > 2%
+      +2  relative_momentum > 10%
+      +1  relative_momentum > 0%
+      -1  relative_momentum < -20%
+    """
+    ticker_to_candidate = {c["ticker"]: c for c in candidates}
+
+    def _val(ticker: str) -> Optional[dict]:
+        try:
+            info = yf.Ticker(ticker).info
+            price = (
+                info.get("currentPrice")
+                or info.get("regularMarketPrice")
+                or info.get("previousClose")
+            )
+            if not price:
+                return None
+
+            pe          = info.get("trailingPE")
+            forward_pe  = info.get("forwardPE")
+            peg         = info.get("pegRatio")
+            market_cap  = info.get("marketCap") or 0
+            fcf         = info.get("freeCashflow")
+            w52         = info.get("52WeekChange")
+            sp52        = info.get("SandP52WeekChange")
+
+            fcf_yield = (fcf / market_cap) if (fcf and market_cap > 0) else None
+            rel_mom   = (w52 - sp52) if (w52 is not None and sp52 is not None) else None
+
+            score = 0.0
+            if peg is not None and peg > 0:
+                if peg < 1.0:   score += 3
+                elif peg < 1.5: score += 2
+                elif peg < 2.5: score += 1
+            elif pe:
+                if 5 < pe < 20: score += 2
+                elif pe < 30:   score += 1
+            if forward_pe and pe and forward_pe < pe * 0.9:
+                score += 1
+            if fcf_yield is not None:
+                if fcf_yield > 0.05: score += 2
+                elif fcf_yield > 0.02: score += 1
+            if rel_mom is not None:
+                if rel_mom > 0.10:   score += 2
+                elif rel_mom > 0:    score += 1
+                elif rel_mom < -0.20: score -= 1
+            elif w52 is not None and w52 > 0.15:
+                score += 1
+
+            return {
+                "ticker":           ticker,
+                "price":            price,
+                "peg_ratio":        round(peg, 2)              if peg is not None else None,
+                "pe_ratio":         round(pe, 1)               if pe else None,
+                "forward_pe":       round(forward_pe, 1)       if forward_pe else None,
+                "fcf_yield_pct":    round(fcf_yield * 100, 1)  if fcf_yield is not None else None,
+                "week52_return_pct":  round(w52 * 100, 1)      if w52 is not None else None,
+                "relative_momentum_pct": round(rel_mom * 100, 1) if rel_mom is not None else None,
+                "valuation_score":  score,
+            }
+        except Exception:
+            return None
+
+    val_results = {}
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(_val, c["ticker"]): c["ticker"] for c in candidates}
+        for future in as_completed(futures):
+            res = future.result()
+            if res:
+                val_results[res["ticker"]] = res
+
+    enriched = []
+    for c in candidates:
+        ticker = c["ticker"]
+        val = val_results.get(ticker, {})
+        combined = dict(c)
+        combined.update(val)
+        combined["valuation_score"] = val.get("valuation_score", 0.0)
+        combined["combined_score"]  = c["quality_score"] + combined["valuation_score"]
+        enriched.append(combined)
+
+    enriched.sort(key=lambda x: x["combined_score"], reverse=True)
+    return enriched
+
+
+def quick_moat_check(ticker: str, screener_data: dict = None) -> dict:
+    """
+    Quick moat signal check before committing to full research.
+    Uses already-fetched screener_data if available, otherwise fetches minimal info.
+    Returns: {has_moat_signal: bool, signals: list[str], confidence: str}
+    """
+    import yfinance as yf
+
+    signals = []
+
+    # Use screener_data if available (free — already fetched)
+    data = screener_data or {}
+
+    profit_margin = data.get("profit_margin_pct")
+    roe = data.get("roe_pct")
+    revenue_growth = data.get("revenue_growth_pct")
+    gross_margin = None
+
+    # Fetch minimal extra data if needed
+    if not data:
+        try:
+            info = yf.Ticker(ticker).info
+            profit_margin = (info.get("profitMargins") or 0) * 100
+            roe = (info.get("returnOnEquity") or 0) * 100
+            revenue_growth = (info.get("revenueGrowth") or 0) * 100
+            gross_margin = (info.get("grossMargins") or 0) * 100
+        except Exception:
+            pass
+
+    # Moat signals
+    if profit_margin and profit_margin > 15:
+        signals.append(f"High profit margin {profit_margin:.1f}% → pricing power signal")
+    if roe and roe > 20:
+        signals.append(f"High ROE {roe:.1f}% → capital efficiency / competitive advantage")
+    if revenue_growth and revenue_growth > 10:
+        signals.append(f"Strong revenue growth {revenue_growth:.1f}% → market position")
+    if gross_margin and gross_margin > 60:
+        signals.append(f"High gross margin {gross_margin:.1f}% → software/brand moat signal")
+
+    # Score from screener
+    score = data.get("score", 0)
+    if score and score >= 6:
+        signals.append(f"Quality screen score {score}/10")
+
+    has_moat = len(signals) >= 2
+    confidence = "HIGH" if len(signals) >= 3 else "MEDIUM" if len(signals) >= 2 else "LOW"
+
+    return {
+        "has_moat_signal": has_moat,
+        "signals": signals,
+        "confidence": confidence,
+        "signal_count": len(signals),
+    }
+
+
+def score_quality_universe(us_tickers: list[str], intl_tickers: list[str]) -> list[dict]:
+    """
+    Score all tickers on stable quality factors only (no price-dependent metrics).
+    Designed to be run infrequently (quarterly) and cached.
+
+    Quality factors (max score = 8):
+      +2  revenue_growth > 8%   (growing business)
+      +1  revenue_growth > 20%  (high-growth bonus)
+      +2  profit_margin > 10%   (pricing power / moat)
+      +2  roe > 15%             (efficient capital deployment)
+      +1  debt_to_equity < 1.0  (financial resilience)
+    """
+    intl_set = set(intl_tickers)
+    all_tickers = us_tickers + intl_tickers
+
+    def _score(ticker: str) -> Optional[dict]:
+        try:
+            info = yf.Ticker(ticker).info
+            # Skip tickers with no meaningful data
+            if not (info.get("longName") or info.get("shortName")):
+                return None
+
+            revenue_growth  = info.get("revenueGrowth")
+            profit_margin   = info.get("profitMargins")
+            roe             = info.get("returnOnEquity")
+            debt_to_equity  = info.get("debtToEquity")
+            market_cap      = info.get("marketCap") or 0
+
+            # Require at least two quality signals to be present
+            signals_present = sum([
+                revenue_growth is not None,
+                profit_margin is not None,
+                roe is not None,
+            ])
+            if signals_present < 2:
+                return None
+
+            score = 0.0
+            if revenue_growth is not None and revenue_growth > 0.08:
+                score += 2
+            if revenue_growth is not None and revenue_growth > 0.20:
+                score += 1
+            if profit_margin is not None and profit_margin > 0.10:
+                score += 2
+            if roe is not None and roe > 0.15:
+                score += 2
+            if debt_to_equity is not None and debt_to_equity < 1.0:
+                score += 1
+
+            return {
+                "ticker":        ticker,
+                "universe":      "international" if ticker in intl_set else "us_sp500",
+                "name":          info.get("longName") or info.get("shortName", ticker),
+                "sector":        info.get("sector", ""),
+                "industry":      info.get("industry", ""),
+                "quality_score": score,
+                "revenue_growth": round(revenue_growth * 100, 1) if revenue_growth is not None else None,
+                "profit_margin":  round(profit_margin * 100, 1) if profit_margin is not None else None,
+                "roe":            round(roe * 100, 1)            if roe is not None            else None,
+                "debt_to_equity": round(debt_to_equity, 2)       if debt_to_equity is not None else None,
+                "market_cap_b":   round(market_cap / 1e9, 2)     if market_cap else None,
+            }
+        except Exception:
+            return None
+
+    results = []
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(_score, t): t for t in all_tickers}
+        for future in as_completed(futures):
+            res = future.result()
+            if res:
+                results.append(res)
+
+    results.sort(key=lambda x: x["quality_score"], reverse=True)
+    return results
