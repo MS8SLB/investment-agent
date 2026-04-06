@@ -1082,7 +1082,24 @@ def get_universe_scores(top_n: int = 150) -> list[dict]:
 
 
 def get_universe_scores_meta() -> dict:
-    """Return count and age of the universe quality score cache."""
+    """Return count and age of the screener cache (JSON file written by screen_stocks)."""
+    import json as _json
+    cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "screener_cache.json")
+    try:
+        with open(cache_file, "r") as _f:
+            _cache = _json.load(_f)
+        _date = _cache.get("date")
+        _count = len(_cache.get("results") or [])
+        if _count > 0:
+            try:
+                _days = (datetime.utcnow().date() - datetime.fromisoformat(_date).date()).days
+            except Exception:
+                _days = None
+            return {"count": _count, "oldest": _date, "newest": _date, "days_since_refresh": _days}
+    except Exception:
+        pass
+
+    # Fallback: legacy universe_scores DB table
     conn = _get_connection()
     row = conn.execute("""
         SELECT COUNT(*) as count, MIN(scored_at) as oldest, MAX(scored_at) as newest
