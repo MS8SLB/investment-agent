@@ -18,7 +18,7 @@ FMP_API_KEY = os.environ.get("FMP_API_KEY")
 _FMP_BASE = "https://financialmodelingprep.com/api/v3"
 
 
-def _fmp_get(path: str, **params) -> Optional[list | dict]:
+def _fmp_get(path: str, **params) -> Optional[list]:
     """Make a GET request to the FMP API. Returns parsed JSON or None on error."""
     if not FMP_API_KEY:
         return None
