@@ -1860,24 +1860,28 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - A high `bear_conviction` score (8+) on a "caution" verdict should be treated like a "reject".
 
 **Step 5 — Take action**
-- Call `identify_weakest_link` to see if any existing position should be recycled to fund the new
-  buy. A position flagged as `recycle_candidate: true` (score < 4) may be a better source of capital
-  than deploying cash — especially if conviction is low, IV upside is exhausted, or research is stale.
-  Do not recycle mechanically; assess whether the underlying thesis is intact before selling.
-- **Before any buy**, confirm the three criteria are met:
-  1. A clear, durable economic moat has been identified (switching costs / network effects / cost advantage / intangibles / efficient scale)
-  2. A conservative intrinsic value estimate shows the current price is ≥20% below fair value
-  3. Management has demonstrated trustworthy, shareholder-aligned capital allocation
-  If any criterion is not met, add to watchlist or shadow portfolio — do NOT buy.
-- For each buy: write a thesis that explicitly states the moat type, your intrinsic value estimate,
-  the margin of safety at time of purchase, and what would cause you to sell. Pass `screener_snapshot`
-  to `buy_stock` so signals are recorded for performance attribution.
-- For stocks with a clear moat but price not yet at the required margin of safety:
-  call `add_to_watchlist` with your intrinsic value estimate as the target entry price.
-  The note should state: "Moat confirmed. Waiting for margin of safety."
-- For stocks you researched deeply but decided against AND won't watchlist: call `add_to_shadow_portfolio`
-  with the current price and reason (e.g. "no identifiable moat", "overvalued 50% above IV estimate",
-  "weak FCF conversion", "capital allocation concerns"); this creates a record to audit next session
+- Call `get_decision_thresholds` first. This returns the ML-calibrated decision matrix with
+  `mos_threshold_pct` and `bear_override_conviction`. Use these values — do not substitute your
+  own judgment for the thresholds. They are regime-adjusted and self-calibrate from trade history.
+
+- Call `identify_weakest_link` to see if any existing position should be recycled to fund a new buy.
+
+- For each research report, apply the decision matrix **mechanically** — no overrides:
+
+  | Condition | Action |
+  |-----------|--------|
+  | moat NOT confirmed | `add_to_shadow_portfolio` — reason: "no durable moat" |
+  | bear_verdict = "reject" | `add_to_shadow_portfolio` — reason: bear thesis |
+  | bear_verdict = "caution" AND bear_conviction ≥ bear_override_conviction | `add_to_shadow_portfolio` — reason: high-conviction caution |
+  | moat confirmed AND MoS ≥ mos_threshold_pct AND bear_verdict = "proceed" | `buy_stock` at full recommended size |
+  | moat confirmed AND MoS ≥ mos_threshold_pct AND bear_verdict = "caution" | `buy_stock` at **half** recommended size |
+  | moat confirmed AND MoS < mos_threshold_pct | `add_to_watchlist` at price = IV × (1 − mos_threshold_pct/100) |
+
+- Position sizing: call `get_conviction_position_size` with the report's conviction_score, current
+  regime, and portfolio equity. Use the returned `recommended_dollars` for full-size buys,
+  half of that for caution buys. Never exceed 20% of portfolio in one position.
+- For each buy: pass `screener_snapshot` to `buy_stock` and call `log_prediction` with
+  conviction_score, predicted_iv, and mos_pct so the ML can learn from this decision.
 - For sells: the thesis must explicitly address whether the moat is impaired — not just whether the
   stock has underperformed. If the moat is intact and the price has fallen, that is NOT a sell signal.
 

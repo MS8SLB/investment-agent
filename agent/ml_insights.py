@@ -1884,3 +1884,124 @@ def run_iv_postmortem() -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 # 6. Conviction Calibration from Prediction History
 # ══════════════════════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 7. ML-Driven Decision Thresholds
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Regime-adjusted MoS defaults (before ML learning kicks in)
+_REGIME_MOS_DEFAULTS = {
+    "NORMAL":       20.0,
+    "RISK_OFF":     25.0,
+    "INFLATIONARY": 22.0,
+    "HIGH_RATES":   23.0,
+    "STAGFLATION":  28.0,
+}
+
+def get_decision_thresholds() -> dict:
+    """
+    Return ML-calibrated thresholds for the buy/watchlist/pass decision matrix.
+
+    Thresholds start at regime-adjusted defaults and are progressively replaced
+    by values learned from actual trade outcomes as the portfolio accumulates history.
+
+    Returns:
+        mos_threshold_pct       float   Minimum margin of safety to trigger a BUY.
+                                        Regime-adjusted default; tightens/relaxes
+                                        as MoS→return correlation is observed.
+        bear_override_conviction int    Bear conviction score at/above which a
+                                        "caution" verdict is treated as "reject".
+        half_size_on_caution    bool    Always True — caution buys get half size.
+        data_confidence         str     "low" | "moderate" | "high"
+        mos_rationale           str     Explanation of where the threshold came from.
+        decision_matrix         dict    Ready-to-use rules keyed by action.
+    """
+    regime, _, _ = _detect_regime()
+    base_mos = _REGIME_MOS_DEFAULTS.get(regime, 20.0)
+
+    # ── Load prediction history ───────────────────────────────────────────────
+    conn = portfolio._get_connection()
+    rows = conn.execute(
+        """SELECT mos_at_decision, outcome_return_pct, conviction_score
+           FROM prediction_tracking
+           WHERE outcome_return_pct IS NOT NULL
+             AND mos_at_decision IS NOT NULL
+           ORDER BY decision_date DESC"""
+    ).fetchall()
+    conn.close()
+    closed = [dict(r) for r in rows]
+
+    data_confidence = "low"
+    mos_threshold = base_mos
+    mos_rationale = (
+        f"Using regime-adjusted default ({base_mos:.0f}% for {regime} regime). "
+        f"Need ≥10 closed trades with MoS data to calibrate from portfolio history "
+        f"(currently have {len(closed)})."
+    )
+
+    if len(closed) >= 10:
+        # Find the MoS threshold that maximises win rate with ≥3 observations
+        candidates = [15.0, 18.0, 20.0, 22.0, 25.0, 28.0, 30.0]
+        best_mos = base_mos
+        best_win_rate = -1.0
+        for thresh in candidates:
+            group = [r for r in closed if r["mos_at_decision"] >= thresh]
+            if len(group) < 3:
+                continue
+            win_rate = sum(1 for r in group if r["outcome_return_pct"] > 0) / len(group)
+            if win_rate > best_win_rate:
+                best_win_rate = win_rate
+                best_mos = thresh
+
+        # Blend learned threshold with regime default (same blending logic as factor weights)
+        blend_pct = min(0.75, (len(closed) - 10) / 30)
+        mos_threshold = round(base_mos * (1 - blend_pct) + best_mos * blend_pct, 1)
+        data_confidence = "moderate" if len(closed) < 20 else "high"
+        mos_rationale = (
+            f"ML-calibrated: trades with MoS ≥ {best_mos:.0f}% achieved "
+            f"{best_win_rate*100:.0f}% win rate ({len([r for r in closed if r['mos_at_decision'] >= best_mos])} trades). "
+            f"Blended {blend_pct*100:.0f}% data / {(1-blend_pct)*100:.0f}% regime prior "
+            f"→ threshold = {mos_threshold:.1f}%."
+        )
+
+    # ── Bear override conviction ──────────────────────────────────────────────
+    # Default: caution with conviction ≥ 8 treated as reject.
+    # With enough data, learn whether high-conviction cautions actually hurt returns.
+    bear_override_conviction = 8  # hardcoded for now — needs bear conviction history
+
+    # ── Watchlist entry price formula ─────────────────────────────────────────
+    # Target entry = current_iv * (1 - mos_threshold/100)
+    watchlist_formula = (
+        f"target_price = intrinsic_value × {1 - mos_threshold/100:.3f}  "
+        f"(i.e. IV discounted by {mos_threshold:.1f}%)"
+    )
+
+    return {
+        "regime":                   regime,
+        "mos_threshold_pct":        mos_threshold,
+        "bear_override_conviction": bear_override_conviction,
+        "half_size_on_caution":     True,
+        "data_confidence":          data_confidence,
+        "n_closed_trades":          len(closed),
+        "mos_rationale":            mos_rationale,
+        "watchlist_formula":        watchlist_formula,
+        "decision_matrix": {
+            "BUY_FULL": (
+                f"moat_confirmed=True AND mos_pct >= {mos_threshold:.1f} "
+                f"AND bear_verdict='proceed'"
+            ),
+            "BUY_HALF": (
+                f"moat_confirmed=True AND mos_pct >= {mos_threshold:.1f} "
+                f"AND bear_verdict='caution' AND bear_conviction < {bear_override_conviction}"
+            ),
+            "WATCHLIST": (
+                f"moat_confirmed=True AND mos_pct < {mos_threshold:.1f} "
+                f"(set target_price = iv × {1 - mos_threshold/100:.3f})"
+            ),
+            "SHADOW": (
+                "moat_confirmed=False "
+                f"OR bear_verdict='reject' "
+                f"OR (bear_verdict='caution' AND bear_conviction >= {bear_override_conviction})"
+            ),
+        },
+    }

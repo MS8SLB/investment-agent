@@ -1529,6 +1529,24 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_decision_thresholds",
+        "description": (
+            "Return ML-calibrated thresholds for the buy/watchlist/pass decision matrix. "
+            "CALL THIS ONCE at the start of Step 5 before taking any action on research reports. "
+            "Returns mos_threshold_pct (minimum margin of safety to buy), "
+            "bear_override_conviction (caution score that triggers reject treatment), "
+            "and a ready-to-use decision_matrix dict. "
+            "Thresholds start at regime-adjusted defaults (20-28% MoS depending on regime) "
+            "and self-calibrate from actual trade outcomes as the portfolio grows. "
+            "With <10 closed trades returns regime priors; with 10+ trades blends in learned values."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
         "name": "get_earnings_tone_trend",
         "description": (
             "Get the earnings call sentiment trend for a ticker over the last 3-4 quarters. "
@@ -2119,6 +2137,24 @@ _MODEL_TIERS = [
             "Diagnoses whether high conviction (9-10) is genuinely more accurate than medium (7-8). "
             "Returns calibration_status: 'well_calibrated', 'miscalibrated_high', or 'insufficient_data'. "
             "Use this to validate position sizing multipliers — if miscalibrated, reduce high-conviction sizing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "get_decision_thresholds",
+        "description": (
+            "Return ML-calibrated thresholds for the buy/watchlist/pass decision matrix. "
+            "CALL THIS ONCE at the start of Step 5 before taking any action on research reports. "
+            "Returns mos_threshold_pct (minimum margin of safety to buy), "
+            "bear_override_conviction (caution score that triggers reject treatment), "
+            "and a ready-to-use decision_matrix dict. "
+            "Thresholds start at regime-adjusted defaults (20-28% MoS depending on regime) "
+            "and self-calibrate from actual trade outcomes as the portfolio grows. "
+            "With <10 closed trades returns regime priors; with 10+ trades blends in learned values."
         ),
         "input_schema": {
             "type": "object",
@@ -4115,6 +4151,8 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         }
     elif tool_name == "get_conviction_calibration":
         return ml_insights.get_conviction_calibration()
+    elif tool_name == "get_decision_thresholds":
+        return ml_insights.get_decision_thresholds()
     elif tool_name == "get_conviction_position_size":
         from agent.ml_insights import conviction_position_size
         return conviction_position_size(
