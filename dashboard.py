@@ -9,6 +9,7 @@ import os
 import sys
 import warnings
 warnings.filterwarnings("ignore", category=Warning, module="urllib3")
+warnings.filterwarnings("ignore", message=".*keyword arguments have been deprecated.*")
 from datetime import datetime
 
 import pandas as pd
