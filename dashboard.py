@@ -538,6 +538,7 @@ elif "PERFORMANCE" in page:
         get_portfolio_snapshots, get_portfolio_metrics,
         get_benchmark_comparison, get_transactions,
         get_holdings, get_cash, save_benchmark_snapshot,
+        save_portfolio_snapshot,
     )
     from agent.market_data import get_stock_quote
 
@@ -546,16 +547,19 @@ elif "PERFORMANCE" in page:
         # always has up-to-date data without needing the agent to run.
         try:
             holdings = get_holdings()
-            cash = get_cash()
-            port_value = cash
+            cash_val = get_cash()
+            equity_val = 0.0
             for h in holdings:
                 q = get_stock_quote(h["ticker"])
                 price = q.get("price") or h.get("avg_cost", 0)
-                port_value += h["shares"] * price
+                equity_val += h["shares"] * price
+            port_value = cash_val + equity_val
             spy_q = get_stock_quote("SPY")
             spy_price = spy_q.get("price")
-            if spy_price and port_value > 0:
-                save_benchmark_snapshot(port_value, spy_price)
+            if port_value > 0:
+                save_portfolio_snapshot(port_value, cash_val, equity_val, spy_price, "daily")
+                if spy_price:
+                    save_benchmark_snapshot(port_value, spy_price)
         except Exception:
             pass
 

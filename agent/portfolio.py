@@ -548,15 +548,31 @@ def save_portfolio_snapshot(
     benchmark_price: Optional[float] = None,
     session_type: str = "review",
 ) -> None:
-    """Record a point-in-time portfolio value alongside the benchmark price."""
+    """Record a point-in-time portfolio value alongside the benchmark price.
+    One snapshot per day — subsequent calls on the same date update the existing row."""
     conn = _get_connection()
+    today = datetime.utcnow().date().isoformat()
     with conn:
-        conn.execute(
-            """INSERT INTO portfolio_snapshots
-               (ts, portfolio_value, cash, invested_value, benchmark_price, session_type)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (datetime.utcnow().isoformat(), portfolio_value, cash, invested_value, benchmark_price, session_type),
-        )
+        existing = conn.execute(
+            "SELECT id FROM portfolio_snapshots WHERE ts LIKE ? AND session_type = ?",
+            (f"{today}%", session_type),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE portfolio_snapshots
+                   SET portfolio_value=?, cash=?, invested_value=?, benchmark_price=?, ts=?
+                   WHERE id=?""",
+                (portfolio_value, cash, invested_value, benchmark_price,
+                 datetime.utcnow().isoformat(), existing[0]),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO portfolio_snapshots
+                   (ts, portfolio_value, cash, invested_value, benchmark_price, session_type)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (datetime.utcnow().isoformat(), portfolio_value, cash,
+                 invested_value, benchmark_price, session_type),
+            )
     conn.close()
 
 
@@ -1289,8 +1305,9 @@ def get_regime_history(limit: int = 10) -> list[dict]:
 # ── SPY benchmark tracking ────────────────────────────────────────────────────
 
 def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
-    """Save a daily portfolio vs SPY snapshot."""
+    """Save a daily portfolio vs SPY snapshot. One row per day — upserts on same date."""
     conn = _get_connection()
+    today = datetime.utcnow().date().isoformat()
     first = conn.execute(
         "SELECT spy_price, spy_shares_equivalent FROM benchmark_snapshots ORDER BY recorded_at ASC LIMIT 1"
     ).fetchone()
@@ -1298,11 +1315,23 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
         spy_shares = first[1]
     else:
         spy_shares = portfolio_value / spy_price if spy_price > 0 else 0
-    conn.execute(
-        "INSERT INTO benchmark_snapshots (portfolio_value, spy_price, spy_shares_equivalent, recorded_at) VALUES (?, ?, ?, ?)",
-        (portfolio_value, spy_price, spy_shares, datetime.utcnow().isoformat()),
-    )
-    conn.commit()
+    existing = conn.execute(
+        "SELECT id FROM benchmark_snapshots WHERE recorded_at LIKE ?",
+        (f"{today}%",),
+    ).fetchone()
+    with conn:
+        if existing:
+            conn.execute(
+                """UPDATE benchmark_snapshots
+                   SET portfolio_value=?, spy_price=?, recorded_at=?
+                   WHERE id=?""",
+                (portfolio_value, spy_price, datetime.utcnow().isoformat(), existing[0]),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO benchmark_snapshots (portfolio_value, spy_price, spy_shares_equivalent, recorded_at) VALUES (?, ?, ?, ?)",
+                (portfolio_value, spy_price, spy_shares, datetime.utcnow().isoformat()),
+            )
     conn.close()
 
 
