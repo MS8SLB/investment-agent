@@ -1778,12 +1778,6 @@ def run_agent_session(
 
 def run_portfolio_review(model: Optional[str] = None, **kwargs) -> str:
     """Run a full autonomous portfolio review and rebalancing session."""
-    # Rotate seeds daily so each review explores a fresh slice of the universe.
-    # Seeds are deterministic within a day (temperature=0 handles within-session
-    # consistency); over weeks the full ~2,700-ticker universe gets covered.
-    day_seed = datetime.date.today().toordinal() % 1000
-    seed_a, seed_b, seed_c = day_seed, day_seed + 1, day_seed + 2
-
     prompt = f"""
 Please conduct a comprehensive portfolio review and take appropriate investment actions:
 
@@ -1858,9 +1852,10 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   actually predicted returns in this portfolio; discount signals that show no predictive edge
 - Do NOT default to well-known mega-caps — the screener exists to surface overlooked quality companies
   that are temporarily cheap, not the most popular stocks at peak valuations
-- From all screener results (US + international combined), select **3-6 candidates** where:
-  (a) FCF yield is attractive, (b) the business sounds like it could have a durable moat, and
-  (c) the stock is not obviously at a historic valuation peak. Avoid high debt or declining FCF.
+- From all screener results (US + international combined), select the **top 6 by composite score**
+  that also pass all three gates: (a) `fcf_yield_pct` > 2.5%, (b) `profit_margin_pct` > 15%,
+  (c) `debt_to_equity` < 2.0. If fewer than 6 pass all gates, take the top however many do.
+  Do NOT substitute gut feel or name recognition for these objective criteria — rank by score, pick top 6.
 - Optional: call `run_backtest(mode="momentum", tickers=[...screener candidates...], holding_days=90)`
   to validate whether momentum has been a predictive factor in this universe recently.
   If momentum_premium_pct > 5 (top-momentum tercile beat bottom by >5pp), weight
