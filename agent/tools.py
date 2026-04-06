@@ -3971,7 +3971,20 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "screen_stocks":
         tickers = tool_input.get("tickers", [])
-        return market_data.screen_stocks(tickers)
+        results = market_data.screen_stocks(tickers)
+        # Cap at top 25 to avoid context-window overflow.
+        # 25 is enough to select 8 finalists after skipping held/watched/shadow tickers.
+        # The full sorted list is cached in data/screener_cache.json.
+        return {
+            "total_screened": len(results),
+            "showing_top": min(25, len(results)),
+            "note": (
+                "Top 25 results shown out of the full screened universe. "
+                "Walk this list mechanically: take the first 8 tickers that are "
+                "NOT held, NOT on watchlist, NOT in shadow portfolio."
+            ),
+            "results": results[:25],
+        }
 
     elif tool_name == "get_benchmark_comparison":
         return _handle_benchmark_comparison()
