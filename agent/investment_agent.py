@@ -1831,13 +1831,15 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
    Do NOT split into batches — one call gives you one clean sorted list with no aggregation needed.
 
 *Finalist selection — purely mechanical, no judgment:*
-- Take the **top 6 entries by `score`** from the screener result. That is your research list.
-- Do not swap in names you recognise. Do not skip entries because they are unfamiliar.
-- Do not apply additional filters beyond what the screener already computed.
-- If any of the top 6 are already held or already on the watchlist from this session, replace
-  them with the next highest-scoring entry. Otherwise take positions 1–6 as-is.
+- Walk down the screener result (sorted by `score` descending) and collect the **first 8 tickers**
+  that meet ALL of the following skip conditions:
+  1. NOT already held in the portfolio
+  2. NOT already on the watchlist (checked via `prioritize_watchlist_ml` result from Step 1)
+  3. NOT in the shadow portfolio already
+  These 8 tickers are your research list. Do not swap, reorder, or substitute based on name recognition.
+  If fewer than 8 tickers remain after skipping, take however many there are.
 
-- Call `research_stocks_parallel` with those 6 tickers and their screener rows in `tickers_with_data`.
+- Call `research_stocks_parallel` with those 8 tickers and their screener rows in `tickers_with_data`.
   Pass a concise `context` string covering: current macro regime, sector exposure weights, available
   cash, intrinsic value investment mandate (moat required, 20% margin of safety required).
   Each subagent runs the full research checklist and returns a structured JSON report.
