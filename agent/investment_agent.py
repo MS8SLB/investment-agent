@@ -10,6 +10,9 @@ import time
 from typing import Optional
 
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
 from agent import portfolio

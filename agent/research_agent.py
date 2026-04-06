@@ -18,6 +18,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
 from agent.loop_utils import prune_messages, truncate_tool_result
