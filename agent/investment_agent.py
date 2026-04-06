@@ -1522,7 +1522,7 @@ These tools access primary source SEC filings and provide qualitative intelligen
 
 ## Stock Discovery Tools
 Use these to search beyond popular mega-caps and find overlooked quality companies:
-- `get_international_universe(region?)` — returns ~200 major non-US stocks (Europe, Asia, LatAm, Canada, India) as ADRs and foreign-listed tickers. **Call every session** — this is the only way to surface international opportunities. Pass tickers to `screen_stocks` in batches of 60-80.
+- `get_international_universe(region?)` — returns ~200 major non-US stocks (Europe, Asia, LatAm, Canada, India) as ADRs and foreign-listed tickers. **Call every session** — this is the only way to surface international opportunities. Merge with the SP500 list and pass the combined list to `screen_stocks` in a **single call** — never split into batches.
 - `get_stock_universe(index, sector)` — when `index="sp500"`, returns **all** ~500 S&P 500 tickers (no sampling). Use the optional `sector` parameter (e.g. "Health Care", "Financials") to narrow to a specific GICS sector. For mid/small-cap exposure use `index="broad"` with `random_seed` and `sample_n`.
 - `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each on revenue growth, margins, ROE, PEG ratio, FCF yield, and debt. Returns ranked candidates with `peg_ratio`, `fcf_yield_pct`, and `relative_momentum_pct`. From an intrinsic value perspective, prioritise: high FCF yield (real cash generation), high ROE/ROIC (capital-efficient business), strong gross margins (pricing power), and low debt (balance sheet resilience). PEG is a useful secondary check. Momentum (`relative_momentum_pct`) is NOT a quality signal — it is market opinion, not business value. Use it only as a timing input: a stock with a positive margin of safety is worth buying whether momentum is positive or negative. Avoid chasing stocks that have already re-rated; instead, look for quality businesses that are temporarily out of favour.
 - `research_stocks_parallel(tickers_with_data, context)` — **multi-agent deep research**. Launches one specialized research subagent per ticker, all running concurrently. Each subagent runs the full research checklist (15 tools: fundamentals, earnings call, SEC filings, insider activity, competitor analysis, superinvestor positions, material events, sentiment) and returns a structured JSON report with recommendation (buy/watchlist/pass), conviction score 1-10, key positives, key risks, and thesis text. Reports arrive sorted by conviction score. Use this on your 3-6 screener finalists instead of researching them sequentially — it's faster and each subagent focuses entirely on one stock.
@@ -1834,6 +1834,13 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 4. Call `screen_stocks` **once** with the full combined list. The screener runs all tickers in
    parallel internally and returns a **single globally ranked list sorted by composite score**.
    Do NOT split into batches — one call gives you one clean sorted list with no aggregation needed.
+   **Screener results are cached daily** — if you call screen_stocks more than once in a session,
+   subsequent calls return the same cached list instantly (no extra API cost).
+
+**IMPORTANT — never restart the workflow.** If the screener returns an empty list or any tool
+call fails, do NOT reload memory tools or repeat Steps 1-3. Continue forward with whatever data
+you have: fall back to watchlist items (from `prioritize_watchlist_ml`), review existing positions,
+and complete Steps 5-6. Restarting wastes money and does not fix transient API errors.
 
 *Finalist selection — purely mechanical, no judgment:*
 - Walk down the screener result (sorted by `score` descending) and collect the **first 8 tickers**

@@ -5,12 +5,32 @@ as the primary source with yfinance as fallback. Price data stays on yfinance.
 Set FMP_API_KEY env var to enable (free tier: 250 req/day at financialmodelingprep.com).
 """
 
+import json
 import os
 import requests
 import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Optional
+
+
+_SCREENER_CACHE_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "data", "screener_cache.json"
+)
+
+
+def _load_screener_cache() -> dict:
+    try:
+        with open(_SCREENER_CACHE_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_screener_cache(date: str, results: list) -> None:
+    os.makedirs(os.path.dirname(_SCREENER_CACHE_FILE), exist_ok=True)
+    with open(_SCREENER_CACHE_FILE, "w") as f:
+        json.dump({"date": date, "results": results}, f)
 
 
 # ── Financial Modeling Prep (primary for fundamentals) ────────────────────────
@@ -2006,17 +2026,39 @@ def get_stock_universe(
 def screen_stocks(tickers: list) -> list:
     """
     Run a fast parallel fundamental screen across a list of tickers.
-    Returns all scored candidates ranked by a composite quality + value score.
+    Results are cached daily — subsequent calls on the same date return the
+    cached sorted list immediately (no additional API calls). This ensures
+    consistent, globally-ranked results across all calls within a session.
     """
+    today = datetime.utcnow().date().isoformat()
+    cache = _load_screener_cache()
+    if cache.get("date") == today and cache.get("results"):
+        cached_results = cache["results"]
+        # Full-universe request (≥50 tickers) → return full cached list
+        if len(tickers) >= 50:
+            return cached_results
+        # Subset request (e.g. watchlist re-check) → filter to requested tickers
+        requested = {t.upper() for t in tickers}
+        return [r for r in cached_results if r["ticker"] in requested]
+
     def _fetch(ticker: str) -> Optional[dict]:
         try:
+            # Shared variables initialised with safe defaults
+            name           = ticker
+            sector         = ""
+            industry       = ""
+            recommendation = ""
+
             # Try FMP first for reliable fundamentals; fall back to yfinance
             fmp = _fmp_get_fundamentals(ticker)
             if fmp:
-                price      = fmp.get("_price")
-                pe         = fmp.get("pe_ratio")
-                forward_pe = fmp.get("forward_pe")
-                peg        = fmp.get("peg_ratio")
+                name          = fmp.get("name") or ticker
+                sector        = fmp.get("sector") or ""
+                industry      = fmp.get("industry") or ""
+                price         = fmp.get("_price")
+                pe            = fmp.get("pe_ratio")
+                forward_pe    = fmp.get("forward_pe")
+                peg           = fmp.get("peg_ratio")
                 revenue_growth  = fmp.get("revenue_growth")
                 profit_margin   = fmp.get("profit_margin")
                 roe             = fmp.get("roe")
@@ -2031,6 +2073,10 @@ def screen_stocks(tickers: list) -> list:
                     return None
             else:
                 info = yf.Ticker(ticker).info
+                name           = info.get("longName") or info.get("shortName", ticker)
+                sector         = info.get("sector", "")
+                industry       = info.get("industry", "")
+                recommendation = info.get("recommendationKey", "")
                 price = (
                     info.get("currentPrice")
                     or info.get("regularMarketPrice")
@@ -2116,9 +2162,9 @@ def screen_stocks(tickers: list) -> list:
 
             return {
                 "ticker": ticker,
-                "name": info.get("longName") or info.get("shortName", ticker),
-                "sector": info.get("sector", ""),
-                "industry": info.get("industry", ""),
+                "name": name,
+                "sector": sector,
+                "industry": industry,
                 "market_cap_b": round(market_cap / 1e9, 2) if market_cap else None,
                 "price": price,
                 "pe_ratio": round(pe, 1) if pe else None,
@@ -2131,7 +2177,7 @@ def screen_stocks(tickers: list) -> list:
                 "fcf_yield_pct": round(fcf_yield * 100, 1) if fcf_yield is not None else None,
                 "week52_return_pct": round(week52_change * 100, 1) if week52_change is not None else None,
                 "relative_momentum_pct": round(relative_momentum * 100, 1) if relative_momentum is not None else None,
-                "recommendation": info.get("recommendationKey", ""),
+                "recommendation": recommendation,
                 "score": score,
             }
         except Exception:
@@ -2147,6 +2193,11 @@ def screen_stocks(tickers: list) -> list:
                 results.append(res)
 
     results.sort(key=lambda x: x["score"], reverse=True)
+
+    # Cache the sorted results for the rest of today
+    if results:
+        _save_screener_cache(today, results)
+
     return results
 
 
