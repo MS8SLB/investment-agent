@@ -10,6 +10,7 @@ from __future__ import annotations
 _NO_TRUNCATE_TOOLS: frozenset = frozenset({
     "research_stocks_parallel",
     "challenge_buy_theses",
+    "screen_stocks",          # handler already caps at top-25; truncation cuts to 5
 })
 
 # Tools that return large blobs we aggressively cap
@@ -17,7 +18,6 @@ _AGGRESSIVE_TRUNCATE_TOOLS: frozenset = frozenset({
     "get_stock_news",
     "get_analyst_upgrades",
     "get_insider_activity",
-    "screen_stocks",
     "get_stock_universe",
     "get_international_universe",
     "get_trade_outcomes",
