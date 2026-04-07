@@ -901,7 +901,7 @@ def recalibrate_universe_scores() -> dict:
 
     # Load prediction tracking with outcomes
     pred_rows = conn.execute("""
-        SELECT ticker, predicted_iv, outcome_price, outcome_date, conviction
+        SELECT ticker, predicted_iv, outcome_price, outcome_date, conviction_score AS conviction
         FROM prediction_tracking
         WHERE outcome_price IS NOT NULL
           AND predicted_iv IS NOT NULL
