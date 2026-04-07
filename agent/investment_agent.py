@@ -1845,15 +1845,15 @@ you have: fall back to watchlist items (from `prioritize_watchlist_ml`), review 
 and complete Steps 5-6. Restarting wastes money and does not fix transient API errors.
 
 *Finalist selection — purely mechanical, no judgment:*
-- Walk down the screener result (sorted by `score` descending) and collect the **first 8 tickers**
+- Walk down the screener result (sorted by `score` descending) and collect the **first 15 tickers**
   that meet ALL of the following skip conditions:
   1. NOT already held in the portfolio
   2. NOT already on the watchlist (checked via `prioritize_watchlist_ml` result from Step 1)
   3. NOT in the shadow portfolio already
-  These 8 tickers are your research list. Do not swap, reorder, or substitute based on name recognition.
-  If fewer than 8 tickers remain after skipping, take however many there are.
+  These 15 tickers are your research list. Do not swap, reorder, or substitute based on name recognition.
+  If fewer than 15 tickers remain after skipping, take however many there are.
 
-- Call `research_stocks_parallel` with those 8 tickers and their screener rows in `tickers_with_data`.
+- Call `research_stocks_parallel` with those 15 tickers and their screener rows in `tickers_with_data`.
   Pass a concise `context` string covering: current macro regime, sector exposure weights, available
   cash, intrinsic value investment mandate (moat required, 20% margin of safety required).
   Each subagent runs the full research checklist and returns a structured JSON report.
