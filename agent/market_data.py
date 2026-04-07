@@ -2083,7 +2083,30 @@ def screen_stocks(tickers: list) -> list:
                     or info.get("previousClose")
                 )
                 if not price:
-                    return None
+                    # Foreign-suffix ticker (e.g. NESN.SW, 0700.HK) with no data —
+                    # try yf.Search to find a US-listed ADR/OTC equivalent.
+                    if "." in ticker:
+                        try:
+                            base = ticker.split(".")[0]
+                            _us_exchanges = {"NYQ", "NMS", "NGM", "PCX", "ASE", "OTC", "PNK"}
+                            for _q in (yf.Search(base, max_results=5).quotes or []):
+                                _sym = _q.get("symbol", "")
+                                if _sym and _sym != ticker and "." not in _sym and _q.get("exchange") in _us_exchanges:
+                                    _alt = yf.Ticker(_sym).info
+                                    _alt_price = (_alt.get("currentPrice") or _alt.get("regularMarketPrice") or _alt.get("previousClose"))
+                                    if _alt_price:
+                                        info = _alt
+                                        ticker = _sym
+                                        name           = info.get("longName") or info.get("shortName", _sym)
+                                        sector         = info.get("sector", "")
+                                        industry       = info.get("industry", "")
+                                        recommendation = info.get("recommendationKey", "")
+                                        price = _alt_price
+                                        break
+                        except Exception:
+                            pass
+                    if not price:
+                        return None
                 pe             = info.get("trailingPE")
                 forward_pe     = info.get("forwardPE")
                 peg            = info.get("pegRatio")
