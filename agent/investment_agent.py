@@ -1831,11 +1831,13 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 1. Call `get_stock_universe("sp500")` — returns all ~500 S&P 500 tickers.
 2. Call `get_international_universe()` — returns ~200 major non-US tickers.
 3. Merge both lists into one combined list.
-4. Call `screen_stocks` **once** with the full combined list. The screener runs all tickers in
-   parallel internally and returns a **single globally ranked list sorted by composite score**.
-   Do NOT split into batches — one call gives you one clean sorted list with no aggregation needed.
-   **Screener results are cached daily** — if you call screen_stocks more than once in a session,
-   subsequent calls return the same cached list instantly (no extra API cost).
+4. Call `screen_stocks` **once** with the full combined list. The screener scores every ticker
+   across the entire universe and returns a **single globally ranked list sorted by composite score**.
+   Do NOT split into batches — one call processes the full universe and returns one clean sorted list.
+   **First call of the day**: processes all ~640 tickers in rate-limit-safe batches (~2 min) and
+   caches the result. The tool result shows `total_screened` — it should be 500+. If it is much
+   lower (e.g. <100), note it as a workflow issue but do NOT restart.
+   **Subsequent calls the same day**: return the cached list instantly.
 
 **IMPORTANT — never restart the workflow.** If the screener returns an empty list or any tool
 call fails, do NOT reload memory tools or repeat Steps 1-3. Continue forward with whatever data

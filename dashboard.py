@@ -1003,7 +1003,7 @@ elif "AI REVIEW" in page:
     _uage   = _umeta.get("days_since_refresh")
     if _ucount == 0:
         _ucache_color = "#FF3B3B"
-        _ucache_label = "UNIVERSE CACHE: EMPTY — will auto-build on next run (~10 min)"
+        _ucache_label = "UNIVERSE CACHE: EMPTY — first AI Review will build it (~2 min)"
     elif _uage is not None and _uage > 90:
         _ucache_color = "#FFA040"
         _ucache_label = f"UNIVERSE CACHE: STALE ({_uage}d old, {_ucount} tickers) — will auto-refresh on next run"

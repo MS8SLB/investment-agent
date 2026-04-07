@@ -2183,14 +2183,29 @@ def screen_stocks(tickers: list) -> list:
         except Exception:
             return None
 
-    results: list[dict] = []
+    # Process in small batches with a pause between batches to avoid
+    # Yahoo Finance rate-limiting. Without this, 640 concurrent requests
+    # cause Yahoo to silently drop most responses after ~100 requests,
+    # meaning only those that "won the race" get scored — not a true ranking.
+    # 5 workers ≈ 3–5 req/s which stays under Yahoo's threshold.
+    # At ~1 s/ticker the full universe takes ~2 min; the daily cache
+    # means this only runs once per day — all subsequent calls are instant.
+    import time as _time
 
-    with ThreadPoolExecutor(max_workers=32) as executor:
-        futures = {executor.submit(_fetch, t): t for t in tickers}
-        for future in as_completed(futures):
-            res = future.result()
-            if res:
-                results.append(res)
+    results: list[dict] = []
+    BATCH_SIZE = 60
+    BATCH_PAUSE = 1.5  # seconds between batches
+
+    for _batch_start in range(0, len(tickers), BATCH_SIZE):
+        batch = tickers[_batch_start: _batch_start + BATCH_SIZE]
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(_fetch, t): t for t in batch}
+            for future in as_completed(futures):
+                res = future.result()
+                if res:
+                    results.append(res)
+        if _batch_start + BATCH_SIZE < len(tickers):
+            _time.sleep(BATCH_PAUSE)
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
