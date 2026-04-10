@@ -1544,4 +1544,18 @@ def research_stocks_parallel(
 
     # Sort by conviction score, highest first
     reports.sort(key=lambda r: r.get("conviction_score", 0), reverse=True)
+
+    # Auto-watchlist any ticker whose research failed so it gets retried next session
+    failed = [r for r in reports if r.get("error")]
+    if failed:
+        try:
+            from agent import portfolio as _portfolio
+            for r in failed:
+                _portfolio.add_to_watchlist(
+                    ticker=r["ticker"],
+                    reason="Research subagent failed to produce a report — retry next session.",
+                )
+        except Exception:
+            pass  # Never let watchlist bookkeeping break the return value
+
     return reports
