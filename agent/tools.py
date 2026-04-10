@@ -4026,12 +4026,14 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         cash = status.get("cash")
         invested = status.get("total_invested_value")
         portfolio.save_reflection(tool_input["reflection"], portfolio_value, "review")
-        # Auto-snapshot for chart + benchmark tracking
-        spy = market_data.get_stock_quote("SPY")
-        spy_price = spy.get("price") if "error" not in spy else None
-        portfolio.save_portfolio_snapshot(portfolio_value, cash, invested, spy_price, "review")
-        if spy_price and portfolio_value:
-            portfolio.save_benchmark_snapshot(portfolio_value, spy_price)
+        # Auto-snapshot for chart + benchmark tracking — only after the first trade,
+        # since performance comparison vs S&P is meaningless on an all-cash portfolio.
+        if portfolio.get_first_trade_date():
+            spy = market_data.get_stock_quote("SPY")
+            spy_price = spy.get("price") if "error" not in spy else None
+            portfolio.save_portfolio_snapshot(portfolio_value, cash, invested, spy_price, "review")
+            if spy_price and portfolio_value:
+                portfolio.save_benchmark_snapshot(portfolio_value, spy_price)
         return {"success": True, "message": "Reflection and portfolio snapshot saved."}
 
     elif tool_name == "get_signal_performance":
@@ -4509,16 +4511,24 @@ def _handle_sell(tool_input: dict) -> dict:
 
 
 def _handle_benchmark_comparison() -> dict:
+    first_trade_date = portfolio.get_first_trade_date()
+    if not first_trade_date:
+        return {
+            "note": "No trades have been made yet. Performance tracking vs S&P 500 begins after the first trade."
+        }
+
     snapshots = portfolio.get_portfolio_snapshots()
+    # Only consider snapshots from the first trade date onward
+    snapshots = [s for s in snapshots if s["ts"][:10] >= first_trade_date]
     if not snapshots:
         return {
             "note": (
-                "No snapshots yet. A snapshot is automatically saved at the end of each "
-                "review session when you call save_session_reflection."
+                "No snapshots recorded since the first trade. A snapshot is automatically saved "
+                "at the end of each review session when you call save_session_reflection."
             )
         }
 
-    first = snapshots[0]   # oldest
+    first = snapshots[0]   # oldest post-trade snapshot
     latest = snapshots[-1]  # most recent
 
     portfolio_return = (

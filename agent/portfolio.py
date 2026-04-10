@@ -608,6 +608,16 @@ def get_transactions(limit: int = 50) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_first_trade_date() -> Optional[str]:
+    """Return the ISO date (YYYY-MM-DD) of the first transaction, or None if no trades have been made."""
+    conn = _get_connection()
+    row = conn.execute("SELECT MIN(ts) FROM transactions").fetchone()
+    conn.close()
+    if row and row[0]:
+        return row[0][:10]
+    return None
+
+
 def log_agent_message(message: str) -> None:
     conn = _get_connection()
     with conn:
@@ -893,11 +903,19 @@ def get_portfolio_metrics() -> dict:
     Returns Sharpe ratio, max drawdown, annualised volatility, and
     rolling 1/3/6-month returns vs S&P 500.
     Assumes snapshots are roughly monthly (one per review session).
+    Only considers snapshots from the first trade date onward.
     """
-    snapshots = get_portfolio_snapshots(limit=200)
+    first_trade_date = get_first_trade_date()
+    if not first_trade_date:
+        return {
+            "message": "No trades made yet. Performance metrics are computed after the first trade.",
+            "n_snapshots": 0,
+        }
+    all_snapshots = get_portfolio_snapshots(limit=200)
+    snapshots = [s for s in all_snapshots if s["ts"][:10] >= first_trade_date]
     if len(snapshots) < 2:
         return {
-            "message": "Need at least 2 review sessions to compute metrics. Run more reviews.",
+            "message": "Need at least 2 review sessions after the first trade to compute metrics. Run more reviews.",
             "n_snapshots": len(snapshots),
         }
 
@@ -1354,9 +1372,16 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
 
 def get_benchmark_comparison() -> dict:
     """Compare current portfolio value vs what SPY would be worth."""
+    first_trade_date = get_first_trade_date()
+    if not first_trade_date:
+        return {"available": False, "message": "No trades made yet — performance tracking vs S&P 500 begins after the first trade"}
+
     conn = _get_connection()
+    # Only use snapshots from the first trade date onward so the baseline reflects
+    # the portfolio value at the point trading actually began.
     first = conn.execute(
-        "SELECT portfolio_value, spy_price, spy_shares_equivalent, recorded_at FROM benchmark_snapshots ORDER BY recorded_at ASC LIMIT 1"
+        "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at ASC LIMIT 1",
+        (first_trade_date,),
     ).fetchone()
     latest = conn.execute(
         "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots ORDER BY recorded_at DESC LIMIT 1"
@@ -1364,12 +1389,13 @@ def get_benchmark_comparison() -> dict:
     conn.close()
 
     if not first or not latest:
-        return {"available": False, "message": "No benchmark data yet — run the agent at least once"}
+        return {"available": False, "message": "No benchmark data yet — run the agent at least once after making a trade"}
 
     start_portfolio = first[0]
     start_spy_price = first[1]
-    spy_shares = first[2]
-    start_date = first[3][:10]
+    # Recalculate spy_shares from the post-trade baseline so the comparison is fair
+    spy_shares = start_portfolio / start_spy_price if start_spy_price > 0 else 0
+    start_date = first[2][:10]
 
     current_portfolio = latest[0]
     current_spy_price = latest[1]
