@@ -258,7 +258,7 @@ claims in the bull report. Then output your JSON verdict."""
                     time.sleep(wait)
                 response = client.messages.create(
                     model=model,
-                    max_tokens=4096,
+                    max_tokens=8192,
                     temperature=0,
                     system=[
                         {
