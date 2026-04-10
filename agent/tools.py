@@ -102,23 +102,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_technical_indicators",
         "description": (
-            "Compute technical indicators for a stock to assess entry timing and trend health. "
-            "Returns RSI-14, MACD (12/26/9), Bollinger Bands (20-day, 2σ), EMA-50/200 "
-            "(golden/death cross), volume vs 20-day average, and an overall signal summary.\n\n"
-            "Use this AFTER fundamentals confirm a great business at a fair price — "
-            "technicals answer 'is now a good entry point?' not 'should I buy this business?'. "
-            "A fundamentally sound stock with bearish technicals may warrant waiting for a "
-            "better entry; a fundamentally weak stock with bullish technicals is still a pass.\n\n"
-            "Key signals to act on:\n"
-            "  - RSI < 30 (oversold): stock may be at a near-term bottom — favorable entry\n"
-            "  - RSI > 70 (overbought): wait for a pullback before buying\n"
-            "  - MACD bullish crossover: momentum turning up — confirms entry timing\n"
-            "  - MACD bearish crossover: momentum turning down — wait or reduce size\n"
-            "  - Price below EMA-50 and EMA-200 (death cross): stock in downtrend — be cautious\n"
-            "  - Price at lower Bollinger Band: near-term oversold, may bounce\n"
-            "  - Price at upper Bollinger Band: extended, high risk of short-term pullback\n"
-            "  - High volume on up days: institutional buying — supportive of thesis\n\n"
-            "No API key required — computed from yfinance 1-year daily history."
+            "Compute RSI-14, MACD (12/26/9), Bollinger Bands (20-day, 2σ), EMA-50/200, "
+            "and volume vs 20-day average for a stock to assess entry timing and momentum."
         ),
         "input_schema": {
             "type": "object",
@@ -134,22 +119,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_short_interest",
         "description": (
-            "Retrieve short interest data for a stock: short % of float, days-to-cover "
-            "(short ratio), month-over-month change in shares short, and interpreted signals.\n\n"
-            "Short interest has two readings — use both:\n"
-            "  (A) Institutional bear signal: high short % + rising trend means smart money "
-            "has researched this stock and is actively betting against it. Treat as a red flag "
-            "that warrants extra scrutiny — what do they know that the bull case missed?\n"
-            "  (B) Squeeze catalyst: high short % on a stock with a strong fundamental thesis "
-            "and an upcoming catalyst means short covering will amplify any price move higher. "
-            "This is upside optionality on top of the thesis — not a standalone buy reason.\n\n"
-            "Thresholds:\n"
-            "  short_level 'high' (15-25%) or 'very_high' (>25%): investigate short thesis\n"
-            "  mom_direction 'rising': bears adding — dig deeper before buying\n"
-            "  mom_direction 'falling': short covering — potential near-term tailwind\n"
-            "  days_to_cover > 7: elevated squeeze risk if positive catalyst emerges\n\n"
-            "Data is sourced from FINRA via yfinance and updated twice monthly — "
-            "figures typically lag ~2 weeks. No API key required."
+            "Return short % of float, days-to-cover, and month-over-month change in shares "
+            "short for a stock. Data sourced from FINRA via yfinance (~2-week lag)."
         ),
         "input_schema": {
             "type": "object",
@@ -165,28 +136,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_options_flow",
         "description": (
-            "Retrieve options market data for a stock: put/call volume and OI ratios, "
-            "ATM implied volatility vs. 30-day realized volatility, and unusual contract "
-            "activity (large fresh directional bets). Analyzes the nearest 3 expiries.\n\n"
-            "Three distinct signals — read each separately:\n\n"
-            "1. Put/Call ratio (sentiment):\n"
-            "   < 0.7 = bullish (heavy call buying vs. puts)\n"
-            "   0.7–1.0 = neutral\n"
-            "   > 1.0 = bearish (heavy put buying — hedging or directional short)\n"
-            "   > 1.5 = strongly bearish\n\n"
-            "2. IV vs. realized volatility (event/fear pricing):\n"
-            "   IV >> realized vol: market pricing in an upcoming event or fear — options\n"
-            "   are expensive; buying stock outright is more capital-efficient than buying calls\n"
-            "   IV ≈ realized vol: normal; no special event risk priced in\n"
-            "   IV << realized vol: options unusually cheap — low implied risk\n\n"
-            "3. Unusual contracts (volume ≥ 3× open interest, ≥ 500 contracts):\n"
-            "   Fresh directional bets by large traders, not hedges or rolls.\n"
-            "   Call-skewed unusual activity = bullish smart-money signal\n"
-            "   Put-skewed unusual activity = bearish smart-money signal or large hedge\n\n"
-            "Use this as a positioning/sentiment check, NOT as a buy/sell trigger. "
-            "A fundamentally great stock with bearish options positioning is still a buy — "
-            "but unusually heavy put buying or very high IV warrants investigation. "
-            "No API key required — data from yfinance."
+            "Return put/call volume and OI ratios, ATM IV vs 30-day realized volatility, "
+            "and unusual contract activity (large fresh directional bets) for the nearest 3 expiries."
         ),
         "input_schema": {
             "type": "object",
@@ -334,9 +285,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_earnings_calendar",
         "description": (
-            "Get the next scheduled earnings date for a stock, consensus EPS and revenue estimates, "
-            "and the last 4 quarters of beat/miss history. "
-            "Use this before buying — earnings are the single biggest short-term risk for any position."
+            "Return the next earnings date, consensus EPS and revenue estimates, "
+            "and the last 4 quarters of beat/miss history for a stock."
         ),
         "input_schema": {
             "type": "object",
@@ -352,9 +302,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_analyst_upgrades",
         "description": (
-            "Get recent analyst upgrades and downgrades for a stock: which firm acted, "
-            "whether it was an upgrade/downgrade/initiation, and the grade change. "
-            "A cluster of downgrades is a warning sign; upgrades can signal improving sentiment."
+            "Return recent analyst upgrades, downgrades, and initiations with firm name and grade change."
         ),
         "input_schema": {
             "type": "object",
@@ -374,9 +322,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_insider_activity",
         "description": (
-            "Get recent insider transactions (buys and sells by executives, directors, and major shareholders). "
-            "Significant insider buying — especially by the CEO or CFO — is one of the strongest "
-            "bullish signals available. Heavy insider selling can be a warning sign."
+            "Return recent insider buy/sell transactions by executives, directors, and major shareholders."
         ),
         "input_schema": {
             "type": "object",
@@ -392,10 +338,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_macro_environment",
         "description": (
-            "Get key macroeconomic indicators: 10-year and 2-year Treasury yields, yield curve status, "
-            "dollar index, oil, gold, and VIX. Includes synthesised signals so you can adjust "
-            "sector allocation accordingly (e.g. high rates → favour value over growth, "
-            "strong dollar → avoid multinationals, inverted curve → recession risk)."
+            "Return key macro indicators: 10-year and 2-year Treasury yields, yield curve status, "
+            "dollar index, oil, gold, and VIX with synthesised regime signals."
         ),
         "input_schema": {
             "type": "object",
@@ -406,25 +350,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_hedge_recommendations",
         "description": (
-            "Translate the current macro regime into concrete defensive ETF hedge recommendations: "
-            "which ETFs to buy, how much to allocate, when to enter, and when to unwind.\n\n"
-            "Call this during portfolio rebalancing when the macro environment looks stressed. "
-            "Triggers: VIX > 25, inverted yield curve, oil > $85, or any RISK_OFF / INFLATIONARY "
-            "/ STAGFLATION / HIGH_RATES regime signal from get_macro_environment.\n\n"
-            "Hedge universe (plain, non-leveraged, non-inverse ETFs only):\n"
-            "  TLT — 20+ Year Treasury Bonds (RISK_OFF flight-to-safety)\n"
-            "  IEF — 7-10 Year Treasury Bonds (moderate duration, also HIGH_RATES)\n"
-            "  SHV — Short Treasury Bonds <1yr (cash equivalent, earns short-term yield)\n"
-            "  GLD — Gold (inflation + crisis hedge; useful in STAGFLATION)\n"
-            "  TIP — TIPS Bonds (inflation-protected; INFLATIONARY regime)\n"
-            "  GSG — Broad Commodity ETF (energy/metals/agriculture; pure INFLATIONARY)\n\n"
-            "Hard rules:\n"
-            "  - Hedges are ALWAYS funded from cash, never by selling equity positions\n"
-            "  - Maximum hedge allocation: 20% of total portfolio\n"
-            "  - No recommendation is made in NORMAL / RISK_ON regimes\n"
-            "  - Unwind when the triggering regime resolves\n\n"
-            "Pass equity_pct and cash_pct from get_portfolio_status so recommendations "
-            "are sized to your actual portfolio composition."
+            "Return regime-appropriate defensive ETF hedge recommendations (TLT, IEF, SHV, GLD, TIP, GSG) "
+            "sized to the portfolio. Only produces recommendations in RISK_OFF, INFLATIONARY, "
+            "STAGFLATION, or HIGH_RATES regimes; always funded from cash, max 20% of portfolio."
         ),
         "input_schema": {
             "type": "object",
@@ -449,12 +377,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_benchmark_comparison",
-        "description": (
-            "Compare the portfolio's total return since inception against the S&P 500. "
-            "Shows alpha (outperformance or underperformance) and historical snapshots. "
-            "Call this during portfolio reviews to understand whether the strategy is "
-            "actually beating a simple index fund."
-        ),
+        "description": "Compare portfolio total return vs S&P 500: alpha, historical snapshots, start/current values.",
         "input_schema": {
             "type": "object",
             "properties": {},
@@ -464,21 +387,14 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_portfolio_metrics",
         "description": (
-            "Return risk and return metrics computed from portfolio snapshot history: "
-            "Sharpe ratio, max drawdown, annualised volatility, and rolling 1/3/6-month "
-            "returns vs S&P 500. "
-            "Call this in Step 2 to understand whether the portfolio is taking too much "
-            "risk relative to its returns, and how recent momentum compares to the benchmark."
+            "Return Sharpe ratio, max drawdown, annualised volatility, and rolling 1/3/6-month "
+            "returns vs S&P 500 computed from portfolio snapshot history."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_investment_memory",
-        "description": (
-            "Retrieve your past investment theses for current holdings and recently closed positions. "
-            "Call this at the start of each session to understand why you made past decisions, "
-            "whether original theses are still valid, and what worked or didn't in closed positions."
-        ),
+        "description": "Retrieve past investment theses for current holdings and recently closed positions.",
         "input_schema": {
             "type": "object",
             "properties": {},
@@ -487,10 +403,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_session_reflections",
-        "description": (
-            "Retrieve your past post-session reflections — lessons and observations you documented "
-            "from previous portfolio reviews. Call this at the start of sessions to apply past learnings."
-        ),
+        "description": "Return past post-session reflections and lessons from previous portfolio reviews.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -505,19 +418,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_international_universe",
         "description": (
-            "Return a curated list of ~200 major international stocks for screening — "
-            "companies NOT already in the US S&P 500 / broad universe.\n\n"
-            "Covers top companies from Europe (UK, Germany, France, Switzerland, Netherlands, "
-            "Nordics), Asia-Pacific (Japan, South Korea, HK/China, Taiwan, Australia, Singapore), "
-            "Latin America (Brazil, Mexico, Chile), Canada, and India/Israel.\n\n"
-            "Mix of US-listed ADRs (NYSE/NASDAQ — best data quality, e.g. TSM, ASML, NVO, SAP) "
-            "and direct foreign-listed tickers with exchange suffixes (e.g. NESN.SW, 005930.KS, "
-            "0700.HK). All accessible via yfinance.\n\n"
-            "WORKFLOW: call this once per session, then merge with the SP500 list and pass "
-            "the combined list to screen_stocks in a SINGLE call. Do NOT split into batches. "
-            "Foreign-suffix tickers that lack data are silently skipped by screen_stocks.\n\n"
-            "Use the optional 'region' parameter to focus on one geography if the macro "
-            "environment favours it (e.g. 'europe' during USD weakness, 'asia' for EM exposure)."
+            "Return ~200 major international stocks (US-listed ADRs and foreign-listed tickers) "
+            "for screening. Optionally filter by region: europe, asia, latam, canada, india."
         ),
         "input_schema": {
             "type": "object",
@@ -537,16 +439,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "discover_universe_parallel",
         "description": (
-            "Two-layer universe screen. Uses a cached quality score (stable fundamentals: "
-            "revenue growth, margins, ROE, debt) to shortlist the top 150 names from ~700 tickers, "
-            "then fetches fresh valuation metrics (FCF yield, PEG, momentum) for those 150 only. "
-            "Returns 'top_candidates': top 60 globally ranked by combined quality+valuation score.\n\n"
-            "Each candidate includes quality_score, valuation_score, combined_score, and a "
-            "'universe' field ('us_sp500' or 'international'). "
-            "Pass top_candidates directly to research_stocks_parallel — no screening calls needed.\n\n"
-            "If the quality cache is empty it auto-runs a full refresh (~10 min first time). "
-            "Call refresh_universe_scores to manually rebuild the cache (do quarterly or when "
-            "quality_cache_age_days > 90)."
+            "Two-layer screen: quality-scores ~700 tickers on stable fundamentals, then re-screens "
+            "the top 150 on fresh valuation metrics. Returns the top 60 candidates ranked by "
+            "combined quality+valuation score. Auto-refreshes cache if empty."
         ),
         "input_schema": {
             "type": "object",
@@ -557,15 +452,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "refresh_universe_scores",
         "description": (
-            "Rebuild the quality score cache for the full universe (~700 tickers: S&P 500 + international). "
-            "Scores every ticker on stable, non-price-dependent factors: revenue growth, profit margins, "
-            "ROE, and debt/equity. Results are saved to the local database and used by "
-            "discover_universe_parallel on every subsequent run.\n\n"
-            "This is a slow call (~5-10 minutes for 700 tickers). Run it:\n"
-            "  • On first use (cache is empty)\n"
-            "  • Quarterly, after earnings season, when business fundamentals may have shifted\n"
-            "  • When discover_universe_parallel reports quality_cache_age_days > 90\n\n"
-            "Do NOT call this on every session — the quality cache is designed to be stable."
+            "Rebuild the quality score cache for ~700 tickers on stable fundamentals "
+            "(revenue growth, margins, ROE, debt). Slow (~5-10 min) — run quarterly or "
+            "when discover_universe_parallel reports quality_cache_age_days > 90."
         ),
         "input_schema": {
             "type": "object",
@@ -638,20 +527,12 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_sector_exposure",
-        "description": (
-            "Show current portfolio weights broken down by GICS sector. "
-            "Call this before buying new positions to see where you're already concentrated "
-            "and where you have room to add without over-weighting a sector."
-        ),
+        "description": "Return current portfolio weights broken down by GICS sector.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "add_to_watchlist",
-        "description": (
-            "Add a stock to the watchlist when you like the business but the timing isn't right — "
-            "e.g. earnings in the next 2 weeks, valuation slightly too high, or waiting for a "
-            "pullback to a target price. The watchlist is reviewed at the start of every session."
-        ),
+        "description": "Add a stock to the watchlist with a reason and optional target entry price.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -671,19 +552,12 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_watchlist",
-        "description": (
-            "Retrieve the current watchlist — stocks you've flagged for future purchase. "
-            "Call this at the start of each session to check if any watchlist candidates "
-            "have reached their target entry price or had a meaningful pullback."
-        ),
+        "description": "Return the current watchlist with target entry prices and notes.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "remove_from_watchlist",
-        "description": (
-            "Remove a stock from the watchlist. Call this after buying the stock, "
-            "or if the investment thesis has broken down and it's no longer worth watching."
-        ),
+        "description": "Remove a stock from the watchlist.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -695,32 +569,22 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_trade_outcomes",
         "description": (
-            "Return all past buy signal snapshots with their actual outcomes. "
-            "For each recorded buy, shows the screener signals that were present at purchase "
-            "(PEG, momentum, FCF yield, etc.) alongside the eventual return. "
-            "Use this to identify which signals have historically predicted positive returns "
-            "and weight them more heavily in future screening decisions."
+            "Return all past buy signal snapshots with screener signals at purchase time "
+            "and actual return outcomes for closed and open positions."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_signal_performance",
         "description": (
-            "Analyze which screener signals (PEG < 1.5, FCF yield > 3%, positive momentum, "
-            "revenue growth > 10%) have historically predicted positive returns in this portfolio. "
-            "Returns per-signal statistics split by whether the threshold was met at buy time. "
-            "Call this in Step 1 alongside get_trade_outcomes to calibrate signal weights for this session."
+            "Return per-signal statistics (PEG, FCF yield, momentum, revenue growth) showing "
+            "positive_rate_pct and avg_return_pct split by whether each threshold was met at buy time."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "add_to_shadow_portfolio",
-        "description": (
-            "Record a stock you analyzed and decided NOT to buy or watchlist. "
-            "Use this for stocks that were seriously considered but rejected (too expensive, "
-            "weak moat, sector crowded, thesis uncertain). "
-            "Tracked so future sessions can review whether passing was the right call."
-        ),
+        "description": "Record a rejected stock with price at consideration and reason for passing.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -744,30 +608,10 @@ TOOL_DEFINITIONS = [
     {
         "name": "run_backtest",
         "description": (
-            "Run a strategy backtest in one of three modes to validate whether the "
-            "screening and trading approach is actually working.\n\n"
-            "Modes:\n\n"
-            "  'trade_history' — Replays ALL closed trades (no 20-trade limit). "
-            "Computes win rate, avg return, Sharpe ratio, max drawdown, and "
-            "S&P 500 alpha per trade. Segments results by market regime at entry "
-            "(VIX level: low_volatility / normal / elevated / high_fear). "
-            "Shows best and worst trades. Call this in Step 1 periodically (every "
-            "5+ closed trades) to validate that the strategy is generating alpha.\n\n"
-            "  'signal_cohorts' — Breaks all closed trades into signal cohorts: "
-            "PEG < 1.5 vs ≥ 1.5, FCF yield > 3% vs ≤ 3%, positive vs negative "
-            "momentum, score ≥ 8 vs < 8, and bull entry (VIX < 20) vs bear entry. "
-            "Shows win rate and avg return for each cohort so you can see which "
-            "signals are actually predictive in YOUR portfolio's specific history. "
-            "Use this to update signal weights in get_ml_factor_weights.\n\n"
-            "  'momentum' — Simulates buying the top-momentum tercile of a "
-            "provided ticker list at a point holding_days ago, and measures "
-            "actual forward return vs. S&P 500 buy-and-hold. Uses price data "
-            "only — no look-ahead on fundamentals. Pass your current screener "
-            "candidates as tickers to validate the momentum signal. "
-            "Requires tickers list.\n\n"
-            "Call 'trade_history' and 'signal_cohorts' in Step 1 once you have "
-            "≥5 closed trades. Call 'momentum' in Step 4 after screening to "
-            "validate momentum as a factor before weighting it in decisions."
+            "Run a strategy backtest in one of three modes: "
+            "'trade_history' (replay all closed trades — win rate, Sharpe, max drawdown, S&P alpha, regime segmentation), "
+            "'signal_cohorts' (break trades by signal threshold to find predictive signals), "
+            "or 'momentum' (simulate top-momentum buy from holding_days ago vs S&P 500; requires tickers list)."
         ),
         "input_schema": {
             "type": "object",
@@ -795,23 +639,15 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_shadow_performance",
-        "description": (
-            "Call this in Step 1 to audit past pass decisions — if a rejected stock is up 30%, "
-            "understand why you were wrong; if it's down 20%, your thesis was validated. "
-            "Use these lessons to sharpen your screening judgment."
-        ),
+        "description": "Return shadow portfolio performance: current price vs price at consideration for all rejected stocks.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     # ── ML insights (learned from portfolio history) ──────────────────────────
     {
         "name": "get_regime_change_status",
         "description": (
-            "Detect the current macro regime and compare it to the last recorded regime. "
-            "Returns whether the regime has changed since the previous run, how many days ago "
-            "the last regime was recorded, and a human-readable change summary. "
-            "Call this at the start of every session to check for macro shifts that may require "
-            "portfolio rebalancing — a regime change from RISK_ON to RISK_OFF, for example, "
-            "should trigger a full portfolio review even mid-cycle."
+            "Return the current macro regime, whether it has changed since the previous session, "
+            "days since last regime, and a change summary."
         ),
         "input_schema": {
             "type": "object",
@@ -822,54 +658,32 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_ml_factor_weights",
         "description": (
-            "Learn which screener signals have actually predicted returns in THIS portfolio's history. "
-            "Returns data-driven factor weights blended with regime-adjusted priors. "
-            "Weights are 100% regime-prior when no closed trades exist, then shift smoothly toward "
-            "data-driven as closed trades accumulate (25% at 5 trades → 75% at 25+ trades). "
-            "Also detects the current macro regime (RISK_ON / RISK_OFF / INFLATIONARY / NORMAL) "
-            "and returns feature correlations with returns. "
-            "Call this at the start of each session to understand which signals to trust most "
-            "when evaluating screener candidates. Use blended_weights to manually re-rank results."
+            "Return ML-derived factor weights for screener signals, blended with regime-adjusted "
+            "priors and calibrated to this portfolio's closed trade history."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "check_watchlist_triggers",
         "description": (
-            "Fetch live prices for every watchlist item and compare against target entry prices.\n\n"
-            "Returns four buckets:\n"
-            "  TRIGGERED   — price is AT or BELOW the target. Run deep research immediately.\n"
-            "  APPROACHING — price is within 10% above target. Watch closely this session.\n"
-            "  WAITING     — price is more than 10% above target. No action needed.\n"
-            "  NO_TARGET   — no target price set; current price reported for reference.\n\n"
-            "Call this at the start of every session BEFORE the universe screen. "
-            "If any items are TRIGGERED, prioritise them for deep research in Step 4 — "
-            "they may already be actionable without needing to screen the full universe."
+            "Return watchlist items bucketed by distance from target entry: "
+            "TRIGGERED (at/below target), APPROACHING (within 10%), WAITING, or NO_TARGET."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_watchlist_earnings",
         "description": (
-            "Fetch upcoming earnings dates for every watchlist item and bucket by urgency:\n"
-            "  IMMINENT — earnings within 7 days: research the stock NOW, before results land\n"
-            "  UPCOMING — earnings within 30 days: prepare thesis, set target entry\n"
-            "  DISTANT  — earnings >30 days away: no immediate action needed\n\n"
-            "Call this in Step 1 every session alongside check_watchlist_triggers. "
-            "IMMINENT items must be reviewed in Step 4 even if their price hasn't hit target — "
-            "earnings can create sudden entry opportunities or confirm thesis breaks."
+            "Return upcoming earnings dates for all watchlist items bucketed as "
+            "IMMINENT (≤7 days), UPCOMING (≤30 days), or DISTANT."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "check_fundamental_deterioration",
         "description": (
-            "Check all held positions for fundamental deterioration that may warrant exit. "
-            "Flags: revenue declining YoY, FCF turned negative, gross margin < 20%, "
-            "high leverage (D/E > 2x), ROE < 8%, earnings declining (fwd PE >> trailing PE). "
-            "Returns severity ratings: WATCH (1 flag), REVIEW (2 flags), EXIT (3+ flags). "
-            "Call this at the start of each session alongside portfolio status. "
-            "This is a long-term portfolio — exits are fundamentals-driven, not price-driven."
+            "Check held positions for fundamental deterioration: revenue decline, negative FCF, "
+            "low margins, high leverage, low ROE. Returns severity: WATCH (1 flag), REVIEW (2), EXIT (3+)."
         ),
         "input_schema": {
             "type": "object",
@@ -886,11 +700,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "check_earnings_surprises",
         "description": (
-            "Check held positions for recent earnings surprises (actual EPS vs estimate). "
-            "Flags significant beats (>15% above estimate) and misses (>15% below). "
-            "A large miss on a held position triggers re-research — the original thesis "
-            "may be breaking. A large beat may warrant adding to the position. "
-            "Call this alongside check_fundamental_deterioration in Step 2."
+            "Return recent earnings surprises for held positions: flags beats (>15%) and misses (>15%)."
         ),
         "input_schema": {
             "type": "object",
@@ -904,10 +714,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "check_dividend_payments",
         "description": (
-            "Check held positions for dividend payments. Returns annual dividend rate, "
-            "yield %, estimated annual income per holding, and ex-dividend dates. "
-            "Dividends are treated as additional cash income for reinvestment. "
-            "Call during portfolio review to account for dividend income in total return calculations."
+            "Return annual dividend rate, yield %, estimated annual income, and ex-dividend dates "
+            "for held positions."
         ),
         "input_schema": {
             "type": "object",
@@ -921,17 +729,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "calculate_intrinsic_value",
         "description": (
-            "Standardised 3-stage DCF model for a single stock. Produces consistent, "
-            "comparable intrinsic value estimates across all sessions and subagents.\n\n"
-            "Model parameters (fixed, non-negotiable):\n"
-            "  Stage 1 (yr 1-5):  conservative FCF/earnings growth, haircutted by 20%\n"
-            "  Stage 2 (yr 6-10): linear fade from Stage 1 rate → 2.5% terminal\n"
-            "  Stage 3 (terminal): 2.5% perpetuity growth\n"
-            "  Discount rate:     10.0%\n\n"
-            "Returns bear/base/bull IV per share and margin of safety at current price. "
-            "Use the BASE scenario as the primary IV reference. "
-            "Call this for every finalist before making a buy or watchlist decision — "
-            "it replaces informal IV estimates with a standardised, auditable number."
+            "Run a standardised 3-stage DCF (10% discount rate, 2.5% terminal, 20% growth haircut) "
+            "and return bear/base/bull intrinsic value per share and margin of safety at current price."
         ),
         "input_schema": {
             "type": "object",
@@ -944,11 +743,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_watchlist_history",
         "description": (
-            "Return the history of watchlist lifecycle events: when items were TRIGGERED "
-            "(price hit target), APPROACHING, BOUGHT, or REMOVED. "
-            "Use this periodically to audit IV estimate accuracy — if TSM was triggered at $230 "
-            "but never bought and is now $180, that tells you the IV estimate was wrong. "
-            "Pass an optional ticker to filter to one stock's history."
+            "Return watchlist lifecycle events: when items were TRIGGERED, APPROACHING, BOUGHT, or REMOVED. "
+            "Optionally filter to a specific ticker."
         ),
         "input_schema": {
             "type": "object",
@@ -964,23 +760,15 @@ TOOL_DEFINITIONS = [
     {
         "name": "prioritize_watchlist_ml",
         "description": (
-            "Score every watchlist item using ML-derived factor weights and return a ranked list. "
-            "For each item: fetches current fundamentals, applies learned factor weights, "
-            "computes an ML score (0-10), flags strengths and risk factors, and highlights items "
-            "near their target entry price (promoted to top of their score tier). "
-            "Call this alongside get_watchlist() to prioritise which candidates deserve the deepest "
-            "research this session. Score ≥7: strong candidate — investigate thoroughly. "
-            "Score <4: weak fit for current regime — lower priority unless thesis is compelling."
+            "Score every watchlist item using ML factor weights and return a ranked list with "
+            "ML score (0-10), strengths, risk factors, and proximity to target entry price."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_conviction_position_size",
         "description": (
-            "Calculate the appropriate position size for a stock given its conviction score "
-            "and the current macro regime. Call this BEFORE placing any buy order to determine "
-            "how many dollars to allocate. Conviction 9-10 = full position, 7-8 = 75%, "
-            "5-6 = 50%. Regime sets the base size (RISK_ON=15%, NORMAL=12%, etc.)."
+            "Return position size in dollars for a given conviction score (1-10) and macro regime."
         ),
         "input_schema": {
             "type": "object",
@@ -995,14 +783,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_position_size_recommendation",
         "description": (
-            "Estimate drawdown risk for a specific stock and recommend an appropriate position size "
-            "(% of portfolio). Combines three inputs: (1) feature-based risk flags on valuation, "
-            "FCF, momentum, growth, and profitability; (2) a logistic regression drawdown model "
-            "trained on the portfolio's own closed trade history (when ≥5 closed trades exist); "
-            "(3) regime-adjusted base size (smaller in RISK_OFF / STAGFLATION). "
-            "Call this just before executing a buy to calibrate position size. "
-            "Pass the screener_snapshot features from screen_stocks as the 'features' argument. "
-            "The recommendation respects the 20% maximum position cap."
+            "Return recommended position size (% of portfolio) based on feature risk flags, "
+            "a drawdown model trained on closed trade history, and current macro regime. "
+            "Pass screener_snapshot features from screen_stocks as the 'features' argument."
         ),
         "input_schema": {
             "type": "object",
@@ -1027,15 +810,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_economic_indicators",
         "description": (
-            "Fetch key US macroeconomic indicators from the Federal Reserve FRED API: "
-            "real GDP growth, CPI inflation, core CPI, unemployment rate, initial jobless "
-            "claims, retail sales, consumer sentiment, industrial production, housing starts, "
-            "and the federal funds rate. "
-            "Returns synthesised investment signals (e.g. 'GDP negative → favour defensives'). "
-            "These are LEADING real-economy indicators that typically lead equity markets by "
-            "1-2 quarters — use alongside get_macro_environment() (which covers yield curve, "
-            "VIX, dollar) for a complete macro picture. "
-            "Requires FRED_API_KEY in .env (free at https://fredapi.stlouisfed.org)."
+            "Fetch US macro indicators from FRED: GDP, CPI, unemployment, jobless claims, "
+            "retail sales, consumer sentiment, industrial production, housing starts, and fed funds rate."
         ),
         "input_schema": {
             "type": "object",
@@ -1046,14 +822,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_google_trends",
         "description": (
-            "Fetch Google search-interest trends for a company's brand or products. "
-            "Search interest is a leading indicator of consumer demand — rising interest "
-            "4-8 weeks before earnings often predicts revenue beats for consumer-facing companies. "
-            "Returns 12-month trend, recent 8-week direction (rising/falling/stable), "
-            "and current interest vs 12-month average. "
-            "Best used for consumer-facing companies (AAPL, AMZN, NFLX). "
-            "For B2B companies, pass specific product keywords (e.g. ['Azure'] for MSFT). "
-            "Uses pytrends — no API key required."
+            "Return 12-month Google search-interest trend for a company's brand or products, "
+            "including recent 8-week direction and current interest vs 12-month average."
         ),
         "input_schema": {
             "type": "object",
@@ -1078,14 +848,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_retail_sentiment",
         "description": (
-            "Aggregate retail investor sentiment from StockTwits and Reddit "
-            "(r/investing, r/wallstreetbets, r/stocks, r/SecurityAnalysis). "
-            "Returns StockTwits bull/bear ratio and recent Reddit posts with scoring. "
-            "IMPORTANT: Retail sentiment is a CONTRARIAN indicator for long-term investors. "
-            "Extreme bullishness (>80% bulls) often precedes corrections; "
-            "extreme bearishness (<25% bulls) can mark bottoms. "
-            "Use as a sentiment thermometer alongside fundamentals — not as a buy/sell trigger. "
-            "No API key required."
+            "Return retail investor sentiment from StockTwits and Reddit: bull/bear ratio and recent posts."
         ),
         "input_schema": {
             "type": "object",
@@ -1100,16 +863,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_rss_news",
-        "description": (
-            "Aggregate recent news headlines from multiple RSS feeds: "
-            "Yahoo Finance, MarketWatch, and Seeking Alpha. "
-            "Provides broader coverage than get_stock_news(), surfacing analyst commentary, "
-            "earnings previews, sector rotation themes, and M&A / regulatory news. "
-            "Use when get_stock_news() returns few results or you want a second opinion on "
-            "news coverage. Look for recurring negative themes across multiple sources — "
-            "that cross-source agreement is a stronger signal than a single headline. "
-            "Requires feedparser (pip install feedparser) — no API key needed."
-        ),
+        "description": "Return recent news headlines from Yahoo Finance, MarketWatch, and Seeking Alpha RSS feeds.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1125,12 +879,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "analyze_earnings_call",
         "description": (
-            "Fetch the most recent earnings call transcript from SEC EDGAR (8-K filing) "
-            "and return it for analysis. Use this to assess management tone, changes in "
-            "forward guidance language, analyst Q&A tension points, and topics management "
-            "avoided. A confident, specific management tone is bullish; vague or heavily "
-            "hedged language often precedes a guidance cut. Call this when you want deeper "
-            "qualitative insight beyond EPS beat/miss numbers."
+            "Fetch the most recent earnings call transcript from SEC EDGAR (8-K) for analysis "
+            "of management tone, guidance language, and Q&A content."
         ),
         "input_schema": {
             "type": "object",
@@ -1146,15 +896,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "analyze_sec_filing",
         "description": (
-            "Fetch and return key sections of the latest 10-K (annual) or 10-Q (quarterly) "
-            "report from SEC EDGAR. Returns three high-signal sections: Business overview "
-            "(moat description), Risk Factors (management-flagged threats), and MD&A "
-            "(management discussion and analysis). "
-            "Key signals to look for: new risk factors vs prior year = emerging threats; "
-            "MD&A language shifting from confident to hedged = caution ahead; "
-            "moat language becoming defensive = competitive pressure. "
-            "Use this for deep-dive research on high-conviction candidates or to validate "
-            "the thesis on existing holdings."
+            "Fetch the Business overview, Risk Factors, and MD&A sections from the latest "
+            "10-K or 10-Q on SEC EDGAR."
         ),
         "input_schema": {
             "type": "object",
@@ -1175,13 +918,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_material_events",
         "description": (
-            "Fetch recent SEC 8-K material event filings for a stock. Companies must file "
-            "an 8-K within 4 business days of any material event — making this a real-time "
-            "signal source for: CEO/CFO departures (Item 5.02), M&A activity (Item 2.01), "
-            "asset impairments (Item 2.06), auditor changes (Item 4.01), restatements "
-            "(Item 4.02), and bankruptcy (Item 1.03). "
-            "Use this to catch thesis-breaking events between quarterly earnings calls. "
-            "A CFO exit is typically a stronger warning signal than a CEO exit."
+            "Fetch recent SEC 8-K material event filings: CEO/CFO changes (5.02), M&A (2.01), "
+            "asset impairments (2.06), auditor changes (4.01), restatements (4.02), bankruptcy (1.03)."
         ),
         "input_schema": {
             "type": "object",
@@ -1201,14 +939,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_competitor_analysis",
         "description": (
-            "Identify the stock's closest S&P 500 peers by sector and return a "
-            "side-by-side fundamental comparison (PEG, FCF yield, margins, ROE, momentum). "
-            "Use this to determine whether a valuation premium is justified vs actual "
-            "competitors — not just the broad market. "
-            "Key questions: Is the subject's PEG above or below the peer median? "
-            "Does its revenue growth rate justify a higher multiple? "
-            "Stocks ranking in the top quartile on both quality AND valuation vs peers "
-            "have the strongest long-term outperformance record."
+            "Return a side-by-side fundamental comparison (PEG, FCF yield, margins, ROE, momentum) "
+            "of the stock vs its closest S&P 500 sector peers."
         ),
         "input_schema": {
             "type": "object",
@@ -1224,14 +956,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_superinvestor_positions",
         "description": (
-            "Check whether prominent long-term value investors hold this stock based on "
-            "their latest SEC 13F-HR filings. Investors tracked: Buffett (Berkshire), "
-            "Ackman (Pershing Square), Tepper (Appaloosa), Halvorsen (Viking Global), "
-            "Druckenmiller (Duquesne), Loeb (Third Point), Einhorn (Greenlight). "
-            "Multiple superinvestors converging on the same position is a strong "
-            "independent confirmation signal. Note: 13F filings have up to a 45-day lag "
-            "after quarter-end, so positions may have changed since the filing date. "
-            "The absence of smart money is not a negative signal on its own."
+            "Return 13F-based positions for Buffett, Ackman, Tepper, Druckenmiller, Loeb, "
+            "Einhorn, and Halvorsen. Note: 13F filings have up to a 45-day lag."
         ),
         "input_schema": {
             "type": "object",
@@ -1248,22 +974,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "research_stocks_parallel",
         "description": (
-            "Launch parallel research subagents to deep-dive multiple stocks simultaneously. "
-            "Each subagent independently researches one ticker — running all 15 research tools "
-            "(fundamentals, earnings call, SEC filings, insider activity, competitor analysis, "
-            "superinvestor positions, sentiment, material events, etc.) — and returns a "
-            "structured JSON report with a recommendation (buy/watchlist/pass), "
-            "conviction score 1-10, key positives, key risks, and a full thesis. "
-            "\n\n"
-            "Use this in Step 4 instead of researching finalists one-by-one. "
-            "Pass 3-6 tickers from your screener results. All reports arrive at once, "
-            "already sorted by conviction score. The coordinator then decides which to "
-            "buy, watchlist, or shadow-record based on the synthesised reports. "
-            "\n\n"
-            "Provide 'context' with the current macro regime, sector exposure, and "
-            "available cash — subagents use this to calibrate recommendations. "
-            "Each screener_data dict (from screen_stocks) should include the full "
-            "screener row for that ticker so subagents can see the screener signals."
+            "Launch parallel research subagents to deep-dive multiple tickers simultaneously. "
+            "Each subagent runs all research tools and returns a structured JSON report with "
+            "recommendation (buy/watchlist/pass), conviction score, key positives/risks, and thesis."
         ),
         "input_schema": {
             "type": "object",
@@ -1307,26 +1020,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "challenge_buy_theses",
         "description": (
-            "Launch adversarial bear case subagents to challenge bull buy recommendations "
-            "before committing capital. For each stock the research agent recommended 'buy', "
-            "a separate bear case subagent is given the full bull report and tasked with "
-            "finding every flaw: overestimated moat, valuation errors, missed risks, "
-            "accounting red flags, competitive threats, and macro sensitivity.\n\n"
-            "Call this AFTER research_stocks_parallel, passing in the reports it returned. "
-            "Only 'buy'-rated reports are challenged; others pass through unchanged.\n\n"
-            "Each bear report returns:\n"
-            "  - verdict: 'proceed' (bull thesis holds), 'caution' (real issues found), "
-            "    or 'reject' (fundamental flaw — do not buy)\n"
-            "  - bear_conviction: 1-10 (how strongly the bear argues against buying)\n"
-            "  - key_objections: specific flaws found\n"
-            "  - risks_missed_by_bull: risks the bull report glossed over\n"
-            "  - recommended_action: final call after weighing both sides\n\n"
-            "Decision rule:\n"
-            "  - verdict='proceed' → buy is confirmed, proceed with normal position sizing\n"
-            "  - verdict='caution' → consider half-size position or watchlist pending resolution\n"
-            "  - verdict='reject' → do NOT buy; shadow-record instead\n\n"
-            "Provide 'context' with the current macro regime and sector weights so the bear "
-            "agent can assess macro sensitivity of each thesis."
+            "Launch adversarial bear case subagents for each 'buy'-rated report from "
+            "research_stocks_parallel. Returns verdict (proceed/caution/reject), bear_conviction, "
+            "key_objections, risks_missed_by_bull, and recommended_action for each stock."
         ),
         "input_schema": {
             "type": "object",
@@ -1355,12 +1051,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "check_concentration_limits",
         "description": (
-            "Check if a proposed buy order would breach portfolio concentration limits. "
-            "Hard limits: max 10% in any single position, max 30% in any one sector. "
-            "Returns whether the buy is allowed, any violations, and the max_allowed_buy "
-            "amount that stays within limits. "
-            "MUST be called before every buy_stock execution. If not allowed, either reduce "
-            "the buy amount to max_allowed_buy or skip the trade."
+            "Return whether a proposed buy would breach position (>10%) or sector (>30%) "
+            "concentration limits, and the max_allowed_buy that stays within limits."
         ),
         "input_schema": {
             "type": "object",
@@ -1381,10 +1073,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "log_prediction",
         "description": (
-            "Log an investment decision for later reconciliation. Call this AFTER every "
-            "buy, watchlist, or pass decision with the conviction score, intrinsic value, "
-            "and current price. After 90 days, reconcile_predictions will compare the "
-            "prediction against actual outcomes to measure the agent's accuracy over time."
+            "Log a buy/watchlist/pass decision with conviction score, predicted IV, and price "
+            "for later reconciliation against actual outcomes."
         ),
         "input_schema": {
             "type": "object",
@@ -1401,22 +1091,14 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "reconcile_predictions",
-        "description": (
-            "Reconcile past predictions against actual outcomes. Finds all decisions made "
-            ">90 days ago that haven't been reviewed, fetches current prices, and updates "
-            "the record with actual return and alpha vs SPY. Call this quarterly to measure "
-            "prediction accuracy and identify systematic biases."
-        ),
+        "description": "Reconcile past predictions (>90 days old) against actual prices and record return and alpha vs SPY.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "check_news_alerts",
         "description": (
-            "Scan recent news headlines for held positions and flag material events "
-            "that may warrant unscheduled re-research: CEO/CFO departures, accounting "
-            "restatements, M&A activity, bankruptcy risk, guidance cuts, regulatory actions. "
-            "Call alongside check_fundamental_deterioration in Step 2. "
-            "Any flagged holding should be re-researched before the next scheduled run."
+            "Scan recent news for held positions and flag material events: CEO/CFO departures, "
+            "restatements, M&A, bankruptcy risk, guidance cuts, regulatory actions."
         ),
         "input_schema": {
             "type": "object",
@@ -1429,14 +1111,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "query_kb",
-        "description": (
-            "Search the investment knowledge base for relevant notes, frameworks, and company insights. "
-            "Use this when you need specific knowledge about: a company (e.g. 'Sygnity TSS sidecar thesis'), "
-            "a valuation methodology (e.g. 'FCF normalisation'), a failure mode (e.g. 'peak earnings trap'), "
-            "or a sector framework (e.g. 'serial acquirer red flags'). "
-            "Returns the top matching KB entries ranked by relevance. "
-            "More efficient than re-deriving from first principles — check the KB first."
-        ),
+        "description": "Search the investment knowledge base for notes on companies, frameworks, valuation methods, or lessons.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1462,13 +1137,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "save_kb_note",
-        "description": (
-            "Save a new note to the investment knowledge base, or update an existing one. "
-            "Use this to persist insights discovered during research that would be valuable "
-            "in future sessions: company-specific observations, updated theses, sector patterns, "
-            "or lessons from mistakes. Notes are searchable via query_kb. "
-            "If a note with the same title already exists, it will be updated."
-        ),
+        "description": "Save or update a note in the investment knowledge base (searchable via query_kb).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1499,12 +1168,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "run_iv_postmortem",
         "description": (
-            "Analyse past IV (intrinsic value) predictions vs actual outcomes. "
-            "For each reconciled prediction with a predicted_iv, computes iv_accuracy_pct = "
-            "(outcome_price / predicted_iv - 1) * 100. Groups by conviction bucket (5-6, 7-8, 9-10) "
-            "and by sector. Saves calibration insights to the knowledge base automatically. "
-            "Call this quarterly alongside reconcile_predictions to refine your IV methodology. "
-            "Returns: total_analysed, conviction_calibration, sector_calibration, insights, kb_notes_saved."
+            "Analyse past IV predictions vs actual outcomes. Returns conviction_calibration, "
+            "sector_calibration, and insights; saves results to the knowledge base."
         ),
         "input_schema": {
             "type": "object",
@@ -1515,12 +1180,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_conviction_calibration",
         "description": (
-            "Analyse whether conviction scores actually predict returns in this portfolio. "
-            "Groups reconciled predictions by conviction bucket (low 5-6, medium 7-8, high 9-10) "
-            "and computes avg_return, win_rate, avg_alpha per bucket. "
-            "Diagnoses whether high conviction (9-10) is genuinely more accurate than medium (7-8). "
-            "Returns calibration_status: 'well_calibrated', 'miscalibrated_high', or 'insufficient_data'. "
-            "Use this to validate position sizing multipliers — if miscalibrated, reduce high-conviction sizing."
+            "Return avg_return, win_rate, and avg_alpha per conviction bucket (5-6, 7-8, 9-10) "
+            "with calibration_status: well_calibrated, miscalibrated_high, or insufficient_data."
         ),
         "input_schema": {
             "type": "object",
@@ -1531,13 +1192,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_decision_thresholds",
         "description": (
-            "Return the permanent decision thresholds for the buy/watchlist/pass matrix. "
-            "CALL THIS ONCE at the start of Step 5 before acting on any research report. "
-            "Returns mos_threshold_pct (regime-adjusted, permanent — 20% NORMAL to 28% STAGFLATION), "
-            "bear_override_conviction, a ready-to-use decision_matrix, and ml_factor_guidance "
-            "showing which screener signals have predicted returns in this portfolio. "
-            "The MoS threshold is a permanent discipline rule for a 20+ year IV portfolio — "
-            "it does not change based on trade history. ML only influences candidate ranking."
+            "Return the buy/watchlist/pass decision matrix: regime-adjusted MoS threshold (20-28%), "
+            "bear_override_conviction threshold, and ML factor guidance for candidate ranking."
         ),
         "input_schema": {
             "type": "object",
@@ -1548,10 +1204,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_earnings_tone_trend",
         "description": (
-            "Get the earnings call sentiment trend for a ticker over the last 3-4 quarters. "
-            "Returns tone direction (positive/negative/neutral) per quarter plus a delta signal. "
-            "Use this to detect management confidence deterioration before it shows in financials. "
-            "A deteriorating trend (delta < -0.1) is an early warning sign that warrants thesis review."
+            "Return earnings call sentiment direction (positive/negative/neutral) for the last "
+            "3-4 quarters with a delta signal indicating trend direction."
         ),
         "input_schema": {
             "type": "object",
@@ -1567,12 +1221,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_market_iv_context",
         "description": (
-            "Aggregate recent research cache to quantify market-level valuation. "
-            "Answers: 'What % of the researched universe currently offers ≥20% margin of safety?' "
-            "High % = cheap market, easier to find opportunities. "
-            "Low % = expensive market, require higher quality bar. "
-            "Returns: at_mos_pct, avg_mos_pct, market_signal ('cheap'/'fair'/'expensive'), sector_breakdown. "
-            "Call this in Step 1 to calibrate the opportunity bar for the session."
+            "Return what % of the researched universe offers ≥20% margin of safety, avg_mos_pct, "
+            "market_signal (cheap/fair/expensive), and sector breakdown."
         ),
         "input_schema": {
             "type": "object",
@@ -1583,13 +1233,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "detect_financial_anomalies",
         "description": (
-            "Detect statistical anomalies in a company's financial ratios by computing z-scores vs "
-            "its own 5-year history and sector peers. Use this to catch peak earnings traps "
-            "(margins at multi-year highs) or potential dislocations (margins at multi-year lows). "
-            "Call before finalising your intrinsic value estimate. "
-            "Returns: anomalies (temporal z-scores), sector_anomalies (cross-sectional), "
-            "overall_flag ('clean'/'watch'/'flagged'), summary. "
-            "If overall_flag is 'flagged', incorporate the interpretations into your normalisation assumptions."
+            "Return z-scores for financial ratios vs the company's 5-year history and sector peers, "
+            "with overall_flag (clean/watch/flagged) and interpretation summary."
         ),
         "input_schema": {
             "type": "object",
@@ -1609,22 +1254,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "save_session_reflection",
         "description": (
-            "Save a structured reflection at the end of your portfolio review session. "
-            "Always call this at the end of each review. "
-            "Use exactly this markdown template:\n\n"
-            "## Actions Taken\n"
-            "[Buys, sells, watchlist additions, shadow records — with one-line rationale each]\n\n"
-            "## Thesis Validation\n"
-            "[For each holding: is the original thesis playing out? Any cracks?]\n\n"
-            "## Signal Performance\n"
-            "[Which signals (PEG, FCF, momentum) appear to be working this session? "
-            "Any surprises from get_signal_performance?]\n\n"
-            "## Macro Observations\n"
-            "[Rate environment, dollar, VIX, sector rotation — what the regime is telling you]\n\n"
-            "## Shadow Portfolio Review\n"
-            "[Any passed-on stocks that moved significantly? Was the pass correct?]\n\n"
-            "## Lessons for Next Session\n"
-            "[2-4 specific, actionable rules to apply next time]"
+            "Save a structured post-session reflection. Required sections: Actions Taken, "
+            "Thesis Validation, Signal Performance, Macro Observations, Shadow Portfolio Review, "
+            "Lessons for Next Session."
         ),
         "input_schema": {
             "type": "object",
@@ -1639,12 +1271,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_stored_thesis",
-        "description": (
-            "Retrieve the stored investment thesis for a ticker from previous research sessions. "
-            "Call this when re-researching a watchlist or portfolio stock to check consistency "
-            "with your original reasoning. Returns original moat assessment, IV estimate, and "
-            "key thesis points so you can explicitly note what changed."
-        ),
+        "description": "Return the stored investment thesis for a ticker from previous research sessions.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1659,10 +1286,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "check_portfolio_correlation",
         "description": (
-            "Compute 1-year price correlation between a candidate stock and all current portfolio "
-            "holdings. Returns a warning + sizing adjustment if the candidate is highly correlated "
-            "with existing positions (avg correlation > 0.6 or any pair > 0.7). Call before "
-            "buy_stock to avoid accidentally concentrating factor exposure."
+            "Return 1-year price correlation between a candidate and all held positions, "
+            "with a warning and sizing adjustment if avg correlation > 0.6 or any pair > 0.7."
         ),
         "input_schema": {
             "type": "object",
@@ -1677,12 +1302,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "check_watchlist_staleness",
-        "description": (
-            "Return watchlist entries that haven't been re-evaluated in 60+ days. These entries "
-            "may have hit their target price (missed entry), had their thesis invalidated, or "
-            "represent opportunities that need fresh research. Use this at the start of a session "
-            "to prioritise re-evaluation of aging watchlist entries."
-        ),
+        "description": "Return watchlist entries that haven't been re-evaluated in 60+ days (stale).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1696,12 +1316,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "save_management_profile",
-        "description": (
-            "Save a management quality assessment to the knowledge base for future sessions. "
-            "Call this after completing the capital allocation / management quality step of "
-            "research. The profile will be retrieved next time this company is researched, "
-            "avoiding redundant re-derivation of management quality from scratch."
-        ),
+        "description": "Save a management quality assessment (score, capital_allocation_rating, flags, summary) to the KB.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1743,13 +1358,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_behaviour_summary",
         "description": (
-            "Load agent behaviour patterns across recent sessions. "
-            "Call at session start alongside get_investment_memory. "
-            "Returns averages for: tickers screened/researched, buys per session, "
-            "re_researched_watchlist (wasted research budget), deviated_from_matrix "
-            "(rules not followed), duplicate_tool_calls, and recent workflow improvement "
-            "suggestions logged by the agent itself. "
-            "Compare your current session behaviour against these averages in real time."
+            "Return average session behaviour stats: tickers screened/researched, buys per session, "
+            "rule deviations, duplicate tool calls, and workflow improvement suggestions."
         ),
         "input_schema": {
             "type": "object",
@@ -1765,13 +1375,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "log_workflow_issue",
         "description": (
-            "Log a workflow inefficiency you notice during the session. "
-            "Call immediately when you spot something suboptimal — redundant tool calls, "
-            "a missing step, an instruction that produced unexpected results, a decision "
-            "you made that deviated from the rules and why. "
-            "These accumulate across sessions and surface in get_behaviour_summary so "
-            "patterns can be identified and the workflow improved. "
-            "severity: 'low' (minor friction), 'medium' (recurring waste), 'high' (caused wrong decision)."
+            "Log a workflow inefficiency with a fix suggestion and severity "
+            "(low=minor friction, medium=recurring waste, high=caused wrong decision)."
         ),
         "input_schema": {
             "type": "object",
@@ -1795,12 +1400,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "save_session_audit",
-        "description": (
-            "Save structured self-audit metrics at the end of every session. "
-            "Call this BEFORE save_session_reflection as part of the Step 6 self-audit. "
-            "Records objective counts and boolean flags that accumulate into behaviour patterns "
-            "visible via get_behaviour_summary in future sessions."
-        ),
+        "description": "Save structured self-audit metrics at the end of a session (counts for screens, buys, deviations, duplicates, etc.).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1821,12 +1421,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_session_efficiency",
-        "description": (
-            "Get current session efficiency statistics (total tool calls, unique tools used, "
-            "duration) and the last 10 sessions' history for comparison. Call near the end of "
-            "a session before save_session_reflection to log efficiency and identify waste "
-            "patterns over time."
-        ),
+        "description": "Return current session tool call count, duration, unique tools used, and last 10 sessions' history.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1853,11 +1448,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "check_position_drift",
         "description": (
-            "Check if any existing portfolio positions have drifted above concentration limits "
-            "through price appreciation. A position bought at 8% can grow to 15% without "
-            "triggering the buy-time check. Returns positions > 12% (limit: 10%) and sectors "
-            "> 33% (limit: 30%) with trim recommendations. Call at session start alongside "
-            "check_fundamental_deterioration."
+            "Return positions that have drifted above concentration limits (>12% single position, "
+            ">33% sector) through price appreciation, with trim recommendations."
         ),
         "input_schema": {
             "type": "object",
@@ -1868,10 +1460,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_sector_rotation_signal",
         "description": (
-            "Analyse sector distribution across portfolio, recently researched stocks, and the "
-            "full universe to detect availability bias (systematically over/under-researching "
-            "certain sectors) and portfolio tilts vs. the opportunity set. Use at session start "
-            "to ensure the session explores underweight sectors if warranted."
+            "Return sector distribution across portfolio, recently researched stocks, and the universe "
+            "to detect availability bias and portfolio tilts vs the opportunity set."
         ),
         "input_schema": {
             "type": "object",
@@ -1967,17 +1557,8 @@ _MODEL_TIERS = [
     {
         "name": "calculate_intrinsic_value",
         "description": (
-            "Standardised 3-stage DCF model for a single stock. Produces consistent, "
-            "comparable intrinsic value estimates across all sessions and subagents.\n\n"
-            "Model parameters (fixed, non-negotiable):\n"
-            "  Stage 1 (yr 1-5):  conservative FCF/earnings growth, haircutted by 20%\n"
-            "  Stage 2 (yr 6-10): linear fade from Stage 1 rate → 2.5% terminal\n"
-            "  Stage 3 (terminal): 2.5% perpetuity growth\n"
-            "  Discount rate:     10.0%\n\n"
-            "Returns bear/base/bull IV per share and margin of safety at current price. "
-            "Use the BASE scenario as the primary IV reference. "
-            "Call this for every finalist before making a buy or watchlist decision — "
-            "it replaces informal IV estimates with a standardised, auditable number."
+            "Run a standardised 3-stage DCF (10% discount rate, 2.5% terminal, 20% growth haircut) "
+            "and return bear/base/bull intrinsic value per share and margin of safety at current price."
         ),
         "input_schema": {
             "type": "object",
@@ -1992,12 +1573,8 @@ _MODEL_TIERS = [
     {
         "name": "check_concentration_limits",
         "description": (
-            "Check if a proposed buy order would breach portfolio concentration limits. "
-            "Hard limits: max 10% in any single position, max 30% in any one sector. "
-            "Returns whether the buy is allowed, any violations, and the max_allowed_buy "
-            "amount that stays within limits. "
-            "MUST be called before every buy_stock execution. If not allowed, either reduce "
-            "the buy amount to max_allowed_buy or skip the trade."
+            "Return whether a proposed buy would breach position (>10%) or sector (>30%) "
+            "concentration limits, and the max_allowed_buy that stays within limits."
         ),
         "input_schema": {
             "type": "object",
@@ -2020,10 +1597,8 @@ _MODEL_TIERS = [
     {
         "name": "check_dividend_payments",
         "description": (
-            "Check held positions for dividend payments. Returns annual dividend rate, "
-            "yield %, estimated annual income per holding, and ex-dividend dates. "
-            "Dividends are treated as additional cash income for reinvestment. "
-            "Call during portfolio review to account for dividend income in total return calculations."
+            "Return annual dividend rate, yield %, estimated annual income, and ex-dividend dates "
+            "for held positions."
         ),
         "input_schema": {
             "type": "object",
@@ -2039,11 +1614,7 @@ _MODEL_TIERS = [
     {
         "name": "check_earnings_surprises",
         "description": (
-            "Check held positions for recent earnings surprises (actual EPS vs estimate). "
-            "Flags significant beats (>15% above estimate) and misses (>15% below). "
-            "A large miss on a held position triggers re-research — the original thesis "
-            "may be breaking. A large beat may warrant adding to the position. "
-            "Call this alongside check_fundamental_deterioration in Step 2."
+            "Return recent earnings surprises for held positions: flags beats (>15%) and misses (>15%)."
         ),
         "input_schema": {
             "type": "object",
@@ -2059,12 +1630,8 @@ _MODEL_TIERS = [
     {
         "name": "check_fundamental_deterioration",
         "description": (
-            "Check all held positions for fundamental deterioration that may warrant exit. "
-            "Flags: revenue declining YoY, FCF turned negative, gross margin < 20%, "
-            "high leverage (D/E > 2x), ROE < 8%, earnings declining (fwd PE >> trailing PE). "
-            "Returns severity ratings: WATCH (1 flag), REVIEW (2 flags), EXIT (3+ flags). "
-            "Call this at the start of each session alongside portfolio status. "
-            "This is a long-term portfolio — exits are fundamentals-driven, not price-driven."
+            "Check held positions for fundamental deterioration: revenue decline, negative FCF, "
+            "low margins, high leverage, low ROE. Returns severity: WATCH (1 flag), REVIEW (2), EXIT (3+)."
         ),
         "input_schema": {
             "type": "object",
@@ -2083,10 +1650,8 @@ _MODEL_TIERS = [
     {
         "name": "check_portfolio_correlation",
         "description": (
-            "Compute 1-year price correlation between a candidate stock and all current portfolio "
-            "holdings. Returns a warning + sizing adjustment if the candidate is highly correlated "
-            "with existing positions (avg correlation > 0.6 or any pair > 0.7). Call before "
-            "buy_stock to avoid accidentally concentrating factor exposure."
+            "Return 1-year price correlation between a candidate and all held positions, "
+            "with a warning and sizing adjustment if avg correlation > 0.6 or any pair > 0.7."
         ),
         "input_schema": {
             "type": "object",
@@ -2104,11 +1669,8 @@ _MODEL_TIERS = [
     {
         "name": "check_position_drift",
         "description": (
-            "Check if any existing portfolio positions have drifted above concentration limits "
-            "through price appreciation. A position bought at 8% can grow to 15% without "
-            "triggering the buy-time check. Returns positions > 12% (limit: 10%) and sectors "
-            "> 33% (limit: 30%) with trim recommendations. Call at session start alongside "
-            "check_fundamental_deterioration."
+            "Return positions that have drifted above concentration limits (>12% single position, "
+            ">33% sector) through price appreciation, with trim recommendations."
         ),
         "input_schema": {
             "type": "object",
@@ -2120,12 +1682,7 @@ _MODEL_TIERS = [
 
     {
         "name": "check_watchlist_staleness",
-        "description": (
-            "Return watchlist entries that haven't been re-evaluated in 60+ days. These entries "
-            "may have hit their target price (missed entry), had their thesis invalidated, or "
-            "represent opportunities that need fresh research. Use this at the start of a session "
-            "to prioritise re-evaluation of aging watchlist entries."
-        ),
+        "description": "Return watchlist entries that haven't been re-evaluated in 60+ days (stale).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2142,15 +1699,8 @@ _MODEL_TIERS = [
     {
         "name": "check_watchlist_triggers",
         "description": (
-            "Fetch live prices for every watchlist item and compare against target entry prices.\n\n"
-            "Returns four buckets:\n"
-            "  TRIGGERED   — price is AT or BELOW the target. Run deep research immediately.\n"
-            "  APPROACHING — price is within 10% above target. Watch closely this session.\n"
-            "  WAITING     — price is more than 10% above target. No action needed.\n"
-            "  NO_TARGET   — no target price set; current price reported for reference.\n\n"
-            "Call this at the start of every session BEFORE the universe screen. "
-            "If any items are TRIGGERED, prioritise them for deep research in Step 4 — "
-            "they may already be actionable without needing to screen the full universe."
+            "Return watchlist items bucketed by distance from target entry: "
+            "TRIGGERED (at/below target), APPROACHING (within 10%), WAITING, or NO_TARGET."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
@@ -2159,13 +1709,8 @@ _MODEL_TIERS = [
     {
         "name": "detect_financial_anomalies",
         "description": (
-            "Detect statistical anomalies in a company's financial ratios by computing z-scores vs "
-            "its own 5-year history and sector peers. Use this to catch peak earnings traps "
-            "(margins at multi-year highs) or potential dislocations (margins at multi-year lows). "
-            "Call before finalising your intrinsic value estimate. "
-            "Returns: anomalies (temporal z-scores), sector_anomalies (cross-sectional), "
-            "overall_flag ('clean'/'watch'/'flagged'), summary. "
-            "If overall_flag is 'flagged', incorporate the interpretations into your normalisation assumptions."
+            "Return z-scores for financial ratios vs the company's 5-year history and sector peers, "
+            "with overall_flag (clean/watch/flagged) and interpretation summary."
         ),
         "input_schema": {
             "type": "object",
@@ -2187,16 +1732,9 @@ _MODEL_TIERS = [
     {
         "name": "discover_universe_parallel",
         "description": (
-            "Two-layer universe screen. Uses a cached quality score (stable fundamentals: "
-            "revenue growth, margins, ROE, debt) to shortlist the top 150 names from ~700 tickers, "
-            "then fetches fresh valuation metrics (FCF yield, PEG, momentum) for those 150 only. "
-            "Returns 'top_candidates': top 60 globally ranked by combined quality+valuation score.\n\n"
-            "Each candidate includes quality_score, valuation_score, combined_score, and a "
-            "'universe' field ('us_sp500' or 'international'). "
-            "Pass top_candidates directly to research_stocks_parallel — no screening calls needed.\n\n"
-            "If the quality cache is empty it auto-runs a full refresh (~10 min first time). "
-            "Call refresh_universe_scores to manually rebuild the cache (do quarterly or when "
-            "quality_cache_age_days > 90)."
+            "Two-layer screen: quality-scores ~700 tickers on stable fundamentals, then re-screens "
+            "the top 150 on fresh valuation metrics. Returns the top 60 candidates ranked by "
+            "combined quality+valuation score. Auto-refreshes cache if empty."
         ),
         "input_schema": {
             "type": "object",
@@ -2209,12 +1747,8 @@ _MODEL_TIERS = [
     {
         "name": "get_conviction_calibration",
         "description": (
-            "Analyse whether conviction scores actually predict returns in this portfolio. "
-            "Groups reconciled predictions by conviction bucket (low 5-6, medium 7-8, high 9-10) "
-            "and computes avg_return, win_rate, avg_alpha per bucket. "
-            "Diagnoses whether high conviction (9-10) is genuinely more accurate than medium (7-8). "
-            "Returns calibration_status: 'well_calibrated', 'miscalibrated_high', or 'insufficient_data'. "
-            "Use this to validate position sizing multipliers — if miscalibrated, reduce high-conviction sizing."
+            "Return avg_return, win_rate, and avg_alpha per conviction bucket (5-6, 7-8, 9-10) "
+            "with calibration_status: well_calibrated, miscalibrated_high, or insufficient_data."
         ),
         "input_schema": {
             "type": "object",
@@ -2225,13 +1759,8 @@ _MODEL_TIERS = [
     {
         "name": "get_decision_thresholds",
         "description": (
-            "Return the permanent decision thresholds for the buy/watchlist/pass matrix. "
-            "CALL THIS ONCE at the start of Step 5 before acting on any research report. "
-            "Returns mos_threshold_pct (regime-adjusted, permanent — 20% NORMAL to 28% STAGFLATION), "
-            "bear_override_conviction, a ready-to-use decision_matrix, and ml_factor_guidance "
-            "showing which screener signals have predicted returns in this portfolio. "
-            "The MoS threshold is a permanent discipline rule for a 20+ year IV portfolio — "
-            "it does not change based on trade history. ML only influences candidate ranking."
+            "Return the buy/watchlist/pass decision matrix: regime-adjusted MoS threshold (20-28%), "
+            "bear_override_conviction threshold, and ML factor guidance for candidate ranking."
         ),
         "input_schema": {
             "type": "object",
@@ -2244,10 +1773,7 @@ _MODEL_TIERS = [
     {
         "name": "get_conviction_position_size",
         "description": (
-            "Calculate the appropriate position size for a stock given its conviction score "
-            "and the current macro regime. Call this BEFORE placing any buy order to determine "
-            "how many dollars to allocate. Conviction 9-10 = full position, 7-8 = 75%, "
-            "5-6 = 50%. Regime sets the base size (RISK_ON=15%, NORMAL=12%, etc.)."
+            "Return position size in dollars for a given conviction score (1-10) and macro regime."
         ),
         "input_schema": {
             "type": "object",
@@ -2264,10 +1790,8 @@ _MODEL_TIERS = [
     {
         "name": "get_earnings_tone_trend",
         "description": (
-            "Get the earnings call sentiment trend for a ticker over the last 3-4 quarters. "
-            "Returns tone direction (positive/negative/neutral) per quarter plus a delta signal. "
-            "Use this to detect management confidence deterioration before it shows in financials. "
-            "A deteriorating trend (delta < -0.1) is an early warning sign that warrants thesis review."
+            "Return earnings call sentiment direction (positive/negative/neutral) for the last "
+            "3-4 quarters with a delta signal indicating trend direction."
         ),
         "input_schema": {
             "type": "object",
@@ -2285,12 +1809,8 @@ _MODEL_TIERS = [
     {
         "name": "get_market_iv_context",
         "description": (
-            "Aggregate recent research cache to quantify market-level valuation. "
-            "Answers: 'What % of the researched universe currently offers ≥20% margin of safety?' "
-            "High % = cheap market, easier to find opportunities. "
-            "Low % = expensive market, require higher quality bar. "
-            "Returns: at_mos_pct, avg_mos_pct, market_signal ('cheap'/'fair'/'expensive'), sector_breakdown. "
-            "Call this in Step 1 to calibrate the opportunity bar for the session."
+            "Return what % of the researched universe offers ≥20% margin of safety, avg_mos_pct, "
+            "market_signal (cheap/fair/expensive), and sector breakdown."
         ),
         "input_schema": {
             "type": "object",
@@ -2303,12 +1823,8 @@ _MODEL_TIERS = [
     {
         "name": "get_regime_change_status",
         "description": (
-            "Detect the current macro regime and compare it to the last recorded regime. "
-            "Returns whether the regime has changed since the previous run, how many days ago "
-            "the last regime was recorded, and a human-readable change summary. "
-            "Call this at the start of every session to check for macro shifts that may require "
-            "portfolio rebalancing — a regime change from RISK_ON to RISK_OFF, for example, "
-            "should trigger a full portfolio review even mid-cycle."
+            "Return the current macro regime, whether it has changed since the previous session, "
+            "days since last regime, and a change summary."
         ),
         "input_schema": {
             "type": "object",
@@ -2321,10 +1837,8 @@ _MODEL_TIERS = [
     {
         "name": "get_sector_rotation_signal",
         "description": (
-            "Analyse sector distribution across portfolio, recently researched stocks, and the "
-            "full universe to detect availability bias (systematically over/under-researching "
-            "certain sectors) and portfolio tilts vs. the opportunity set. Use at session start "
-            "to ensure the session explores underweight sectors if warranted."
+            "Return sector distribution across portfolio, recently researched stocks, and the universe "
+            "to detect availability bias and portfolio tilts vs the opportunity set."
         ),
         "input_schema": {
             "type": "object",
@@ -2336,12 +1850,7 @@ _MODEL_TIERS = [
 
     {
         "name": "get_session_efficiency",
-        "description": (
-            "Get current session efficiency statistics (total tool calls, unique tools used, "
-            "duration) and the last 10 sessions' history for comparison. Call near the end of "
-            "a session before save_session_reflection to log efficiency and identify waste "
-            "patterns over time."
-        ),
+        "description": "Return current session tool call count, duration, unique tools used, and last 10 sessions' history.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2369,12 +1878,7 @@ _MODEL_TIERS = [
 
     {
         "name": "get_stored_thesis",
-        "description": (
-            "Retrieve the stored investment thesis for a ticker from previous research sessions. "
-            "Call this when re-researching a watchlist or portfolio stock to check consistency "
-            "with your original reasoning. Returns original moat assessment, IV estimate, and "
-            "key thesis points so you can explicitly note what changed."
-        ),
+        "description": "Return the stored investment thesis for a ticker from previous research sessions.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2391,13 +1895,8 @@ _MODEL_TIERS = [
     {
         "name": "get_watchlist_earnings",
         "description": (
-            "Fetch upcoming earnings dates for every watchlist item and bucket by urgency:\n"
-            "  IMMINENT — earnings within 7 days: research the stock NOW, before results land\n"
-            "  UPCOMING — earnings within 30 days: prepare thesis, set target entry\n"
-            "  DISTANT  — earnings >30 days away: no immediate action needed\n\n"
-            "Call this in Step 1 every session alongside check_watchlist_triggers. "
-            "IMMINENT items must be reviewed in Step 4 even if their price hasn't hit target — "
-            "earnings can create sudden entry opportunities or confirm thesis breaks."
+            "Return upcoming earnings dates for all watchlist items bucketed as "
+            "IMMINENT (≤7 days), UPCOMING (≤30 days), or DISTANT."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
@@ -2406,11 +1905,8 @@ _MODEL_TIERS = [
     {
         "name": "get_watchlist_history",
         "description": (
-            "Return the history of watchlist lifecycle events: when items were TRIGGERED "
-            "(price hit target), APPROACHING, BOUGHT, or REMOVED. "
-            "Use this periodically to audit IV estimate accuracy — if TSM was triggered at $230 "
-            "but never bought and is now $180, that tells you the IV estimate was wrong. "
-            "Pass an optional ticker to filter to one stock's history."
+            "Return watchlist lifecycle events: when items were TRIGGERED, APPROACHING, BOUGHT, or REMOVED. "
+            "Optionally filter to a specific ticker."
         ),
         "input_schema": {
             "type": "object",
@@ -2428,10 +1924,8 @@ _MODEL_TIERS = [
     {
         "name": "log_prediction",
         "description": (
-            "Log an investment decision for later reconciliation. Call this AFTER every "
-            "buy, watchlist, or pass decision with the conviction score, intrinsic value, "
-            "and current price. After 90 days, reconcile_predictions will compare the "
-            "prediction against actual outcomes to measure the agent's accuracy over time."
+            "Log a buy/watchlist/pass decision with conviction score, predicted IV, and price "
+            "for later reconciliation against actual outcomes."
         ),
         "input_schema": {
             "type": "object",
@@ -2450,14 +1944,7 @@ _MODEL_TIERS = [
 
     {
         "name": "query_kb",
-        "description": (
-            "Search the investment knowledge base for relevant notes, frameworks, and company insights. "
-            "Use this when you need specific knowledge about: a company (e.g. 'Sygnity TSS sidecar thesis'), "
-            "a valuation methodology (e.g. 'FCF normalisation'), a failure mode (e.g. 'peak earnings trap'), "
-            "or a sector framework (e.g. 'serial acquirer red flags'). "
-            "Returns the top matching KB entries ranked by relevance. "
-            "More efficient than re-deriving from first principles — check the KB first."
-        ),
+        "description": "Search the investment knowledge base for notes on companies, frameworks, valuation methods, or lessons.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2485,12 +1972,7 @@ _MODEL_TIERS = [
 
     {
         "name": "reconcile_predictions",
-        "description": (
-            "Reconcile past predictions against actual outcomes. Finds all decisions made "
-            ">90 days ago that haven't been reviewed, fetches current prices, and updates "
-            "the record with actual return and alpha vs SPY. Call this quarterly to measure "
-            "prediction accuracy and identify systematic biases."
-        ),
+        "description": "Reconcile past predictions (>90 days old) against actual prices and record return and alpha vs SPY.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     # ── restored: run_iv_postmortem
@@ -2498,12 +1980,8 @@ _MODEL_TIERS = [
     {
         "name": "run_iv_postmortem",
         "description": (
-            "Analyse past IV (intrinsic value) predictions vs actual outcomes. "
-            "For each reconciled prediction with a predicted_iv, computes iv_accuracy_pct = "
-            "(outcome_price / predicted_iv - 1) * 100. Groups by conviction bucket (5-6, 7-8, 9-10) "
-            "and by sector. Saves calibration insights to the knowledge base automatically. "
-            "Call this quarterly alongside reconcile_predictions to refine your IV methodology. "
-            "Returns: total_analysed, conviction_calibration, sector_calibration, insights, kb_notes_saved."
+            "Analyse past IV predictions vs actual outcomes. Returns conviction_calibration, "
+            "sector_calibration, and insights; saves results to the knowledge base."
         ),
         "input_schema": {
             "type": "object",
@@ -2515,13 +1993,7 @@ _MODEL_TIERS = [
 
     {
         "name": "save_kb_note",
-        "description": (
-            "Save a new note to the investment knowledge base, or update an existing one. "
-            "Use this to persist insights discovered during research that would be valuable "
-            "in future sessions: company-specific observations, updated theses, sector patterns, "
-            "or lessons from mistakes. Notes are searchable via query_kb. "
-            "If a note with the same title already exists, it will be updated."
-        ),
+        "description": "Save or update a note in the investment knowledge base (searchable via query_kb).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2553,12 +2025,7 @@ _MODEL_TIERS = [
 
     {
         "name": "save_management_profile",
-        "description": (
-            "Save a management quality assessment to the knowledge base for future sessions. "
-            "Call this after completing the capital allocation / management quality step of "
-            "research. The profile will be retrieved next time this company is researched, "
-            "avoiding redundant re-derivation of management quality from scratch."
-        ),
+        "description": "Save a management quality assessment (score, capital_allocation_rating, flags, summary) to the KB.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2703,23 +2170,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_technical_indicators",
         "description": (
-            "Compute technical indicators for a stock to assess entry timing and trend health. "
-            "Returns RSI-14, MACD (12/26/9), Bollinger Bands (20-day, 2σ), EMA-50/200 "
-            "(golden/death cross), volume vs 20-day average, and an overall signal summary.\n\n"
-            "Use this AFTER fundamentals confirm a great business at a fair price — "
-            "technicals answer 'is now a good entry point?' not 'should I buy this business?'. "
-            "A fundamentally sound stock with bearish technicals may warrant waiting for a "
-            "better entry; a fundamentally weak stock with bullish technicals is still a pass.\n\n"
-            "Key signals to act on:\n"
-            "  - RSI < 30 (oversold): stock may be at a near-term bottom — favorable entry\n"
-            "  - RSI > 70 (overbought): wait for a pullback before buying\n"
-            "  - MACD bullish crossover: momentum turning up — confirms entry timing\n"
-            "  - MACD bearish crossover: momentum turning down — wait or reduce size\n"
-            "  - Price below EMA-50 and EMA-200 (death cross): stock in downtrend — be cautious\n"
-            "  - Price at lower Bollinger Band: near-term oversold, may bounce\n"
-            "  - Price at upper Bollinger Band: extended, high risk of short-term pullback\n"
-            "  - High volume on up days: institutional buying — supportive of thesis\n\n"
-            "No API key required — computed from yfinance 1-year daily history."
+            "Compute RSI-14, MACD (12/26/9), Bollinger Bands (20-day, 2σ), EMA-50/200, "
+            "and volume vs 20-day average for a stock to assess entry timing and momentum."
         ),
         "input_schema": {
             "type": "object",
@@ -2735,22 +2187,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_short_interest",
         "description": (
-            "Retrieve short interest data for a stock: short % of float, days-to-cover "
-            "(short ratio), month-over-month change in shares short, and interpreted signals.\n\n"
-            "Short interest has two readings — use both:\n"
-            "  (A) Institutional bear signal: high short % + rising trend means smart money "
-            "has researched this stock and is actively betting against it. Treat as a red flag "
-            "that warrants extra scrutiny — what do they know that the bull case missed?\n"
-            "  (B) Squeeze catalyst: high short % on a stock with a strong fundamental thesis "
-            "and an upcoming catalyst means short covering will amplify any price move higher. "
-            "This is upside optionality on top of the thesis — not a standalone buy reason.\n\n"
-            "Thresholds:\n"
-            "  short_level 'high' (15-25%) or 'very_high' (>25%): investigate short thesis\n"
-            "  mom_direction 'rising': bears adding — dig deeper before buying\n"
-            "  mom_direction 'falling': short covering — potential near-term tailwind\n"
-            "  days_to_cover > 7: elevated squeeze risk if positive catalyst emerges\n\n"
-            "Data is sourced from FINRA via yfinance and updated twice monthly — "
-            "figures typically lag ~2 weeks. No API key required."
+            "Return short % of float, days-to-cover, and month-over-month change in shares "
+            "short for a stock. Data sourced from FINRA via yfinance (~2-week lag)."
         ),
         "input_schema": {
             "type": "object",
@@ -2766,28 +2204,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_options_flow",
         "description": (
-            "Retrieve options market data for a stock: put/call volume and OI ratios, "
-            "ATM implied volatility vs. 30-day realized volatility, and unusual contract "
-            "activity (large fresh directional bets). Analyzes the nearest 3 expiries.\n\n"
-            "Three distinct signals — read each separately:\n\n"
-            "1. Put/Call ratio (sentiment):\n"
-            "   < 0.7 = bullish (heavy call buying vs. puts)\n"
-            "   0.7–1.0 = neutral\n"
-            "   > 1.0 = bearish (heavy put buying — hedging or directional short)\n"
-            "   > 1.5 = strongly bearish\n\n"
-            "2. IV vs. realized volatility (event/fear pricing):\n"
-            "   IV >> realized vol: market pricing in an upcoming event or fear — options\n"
-            "   are expensive; buying stock outright is more capital-efficient than buying calls\n"
-            "   IV ≈ realized vol: normal; no special event risk priced in\n"
-            "   IV << realized vol: options unusually cheap — low implied risk\n\n"
-            "3. Unusual contracts (volume ≥ 3× open interest, ≥ 500 contracts):\n"
-            "   Fresh directional bets by large traders, not hedges or rolls.\n"
-            "   Call-skewed unusual activity = bullish smart-money signal\n"
-            "   Put-skewed unusual activity = bearish smart-money signal or large hedge\n\n"
-            "Use this as a positioning/sentiment check, NOT as a buy/sell trigger. "
-            "A fundamentally great stock with bearish options positioning is still a buy — "
-            "but unusually heavy put buying or very high IV warrants investigation. "
-            "No API key required — data from yfinance."
+            "Return put/call volume and OI ratios, ATM IV vs 30-day realized volatility, "
+            "and unusual contract activity (large fresh directional bets) for the nearest 3 expiries."
         ),
         "input_schema": {
             "type": "object",
@@ -2935,9 +2353,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_earnings_calendar",
         "description": (
-            "Get the next scheduled earnings date for a stock, consensus EPS and revenue estimates, "
-            "and the last 4 quarters of beat/miss history. "
-            "Use this before buying — earnings are the single biggest short-term risk for any position."
+            "Return the next earnings date, consensus EPS and revenue estimates, "
+            "and the last 4 quarters of beat/miss history for a stock."
         ),
         "input_schema": {
             "type": "object",
@@ -2953,9 +2370,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_analyst_upgrades",
         "description": (
-            "Get recent analyst upgrades and downgrades for a stock: which firm acted, "
-            "whether it was an upgrade/downgrade/initiation, and the grade change. "
-            "A cluster of downgrades is a warning sign; upgrades can signal improving sentiment."
+            "Return recent analyst upgrades, downgrades, and initiations with firm name and grade change."
         ),
         "input_schema": {
             "type": "object",
@@ -2975,9 +2390,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_insider_activity",
         "description": (
-            "Get recent insider transactions (buys and sells by executives, directors, and major shareholders). "
-            "Significant insider buying — especially by the CEO or CFO — is one of the strongest "
-            "bullish signals available. Heavy insider selling can be a warning sign."
+            "Return recent insider buy/sell transactions by executives, directors, and major shareholders."
         ),
         "input_schema": {
             "type": "object",
@@ -2993,10 +2406,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_macro_environment",
         "description": (
-            "Get key macroeconomic indicators: 10-year and 2-year Treasury yields, yield curve status, "
-            "dollar index, oil, gold, and VIX. Includes synthesised signals so you can adjust "
-            "sector allocation accordingly (e.g. high rates → favour value over growth, "
-            "strong dollar → avoid multinationals, inverted curve → recession risk)."
+            "Return key macro indicators: 10-year and 2-year Treasury yields, yield curve status, "
+            "dollar index, oil, gold, and VIX with synthesised regime signals."
         ),
         "input_schema": {
             "type": "object",
@@ -3007,25 +2418,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_hedge_recommendations",
         "description": (
-            "Translate the current macro regime into concrete defensive ETF hedge recommendations: "
-            "which ETFs to buy, how much to allocate, when to enter, and when to unwind.\n\n"
-            "Call this during portfolio rebalancing when the macro environment looks stressed. "
-            "Triggers: VIX > 25, inverted yield curve, oil > $85, or any RISK_OFF / INFLATIONARY "
-            "/ STAGFLATION / HIGH_RATES regime signal from get_macro_environment.\n\n"
-            "Hedge universe (plain, non-leveraged, non-inverse ETFs only):\n"
-            "  TLT — 20+ Year Treasury Bonds (RISK_OFF flight-to-safety)\n"
-            "  IEF — 7-10 Year Treasury Bonds (moderate duration, also HIGH_RATES)\n"
-            "  SHV — Short Treasury Bonds <1yr (cash equivalent, earns short-term yield)\n"
-            "  GLD — Gold (inflation + crisis hedge; useful in STAGFLATION)\n"
-            "  TIP — TIPS Bonds (inflation-protected; INFLATIONARY regime)\n"
-            "  GSG — Broad Commodity ETF (energy/metals/agriculture; pure INFLATIONARY)\n\n"
-            "Hard rules:\n"
-            "  - Hedges are ALWAYS funded from cash, never by selling equity positions\n"
-            "  - Maximum hedge allocation: 20% of total portfolio\n"
-            "  - No recommendation is made in NORMAL / RISK_ON regimes\n"
-            "  - Unwind when the triggering regime resolves\n\n"
-            "Pass equity_pct and cash_pct from get_portfolio_status so recommendations "
-            "are sized to your actual portfolio composition."
+            "Return regime-appropriate defensive ETF hedge recommendations (TLT, IEF, SHV, GLD, TIP, GSG) "
+            "sized to the portfolio. Only produces recommendations in RISK_OFF, INFLATIONARY, "
+            "STAGFLATION, or HIGH_RATES regimes; always funded from cash, max 20% of portfolio."
         ),
         "input_schema": {
             "type": "object",
@@ -3050,12 +2445,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_benchmark_comparison",
-        "description": (
-            "Compare the portfolio's total return since inception against the S&P 500. "
-            "Shows alpha (outperformance or underperformance) and historical snapshots. "
-            "Call this during portfolio reviews to understand whether the strategy is "
-            "actually beating a simple index fund."
-        ),
+        "description": "Compare portfolio total return vs S&P 500: alpha, historical snapshots, start/current values.",
         "input_schema": {
             "type": "object",
             "properties": {},
@@ -3065,21 +2455,14 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_portfolio_metrics",
         "description": (
-            "Return risk and return metrics computed from portfolio snapshot history: "
-            "Sharpe ratio, max drawdown, annualised volatility, and rolling 1/3/6-month "
-            "returns vs S&P 500. "
-            "Call this in Step 2 to understand whether the portfolio is taking too much "
-            "risk relative to its returns, and how recent momentum compares to the benchmark."
+            "Return Sharpe ratio, max drawdown, annualised volatility, and rolling 1/3/6-month "
+            "returns vs S&P 500 computed from portfolio snapshot history."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_investment_memory",
-        "description": (
-            "Retrieve your past investment theses for current holdings and recently closed positions. "
-            "Call this at the start of each session to understand why you made past decisions, "
-            "whether original theses are still valid, and what worked or didn't in closed positions."
-        ),
+        "description": "Retrieve past investment theses for current holdings and recently closed positions.",
         "input_schema": {
             "type": "object",
             "properties": {},
@@ -3088,10 +2471,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_session_reflections",
-        "description": (
-            "Retrieve your past post-session reflections — lessons and observations you documented "
-            "from previous portfolio reviews. Call this at the start of sessions to apply past learnings."
-        ),
+        "description": "Return past post-session reflections and lessons from previous portfolio reviews.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -3106,19 +2486,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_international_universe",
         "description": (
-            "Return a curated list of ~200 major international stocks for screening — "
-            "companies NOT already in the US S&P 500 / broad universe.\n\n"
-            "Covers top companies from Europe (UK, Germany, France, Switzerland, Netherlands, "
-            "Nordics), Asia-Pacific (Japan, South Korea, HK/China, Taiwan, Australia, Singapore), "
-            "Latin America (Brazil, Mexico, Chile), Canada, and India/Israel.\n\n"
-            "Mix of US-listed ADRs (NYSE/NASDAQ — best data quality, e.g. TSM, ASML, NVO, SAP) "
-            "and direct foreign-listed tickers with exchange suffixes (e.g. NESN.SW, 005930.KS, "
-            "0700.HK). All accessible via yfinance.\n\n"
-            "WORKFLOW: call this once per session, then merge with the SP500 list and pass "
-            "the combined list to screen_stocks in a SINGLE call. Do NOT split into batches. "
-            "Foreign-suffix tickers that lack data are silently skipped by screen_stocks.\n\n"
-            "Use the optional 'region' parameter to focus on one geography if the macro "
-            "environment favours it (e.g. 'europe' during USD weakness, 'asia' for EM exposure)."
+            "Return ~200 major international stocks (US-listed ADRs and foreign-listed tickers) "
+            "for screening. Optionally filter by region: europe, asia, latam, canada, india."
         ),
         "input_schema": {
             "type": "object",
@@ -3200,20 +2569,12 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_sector_exposure",
-        "description": (
-            "Show current portfolio weights broken down by GICS sector. "
-            "Call this before buying new positions to see where you're already concentrated "
-            "and where you have room to add without over-weighting a sector."
-        ),
+        "description": "Return current portfolio weights broken down by GICS sector.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "add_to_watchlist",
-        "description": (
-            "Add a stock to the watchlist when you like the business but the timing isn't right — "
-            "e.g. earnings in the next 2 weeks, valuation slightly too high, or waiting for a "
-            "pullback to a target price. The watchlist is reviewed at the start of every session."
-        ),
+        "description": "Add a stock to the watchlist with a reason and optional target entry price.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -3233,19 +2594,12 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_watchlist",
-        "description": (
-            "Retrieve the current watchlist — stocks you've flagged for future purchase. "
-            "Call this at the start of each session to check if any watchlist candidates "
-            "have reached their target entry price or had a meaningful pullback."
-        ),
+        "description": "Return the current watchlist with target entry prices and notes.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "remove_from_watchlist",
-        "description": (
-            "Remove a stock from the watchlist. Call this after buying the stock, "
-            "or if the investment thesis has broken down and it's no longer worth watching."
-        ),
+        "description": "Remove a stock from the watchlist.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -3257,32 +2611,22 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_trade_outcomes",
         "description": (
-            "Return all past buy signal snapshots with their actual outcomes. "
-            "For each recorded buy, shows the screener signals that were present at purchase "
-            "(PEG, momentum, FCF yield, etc.) alongside the eventual return. "
-            "Use this to identify which signals have historically predicted positive returns "
-            "and weight them more heavily in future screening decisions."
+            "Return all past buy signal snapshots with screener signals at purchase time "
+            "and actual return outcomes for closed and open positions."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_signal_performance",
         "description": (
-            "Analyze which screener signals (PEG < 1.5, FCF yield > 3%, positive momentum, "
-            "revenue growth > 10%) have historically predicted positive returns in this portfolio. "
-            "Returns per-signal statistics split by whether the threshold was met at buy time. "
-            "Call this in Step 1 alongside get_trade_outcomes to calibrate signal weights for this session."
+            "Return per-signal statistics (PEG, FCF yield, momentum, revenue growth) showing "
+            "positive_rate_pct and avg_return_pct split by whether each threshold was met at buy time."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "add_to_shadow_portfolio",
-        "description": (
-            "Record a stock you analyzed and decided NOT to buy or watchlist. "
-            "Use this for stocks that were seriously considered but rejected (too expensive, "
-            "weak moat, sector crowded, thesis uncertain). "
-            "Tracked so future sessions can review whether passing was the right call."
-        ),
+        "description": "Record a rejected stock with price at consideration and reason for passing.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -3378,52 +2722,32 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_shadow_performance",
-        "description": (
-            "Call this in Step 1 to audit past pass decisions — if a rejected stock is up 30%, "
-            "understand why you were wrong; if it's down 20%, your thesis was validated. "
-            "Use these lessons to sharpen your screening judgment."
-        ),
+        "description": "Return shadow portfolio performance: current price vs price at consideration for all rejected stocks.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     # ── ML insights (learned from portfolio history) ──────────────────────────
     {
         "name": "get_ml_factor_weights",
         "description": (
-            "Learn which screener signals have actually predicted returns in THIS portfolio's history. "
-            "Returns data-driven factor weights blended with regime-adjusted priors. "
-            "Weights are 100% regime-prior when no closed trades exist, then shift smoothly toward "
-            "data-driven as closed trades accumulate (25% at 5 trades → 75% at 25+ trades). "
-            "Also detects the current macro regime (RISK_ON / RISK_OFF / INFLATIONARY / NORMAL) "
-            "and returns feature correlations with returns. "
-            "Call this at the start of each session to understand which signals to trust most "
-            "when evaluating screener candidates. Use blended_weights to manually re-rank results."
+            "Return ML-derived factor weights for screener signals, blended with regime-adjusted "
+            "priors and calibrated to this portfolio's closed trade history."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "prioritize_watchlist_ml",
         "description": (
-            "Score every watchlist item using ML-derived factor weights and return a ranked list. "
-            "For each item: fetches current fundamentals, applies learned factor weights, "
-            "computes an ML score (0-10), flags strengths and risk factors, and highlights items "
-            "near their target entry price (promoted to top of their score tier). "
-            "Call this alongside get_watchlist() to prioritise which candidates deserve the deepest "
-            "research this session. Score ≥7: strong candidate — investigate thoroughly. "
-            "Score <4: weak fit for current regime — lower priority unless thesis is compelling."
+            "Score every watchlist item using ML factor weights and return a ranked list with "
+            "ML score (0-10), strengths, risk factors, and proximity to target entry price."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_position_size_recommendation",
         "description": (
-            "Estimate drawdown risk for a specific stock and recommend an appropriate position size "
-            "(% of portfolio). Combines three inputs: (1) feature-based risk flags on valuation, "
-            "FCF, momentum, growth, and profitability; (2) a logistic regression drawdown model "
-            "trained on the portfolio's own closed trade history (when ≥5 closed trades exist); "
-            "(3) regime-adjusted base size (smaller in RISK_OFF / STAGFLATION). "
-            "Call this just before executing a buy to calibrate position size. "
-            "Pass the screener_snapshot features from screen_stocks as the 'features' argument. "
-            "The recommendation respects the 20% maximum position cap."
+            "Return recommended position size (% of portfolio) based on feature risk flags, "
+            "a drawdown model trained on closed trade history, and current macro regime. "
+            "Pass screener_snapshot features from screen_stocks as the 'features' argument."
         ),
         "input_schema": {
             "type": "object",
@@ -3448,15 +2772,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_economic_indicators",
         "description": (
-            "Fetch key US macroeconomic indicators from the Federal Reserve FRED API: "
-            "real GDP growth, CPI inflation, core CPI, unemployment rate, initial jobless "
-            "claims, retail sales, consumer sentiment, industrial production, housing starts, "
-            "and the federal funds rate. "
-            "Returns synthesised investment signals (e.g. 'GDP negative → favour defensives'). "
-            "These are LEADING real-economy indicators that typically lead equity markets by "
-            "1-2 quarters — use alongside get_macro_environment() (which covers yield curve, "
-            "VIX, dollar) for a complete macro picture. "
-            "Requires FRED_API_KEY in .env (free at https://fredapi.stlouisfed.org)."
+            "Fetch US macro indicators from FRED: GDP, CPI, unemployment, jobless claims, "
+            "retail sales, consumer sentiment, industrial production, housing starts, and fed funds rate."
         ),
         "input_schema": {
             "type": "object",
@@ -3467,14 +2784,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_google_trends",
         "description": (
-            "Fetch Google search-interest trends for a company's brand or products. "
-            "Search interest is a leading indicator of consumer demand — rising interest "
-            "4-8 weeks before earnings often predicts revenue beats for consumer-facing companies. "
-            "Returns 12-month trend, recent 8-week direction (rising/falling/stable), "
-            "and current interest vs 12-month average. "
-            "Best used for consumer-facing companies (AAPL, AMZN, NFLX). "
-            "For B2B companies, pass specific product keywords (e.g. ['Azure'] for MSFT). "
-            "Uses pytrends — no API key required."
+            "Return 12-month Google search-interest trend for a company's brand or products, "
+            "including recent 8-week direction and current interest vs 12-month average."
         ),
         "input_schema": {
             "type": "object",
@@ -3499,14 +2810,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_retail_sentiment",
         "description": (
-            "Aggregate retail investor sentiment from StockTwits and Reddit "
-            "(r/investing, r/wallstreetbets, r/stocks, r/SecurityAnalysis). "
-            "Returns StockTwits bull/bear ratio and recent Reddit posts with scoring. "
-            "IMPORTANT: Retail sentiment is a CONTRARIAN indicator for long-term investors. "
-            "Extreme bullishness (>80% bulls) often precedes corrections; "
-            "extreme bearishness (<25% bulls) can mark bottoms. "
-            "Use as a sentiment thermometer alongside fundamentals — not as a buy/sell trigger. "
-            "No API key required."
+            "Return retail investor sentiment from StockTwits and Reddit: bull/bear ratio and recent posts."
         ),
         "input_schema": {
             "type": "object",
@@ -3521,16 +2825,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_rss_news",
-        "description": (
-            "Aggregate recent news headlines from multiple RSS feeds: "
-            "Yahoo Finance, MarketWatch, and Seeking Alpha. "
-            "Provides broader coverage than get_stock_news(), surfacing analyst commentary, "
-            "earnings previews, sector rotation themes, and M&A / regulatory news. "
-            "Use when get_stock_news() returns few results or you want a second opinion on "
-            "news coverage. Look for recurring negative themes across multiple sources — "
-            "that cross-source agreement is a stronger signal than a single headline. "
-            "Requires feedparser (pip install feedparser) — no API key needed."
-        ),
+        "description": "Return recent news headlines from Yahoo Finance, MarketWatch, and Seeking Alpha RSS feeds.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -3546,12 +2841,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "analyze_earnings_call",
         "description": (
-            "Fetch the most recent earnings call transcript from SEC EDGAR (8-K filing) "
-            "and return it for analysis. Use this to assess management tone, changes in "
-            "forward guidance language, analyst Q&A tension points, and topics management "
-            "avoided. A confident, specific management tone is bullish; vague or heavily "
-            "hedged language often precedes a guidance cut. Call this when you want deeper "
-            "qualitative insight beyond EPS beat/miss numbers."
+            "Fetch the most recent earnings call transcript from SEC EDGAR (8-K) for analysis "
+            "of management tone, guidance language, and Q&A content."
         ),
         "input_schema": {
             "type": "object",
@@ -3567,15 +2858,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "analyze_sec_filing",
         "description": (
-            "Fetch and return key sections of the latest 10-K (annual) or 10-Q (quarterly) "
-            "report from SEC EDGAR. Returns three high-signal sections: Business overview "
-            "(moat description), Risk Factors (management-flagged threats), and MD&A "
-            "(management discussion and analysis). "
-            "Key signals to look for: new risk factors vs prior year = emerging threats; "
-            "MD&A language shifting from confident to hedged = caution ahead; "
-            "moat language becoming defensive = competitive pressure. "
-            "Use this for deep-dive research on high-conviction candidates or to validate "
-            "the thesis on existing holdings."
+            "Fetch the Business overview, Risk Factors, and MD&A sections from the latest "
+            "10-K or 10-Q on SEC EDGAR."
         ),
         "input_schema": {
             "type": "object",
@@ -3596,13 +2880,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_material_events",
         "description": (
-            "Fetch recent SEC 8-K material event filings for a stock. Companies must file "
-            "an 8-K within 4 business days of any material event — making this a real-time "
-            "signal source for: CEO/CFO departures (Item 5.02), M&A activity (Item 2.01), "
-            "asset impairments (Item 2.06), auditor changes (Item 4.01), restatements "
-            "(Item 4.02), and bankruptcy (Item 1.03). "
-            "Use this to catch thesis-breaking events between quarterly earnings calls. "
-            "A CFO exit is typically a stronger warning signal than a CEO exit."
+            "Fetch recent SEC 8-K material event filings: CEO/CFO changes (5.02), M&A (2.01), "
+            "asset impairments (2.06), auditor changes (4.01), restatements (4.02), bankruptcy (1.03)."
         ),
         "input_schema": {
             "type": "object",
@@ -3622,14 +2901,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_competitor_analysis",
         "description": (
-            "Identify the stock's closest S&P 500 peers by sector and return a "
-            "side-by-side fundamental comparison (PEG, FCF yield, margins, ROE, momentum). "
-            "Use this to determine whether a valuation premium is justified vs actual "
-            "competitors — not just the broad market. "
-            "Key questions: Is the subject's PEG above or below the peer median? "
-            "Does its revenue growth rate justify a higher multiple? "
-            "Stocks ranking in the top quartile on both quality AND valuation vs peers "
-            "have the strongest long-term outperformance record."
+            "Return a side-by-side fundamental comparison (PEG, FCF yield, margins, ROE, momentum) "
+            "of the stock vs its closest S&P 500 sector peers."
         ),
         "input_schema": {
             "type": "object",
@@ -3645,14 +2918,8 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_superinvestor_positions",
         "description": (
-            "Check whether prominent long-term value investors hold this stock based on "
-            "their latest SEC 13F-HR filings. Investors tracked: Buffett (Berkshire), "
-            "Ackman (Pershing Square), Tepper (Appaloosa), Halvorsen (Viking Global), "
-            "Druckenmiller (Duquesne), Loeb (Third Point), Einhorn (Greenlight). "
-            "Multiple superinvestors converging on the same position is a strong "
-            "independent confirmation signal. Note: 13F filings have up to a 45-day lag "
-            "after quarter-end, so positions may have changed since the filing date. "
-            "The absence of smart money is not a negative signal on its own."
+            "Return 13F-based positions for Buffett, Ackman, Tepper, Druckenmiller, Loeb, "
+            "Einhorn, and Halvorsen. Note: 13F filings have up to a 45-day lag."
         ),
         "input_schema": {
             "type": "object",
@@ -3669,22 +2936,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "research_stocks_parallel",
         "description": (
-            "Launch parallel research subagents to deep-dive multiple stocks simultaneously. "
-            "Each subagent independently researches one ticker — running all 15 research tools "
-            "(fundamentals, earnings call, SEC filings, insider activity, competitor analysis, "
-            "superinvestor positions, sentiment, material events, etc.) — and returns a "
-            "structured JSON report with a recommendation (buy/watchlist/pass), "
-            "conviction score 1-10, key positives, key risks, and a full thesis. "
-            "\n\n"
-            "Use this in Step 4 instead of researching finalists one-by-one. "
-            "Pass 3-6 tickers from your screener results. All reports arrive at once, "
-            "already sorted by conviction score. The coordinator then decides which to "
-            "buy, watchlist, or shadow-record based on the synthesised reports. "
-            "\n\n"
-            "Provide 'context' with the current macro regime, sector exposure, and "
-            "available cash — subagents use this to calibrate recommendations. "
-            "Each screener_data dict (from screen_stocks) should include the full "
-            "screener row for that ticker so subagents can see the screener signals."
+            "Launch parallel research subagents to deep-dive multiple tickers simultaneously. "
+            "Each subagent runs all research tools and returns a structured JSON report with "
+            "recommendation (buy/watchlist/pass), conviction score, key positives/risks, and thesis."
         ),
         "input_schema": {
             "type": "object",
@@ -3728,26 +2982,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "challenge_buy_theses",
         "description": (
-            "Launch adversarial bear case subagents to challenge bull buy recommendations "
-            "before committing capital. For each stock the research agent recommended 'buy', "
-            "a separate bear case subagent is given the full bull report and tasked with "
-            "finding every flaw: overestimated moat, valuation errors, missed risks, "
-            "accounting red flags, competitive threats, and macro sensitivity.\n\n"
-            "Call this AFTER research_stocks_parallel, passing in the reports it returned. "
-            "Only 'buy'-rated reports are challenged; others pass through unchanged.\n\n"
-            "Each bear report returns:\n"
-            "  - verdict: 'proceed' (bull thesis holds), 'caution' (real issues found), "
-            "    or 'reject' (fundamental flaw — do not buy)\n"
-            "  - bear_conviction: 1-10 (how strongly the bear argues against buying)\n"
-            "  - key_objections: specific flaws found\n"
-            "  - risks_missed_by_bull: risks the bull report glossed over\n"
-            "  - recommended_action: final call after weighing both sides\n\n"
-            "Decision rule:\n"
-            "  - verdict='proceed' → buy is confirmed, proceed with normal position sizing\n"
-            "  - verdict='caution' → consider half-size position or watchlist pending resolution\n"
-            "  - verdict='reject' → do NOT buy; shadow-record instead\n\n"
-            "Provide 'context' with the current macro regime and sector weights so the bear "
-            "agent can assess macro sensitivity of each thesis."
+            "Launch adversarial bear case subagents for each 'buy'-rated report from "
+            "research_stocks_parallel. Returns verdict (proceed/caution/reject), bear_conviction, "
+            "key_objections, risks_missed_by_bull, and recommended_action for each stock."
         ),
         "input_schema": {
             "type": "object",
@@ -3776,22 +3013,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "save_session_reflection",
         "description": (
-            "Save a structured reflection at the end of your portfolio review session. "
-            "Always call this at the end of each review. "
-            "Use exactly this markdown template:\n\n"
-            "## Actions Taken\n"
-            "[Buys, sells, watchlist additions, shadow records — with one-line rationale each]\n\n"
-            "## Thesis Validation\n"
-            "[For each holding: is the original thesis playing out? Any cracks?]\n\n"
-            "## Signal Performance\n"
-            "[Which signals (PEG, FCF, momentum) appear to be working this session? "
-            "Any surprises from get_signal_performance?]\n\n"
-            "## Macro Observations\n"
-            "[Rate environment, dollar, VIX, sector rotation — what the regime is telling you]\n\n"
-            "## Shadow Portfolio Review\n"
-            "[Any passed-on stocks that moved significantly? Was the pass correct?]\n\n"
-            "## Lessons for Next Session\n"
-            "[2-4 specific, actionable rules to apply next time]"
+            "Save a structured post-session reflection. Required sections: Actions Taken, "
+            "Thesis Validation, Signal Performance, Macro Observations, Shadow Portfolio Review, "
+            "Lessons for Next Session."
         ),
         "input_schema": {
             "type": "object",

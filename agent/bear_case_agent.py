@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
-from agent.loop_utils import prune_messages, truncate_tool_result
+from agent.loop_utils import prune_messages, truncate_tool_result, add_cache_control
 
 
 # ── Tool subset ───────────────────────────────────────────────────────────────
@@ -260,8 +260,14 @@ claims in the bull report. Then output your JSON verdict."""
                     model=model,
                     max_tokens=4096,
                     temperature=0,
-                    system=_BEAR_SYSTEM_PROMPT,
-                    tools=BEAR_TOOL_DEFINITIONS,
+                    system=[
+                        {
+                            "type": "text",
+                            "text": _BEAR_SYSTEM_PROMPT,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                    tools=add_cache_control(BEAR_TOOL_DEFINITIONS),
                     messages=messages,
                 )
                 break

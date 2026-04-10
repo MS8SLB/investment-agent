@@ -16,7 +16,7 @@ load_dotenv(override=True)
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
 from agent import portfolio
-from agent.loop_utils import prune_messages, truncate_tool_result
+from agent.loop_utils import prune_messages, truncate_tool_result, add_cache_control
 
 
 SYSTEM_PROMPT = """You are an expert long-term investment portfolio manager running a paper trading portfolio.
@@ -1707,8 +1707,14 @@ def run_agent_session(
                     model=model,
                     max_tokens=4096,
                     temperature=temperature,
-                    system=SYSTEM_PROMPT.format(today=datetime.date.today().strftime("%B %d, %Y")),
-                    tools=TOOL_DEFINITIONS,
+                    system=[
+                        {
+                            "type": "text",
+                            "text": SYSTEM_PROMPT.format(today=datetime.date.today().strftime("%B %d, %Y")),
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                    tools=add_cache_control(TOOL_DEFINITIONS),
                     messages=messages,
                 )
                 break
