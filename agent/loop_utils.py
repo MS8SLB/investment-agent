@@ -30,6 +30,21 @@ _AGGRESSIVE_TRUNCATE_TOOLS: frozenset = frozenset({
 })
 
 
+def add_cache_control(tools: list) -> list:
+    """
+    Mark the last tool definition with cache_control so the entire tool list
+    is treated as a single cacheable prefix by the Anthropic API.
+    Returns a shallow copy — the original list is not modified.
+    """
+    if not tools:
+        return tools
+    result = list(tools)
+    last = dict(result[-1])
+    last["cache_control"] = {"type": "ephemeral"}
+    result[-1] = last
+    return result
+
+
 def prune_messages(messages: list, max_turns: int = 10) -> list:
     """
     Keep messages[0] (initial user prompt) + the last max_turns*2 messages.

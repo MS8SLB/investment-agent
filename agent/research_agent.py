@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from agent.tools import TOOL_DEFINITIONS, handle_tool_call
-from agent.loop_utils import prune_messages, truncate_tool_result
+from agent.loop_utils import prune_messages, truncate_tool_result, add_cache_control
 
 
 # ── Tool subset ───────────────────────────────────────────────────────────────
@@ -1394,8 +1394,14 @@ Complete all research steps from your checklist, then output the JSON report."""
                     model=model,
                     max_tokens=4096,
                     temperature=0,
-                    system=_RESEARCH_SYSTEM_PROMPT,
-                    tools=RESEARCH_TOOL_DEFINITIONS,
+                    system=[
+                        {
+                            "type": "text",
+                            "text": _RESEARCH_SYSTEM_PROMPT,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                    tools=add_cache_control(RESEARCH_TOOL_DEFINITIONS),
                     messages=messages,
                 )
                 break
