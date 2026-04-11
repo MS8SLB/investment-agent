@@ -1496,8 +1496,8 @@ def get_benchmark_comparison() -> dict:
     # Use the oldest benchmark_snapshot as the start price.
     # This row was populated by the yfinance backfill in get_benchmark_snapshots().
     # Only fall back to yfinance here if we have just one day of data (first == latest date).
-    if first_bench and first_bench[1] >= 2000 and first_bench[1] != current_spy_price:
-        start_spy_price = first_bench[1]
+    if first_bench and first_bench["spy_price"] >= 2000 and first_bench["spy_price"] != current_spy_price:
+        start_spy_price = first_bench["spy_price"]
     else:
         # Single-row DB (backfill hasn't run yet) — fetch historical price directly.
         start_spy_price = None
