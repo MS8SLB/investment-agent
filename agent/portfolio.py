@@ -1472,6 +1472,13 @@ def get_benchmark_comparison() -> dict:
         (first_trade_date,),
     ).fetchone()
 
+    # Oldest benchmark snapshot — primary start-price source (populated by backfill).
+    first_bench = conn.execute(
+        "SELECT spy_price, recorded_at FROM benchmark_snapshots "
+        "WHERE recorded_at >= ? AND spy_price >= 2000 ORDER BY recorded_at ASC LIMIT 1",
+        (first_trade_date,),
+    ).fetchone()
+
     # Get the oldest portfolio snapshot for the starting portfolio value.
     first_portfolio = conn.execute(
         "SELECT portfolio_value, ts FROM portfolio_snapshots WHERE ts >= ? ORDER BY ts ASC LIMIT 1",
@@ -1486,34 +1493,31 @@ def get_benchmark_comparison() -> dict:
     current_spy_price = latest[1]
     current_date      = latest[2][:10]
 
-    # Always fetch the historical ^GSPC price at first_trade_date from yfinance.
-    # This gives a stable, DB-independent baseline that survives any future wipe.
-    start_spy_price = None
-    try:
-        import yfinance as yf
-        trade_dt = datetime.strptime(first_trade_date[:10], "%Y-%m-%d")
-        # Fetch a ±7-day window around the first trade to handle weekends/holidays.
-        hist_start = (trade_dt - timedelta(days=1)).strftime("%Y-%m-%d")
-        hist_end   = (trade_dt + timedelta(days=7)).strftime("%Y-%m-%d")
-        gspc = yf.Ticker("^GSPC")
-        hist = gspc.history(start=hist_start, end=hist_end)
-        if not hist.empty:
-            hist.index = hist.index.tz_convert(None) if hist.index.tz is not None else hist.index
-            # Use the close on or just after the first trade date.
-            after = hist[hist.index.date >= trade_dt.date()]
-            start_spy_price = float((after if not after.empty else hist).iloc[0]["Close"])
-    except Exception:
-        pass  # fallback below
-
-    # Fallback: use oldest benchmark snapshot if yfinance unavailable.
-    if start_spy_price is None or start_spy_price <= 0:
-        conn3 = _get_connection()
-        first_bench = conn3.execute(
-            "SELECT spy_price FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at ASC LIMIT 1",
-            (first_trade_date,),
-        ).fetchone()
-        conn3.close()
-        start_spy_price = first_bench[0] if first_bench else current_spy_price
+    # Use the oldest benchmark_snapshot as the start price.
+    # This row was populated by the yfinance backfill in get_benchmark_snapshots().
+    # Only fall back to yfinance here if we have just one day of data (first == latest date).
+    if first_bench and first_bench[1] >= 2000 and first_bench[1] != current_spy_price:
+        start_spy_price = first_bench[1]
+    else:
+        # Single-row DB (backfill hasn't run yet) — fetch historical price directly.
+        start_spy_price = None
+        try:
+            import yfinance as yf
+            trade_dt = datetime.strptime(first_trade_date[:10], "%Y-%m-%d")
+            hist = yf.Ticker("^GSPC").history(period="1mo")
+            if not hist.empty:
+                if hist.index.tz is not None:
+                    hist.index = hist.index.tz_convert(None)
+                trade_str = first_trade_date[:10]
+                # Use strftime for reliable string-based date filtering
+                mask = hist.index.strftime("%Y-%m-%d") >= trade_str
+                after = hist[mask]
+                src = after if not after.empty else hist
+                start_spy_price = float(src.iloc[0]["Close"])
+        except Exception:
+            pass
+        if start_spy_price is None or start_spy_price <= 0:
+            start_spy_price = current_spy_price  # truly no data: show 0%
 
     # Sanity check: >5× ratio is impossible in normal markets — still-corrupt data.
     if start_spy_price > 0 and current_spy_price > 0:
