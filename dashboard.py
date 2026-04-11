@@ -539,32 +539,40 @@ elif "PERFORMANCE" in page:
         get_portfolio_snapshots, get_portfolio_metrics,
         get_benchmark_comparison, get_transactions,
         get_holdings, get_cash, save_benchmark_snapshot,
-        save_portfolio_snapshot,
+        save_portfolio_snapshot, get_first_trade_date,
     )
     from agent.market_data import get_stock_quote
 
     with st.spinner("LOADING PERFORMANCE DATA..."):
-        # Auto-snapshot: record today's portfolio value vs SPY so the chart
-        # always has up-to-date data without needing the agent to run.
+        # Auto-snapshot: only record if trades have been made (pre-trade
+        # snapshots are meaningless for performance comparison).
+        first_trade_date = get_first_trade_date()
         try:
-            holdings = get_holdings()
-            cash_val = get_cash()
-            equity_val = 0.0
-            for h in holdings:
-                q = get_stock_quote(h["ticker"])
-                price = q.get("price") or h.get("avg_cost", 0)
-                equity_val += h["shares"] * price
-            port_value = cash_val + equity_val
-            spy_q = get_stock_quote("SPY")
-            spy_price = spy_q.get("price")
-            if port_value > 0:
-                save_portfolio_snapshot(port_value, cash_val, equity_val, spy_price, "daily")
-                if spy_price:
-                    save_benchmark_snapshot(port_value, spy_price)
+            if first_trade_date:
+                holdings = get_holdings()
+                cash_val = get_cash()
+                equity_val = 0.0
+                for h in holdings:
+                    q = get_stock_quote(h["ticker"])
+                    price = q.get("price") or h.get("avg_cost", 0)
+                    equity_val += h["shares"] * price
+                port_value = cash_val + equity_val
+                spy_q = get_stock_quote("SPY")
+                spy_price = spy_q.get("price")
+                if port_value > 0:
+                    save_portfolio_snapshot(port_value, cash_val, equity_val, spy_price, "daily")
+                    if spy_price:
+                        save_benchmark_snapshot(port_value, spy_price)
         except Exception:
             pass
 
-        snapshots  = get_portfolio_snapshots(limit=500)
+        all_snapshots = get_portfolio_snapshots(limit=500)
+        # Filter to only include snapshots from the first trade date onward
+        if first_trade_date:
+            snapshots = [s for s in all_snapshots if s["ts"][:10] >= first_trade_date]
+        else:
+            snapshots = []
+
         spy_bench  = get_benchmark_comparison()
         metrics    = get_portfolio_metrics()
         txs        = get_transactions(limit=200)
