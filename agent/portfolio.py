@@ -1395,18 +1395,59 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
 def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
     """Return benchmark_snapshots rows oldest-first for charting.
     Only rows on/after the first trade date are included.
-    Legacy SPY-ETF-priced rows (spy_price < 2000) are excluded."""
+    Legacy SPY-ETF-priced rows (spy_price < 2000) are excluded.
+    If the table is sparse (e.g. after a wipe), backfills daily ^GSPC closes
+    from yfinance so charts always have a complete S&P 500 history."""
     first_trade_date = get_first_trade_date()
     if not first_trade_date:
         return []
     conn = _get_connection()
-    rows = conn.execute(
-        """SELECT recorded_at AS ts, portfolio_value, spy_price AS benchmark_price
-           FROM benchmark_snapshots
-           WHERE recorded_at >= ? AND spy_price >= 2000
-           ORDER BY recorded_at ASC LIMIT ?""",
-        (first_trade_date, limit),
-    ).fetchall()
+
+    def _fetch_rows():
+        return conn.execute(
+            """SELECT recorded_at AS ts, portfolio_value, spy_price AS benchmark_price
+               FROM benchmark_snapshots
+               WHERE recorded_at >= ? AND spy_price >= 2000
+               ORDER BY recorded_at ASC LIMIT ?""",
+            (first_trade_date, limit),
+        ).fetchall()
+
+    rows = _fetch_rows()
+
+    # Backfill when we have fewer rows than trading days since the first trade.
+    # This happens after a DB wipe — we only have today's snapshot, leaving the
+    # S&P 500 chart line empty.  We insert one row per market day using yfinance
+    # closes; portfolio_value=0 is intentional (chart only needs spy_price).
+    trade_date_obj = datetime.strptime(first_trade_date[:10], "%Y-%m-%d")
+    days_since_trade = (datetime.utcnow() - trade_date_obj).days
+    # Expect roughly 5/7 of calendar days to be trading days; use len < days/2 as trigger.
+    if len(rows) < max(2, days_since_trade // 2):
+        try:
+            import yfinance as yf
+            end_str = (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+            hist = yf.Ticker("^GSPC").history(start=first_trade_date[:10], end=end_str)
+            if not hist.empty:
+                if hist.index.tz is not None:
+                    hist.index = hist.index.tz_localize(None)
+                existing_dates = {r["ts"][:10] for r in [dict(r) for r in rows]}
+                inserts = []
+                for idx, hrow in hist.iterrows():
+                    ds = idx.date().isoformat()
+                    price = float(hrow["Close"])
+                    if ds not in existing_dates and price >= 2000:
+                        inserts.append((0.0, price, 0.0, ds + "T16:00:00"))
+                if inserts:
+                    conn.executemany(
+                        "INSERT OR IGNORE INTO benchmark_snapshots "
+                        "(portfolio_value, spy_price, spy_shares_equivalent, recorded_at) "
+                        "VALUES (?, ?, ?, ?)",
+                        inserts,
+                    )
+                    conn.commit()
+                    rows = _fetch_rows()
+        except Exception:
+            pass  # silently fall back to whatever rows exist
+
     conn.close()
     return [dict(r) for r in rows]
 
