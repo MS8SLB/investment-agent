@@ -1450,6 +1450,19 @@ def get_benchmark_comparison() -> dict:
     current_spy_price = latest[1]
     current_date      = latest[2][:10]
 
+    # Sanity check: prices differing by >5× are impossible in normal markets over days/weeks.
+    # This detects mixed-unit corruption (SPY ETF ~$679 vs ^GSPC index ~6,816).
+    # Nuclear self-heal: wipe all benchmark data and let the next snapshot rebuild cleanly.
+    if start_spy_price > 0 and current_spy_price > 0:
+        ratio = current_spy_price / start_spy_price
+        if ratio > 5 or ratio < 0.2:
+            conn2 = _get_connection()
+            conn2.execute("DELETE FROM benchmark_snapshots")
+            conn2.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL")
+            conn2.commit()
+            conn2.close()
+            return {"available": False, "message": "Benchmark data inconsistency detected and cleared. Will re-establish baseline on next page load."}
+
     # Use pure % return — immune to unit changes (SPY ETF vs ^GSPC index level)
     portfolio_return = (current_portfolio - start_portfolio) / start_portfolio if start_portfolio else 0
     sp500_return     = (current_spy_price - start_spy_price) / start_spy_price if start_spy_price else 0
