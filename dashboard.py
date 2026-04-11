@@ -252,6 +252,8 @@ def fmt_pct(val):
     if val is None:
         return "—"
     rounded = round(val, 2)
+    if rounded == 0:
+        return "0.00%"
     sign = "+" if rounded > 0 else ""
     return f"{sign}{rounded:.2f}%"
 
