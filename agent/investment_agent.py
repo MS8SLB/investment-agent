@@ -1627,6 +1627,7 @@ def run_agent_session(
     on_tool_call: Optional[callable] = None,
     on_tool_result: Optional[callable] = None,
     checkpoint_path: Optional[str] = None,
+    initial_content: Optional[list] = None,
 ) -> str:
     """
     Run one agent session with the given user prompt.
@@ -1680,7 +1681,8 @@ def run_agent_session(
             messages = None  # corrupt checkpoint → start fresh
 
     if messages is None:
-        messages = [{"role": "user", "content": user_prompt}]
+        # initial_content allows rich content (text + images); falls back to plain string
+        messages = [{"role": "user", "content": initial_content if initial_content else user_prompt}]
 
     final_text = ""
 
@@ -1962,6 +1964,6 @@ Apply the intrinsic value framework consistently: moat first, fair value estimat
     return run_agent_session(prompt, model=model, max_iterations=40, **kwargs)
 
 
-def run_custom_prompt(prompt: str, model: Optional[str] = None, **kwargs) -> str:
+def run_custom_prompt(prompt: str, model: Optional[str] = None, initial_content: Optional[list] = None, **kwargs) -> str:
     """Run the agent with a custom user prompt."""
-    return run_agent_session(prompt, model=model, **kwargs)
+    return run_agent_session(prompt, model=model, initial_content=initial_content, **kwargs)
