@@ -5,7 +5,7 @@ Tracks cash, holdings, transaction history, investment theses, and session refle
 
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 
@@ -1412,7 +1412,7 @@ def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
 
 
 def get_benchmark_comparison() -> dict:
-    """Compare current portfolio value vs what SPY would be worth."""
+    """Compare current portfolio value vs what S&P 500 would be worth since first trade."""
     first_trade_date = get_first_trade_date()
     if not first_trade_date:
         return {"available": False, "message": "No trades made yet — performance tracking vs S&P 500 begins after the first trade"}
@@ -1421,38 +1421,60 @@ def get_benchmark_comparison() -> dict:
 
     # Purge legacy rows stored with SPY ETF prices.
     # SPY ETF trades ~$400-800; ^GSPC has been above 2 000 since 2017.
-    # Any row below 2 000 is ETF-era data and must be removed.
     conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 2000")
-    # Also clean benchmark_price in portfolio_snapshots (same issue)
     conn.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL AND benchmark_price < 2000")
     conn.commit()
 
-    # Only use snapshots from the first trade date onward so the baseline reflects
-    # the portfolio value at the point trading actually began.
-    first = conn.execute(
-        "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at ASC LIMIT 1",
-        (first_trade_date,),
-    ).fetchone()
+    # Get the latest benchmark snapshot for current values.
     latest = conn.execute(
         "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at DESC LIMIT 1",
         (first_trade_date,),
     ).fetchone()
+
+    # Get the oldest portfolio snapshot for the starting portfolio value.
+    first_portfolio = conn.execute(
+        "SELECT portfolio_value, ts FROM portfolio_snapshots WHERE ts >= ? ORDER BY ts ASC LIMIT 1",
+        (first_trade_date,),
+    ).fetchone()
     conn.close()
 
-    if not first or not latest:
+    if not latest:
         return {"available": False, "message": "No benchmark data yet — run the agent at least once after making a trade"}
-
-    start_portfolio  = first[0]
-    start_spy_price  = first[1]
-    start_date       = first[2][:10]
 
     current_portfolio = latest[0]
     current_spy_price = latest[1]
     current_date      = latest[2][:10]
 
-    # Sanity check: prices differing by >5× are impossible in normal markets over days/weeks.
-    # This detects mixed-unit corruption (SPY ETF ~$679 vs ^GSPC index ~6,816).
-    # Nuclear self-heal: wipe all benchmark data and let the next snapshot rebuild cleanly.
+    # Always fetch the historical ^GSPC price at first_trade_date from yfinance.
+    # This gives a stable, DB-independent baseline that survives any future wipe.
+    start_spy_price = None
+    try:
+        import yfinance as yf
+        trade_dt = datetime.strptime(first_trade_date[:10], "%Y-%m-%d")
+        # Fetch a ±7-day window around the first trade to handle weekends/holidays.
+        hist_start = (trade_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+        hist_end   = (trade_dt + timedelta(days=7)).strftime("%Y-%m-%d")
+        gspc = yf.Ticker("^GSPC")
+        hist = gspc.history(start=hist_start, end=hist_end)
+        if not hist.empty:
+            hist.index = hist.index.tz_localize(None) if hist.index.tz is not None else hist.index
+            # Use the close on or just after the first trade date.
+            after = hist[hist.index.date >= trade_dt.date()]
+            start_spy_price = float((after if not after.empty else hist).iloc[0]["Close"])
+    except Exception:
+        pass  # fallback below
+
+    # Fallback: use oldest benchmark snapshot if yfinance unavailable.
+    if start_spy_price is None or start_spy_price <= 0:
+        conn3 = _get_connection()
+        first_bench = conn3.execute(
+            "SELECT spy_price FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at ASC LIMIT 1",
+            (first_trade_date,),
+        ).fetchone()
+        conn3.close()
+        start_spy_price = first_bench[0] if first_bench else current_spy_price
+
+    # Sanity check: >5× ratio is impossible in normal markets — still-corrupt data.
     if start_spy_price > 0 and current_spy_price > 0:
         ratio = current_spy_price / start_spy_price
         if ratio > 5 or ratio < 0.2:
@@ -1463,7 +1485,15 @@ def get_benchmark_comparison() -> dict:
             conn2.close()
             return {"available": False, "message": "Benchmark data inconsistency detected and cleared. Will re-establish baseline on next page load."}
 
-    # Use pure % return — immune to unit changes (SPY ETF vs ^GSPC index level)
+    # Starting portfolio value: oldest snapshot on/after first trade date.
+    if first_portfolio:
+        start_portfolio = first_portfolio[0]
+        start_date      = first_portfolio[1][:10]
+    else:
+        start_portfolio = current_portfolio
+        start_date      = first_trade_date[:10]
+
+    # Use pure % return — immune to unit changes.
     portfolio_return = (current_portfolio - start_portfolio) / start_portfolio if start_portfolio else 0
     sp500_return     = (current_spy_price - start_spy_price) / start_spy_price if start_spy_price else 0
     alpha            = portfolio_return - sp500_return
