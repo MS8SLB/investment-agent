@@ -251,8 +251,9 @@ def fmt_usd(val):
 def fmt_pct(val):
     if val is None:
         return "—"
-    sign = "+" if val >= 0 else ""
-    return f"{sign}{val:.2f}%"
+    rounded = round(val, 2)
+    sign = "+" if rounded > 0 else ""
+    return f"{sign}{rounded:.2f}%"
 
 
 def clr(val, text=None):

@@ -1428,7 +1428,7 @@ def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
             hist = yf.Ticker("^GSPC").history(start=first_trade_date[:10], end=end_str)
             if not hist.empty:
                 if hist.index.tz is not None:
-                    hist.index = hist.index.tz_localize(None)
+                    hist.index = hist.index.tz_convert(None)
                 existing_dates = {r["ts"][:10] for r in [dict(r) for r in rows]}
                 inserts = []
                 for idx, hrow in hist.iterrows():
@@ -1498,7 +1498,7 @@ def get_benchmark_comparison() -> dict:
         gspc = yf.Ticker("^GSPC")
         hist = gspc.history(start=hist_start, end=hist_end)
         if not hist.empty:
-            hist.index = hist.index.tz_localize(None) if hist.index.tz is not None else hist.index
+            hist.index = hist.index.tz_convert(None) if hist.index.tz is not None else hist.index
             # Use the close on or just after the first trade date.
             after = hist[hist.index.date >= trade_dt.date()]
             start_spy_price = float((after if not after.empty else hist).iloc[0]["Close"])
