@@ -1390,7 +1390,8 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
 
 def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
     """Return benchmark_snapshots rows oldest-first for charting.
-    Only rows on/after the first trade date are included."""
+    Only rows on/after the first trade date are included.
+    Legacy SPY-ETF-priced rows (spy_price < 500) are excluded."""
     first_trade_date = get_first_trade_date()
     if not first_trade_date:
         return []
@@ -1398,7 +1399,7 @@ def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
     rows = conn.execute(
         """SELECT recorded_at AS ts, portfolio_value, spy_price AS benchmark_price
            FROM benchmark_snapshots
-           WHERE recorded_at >= ?
+           WHERE recorded_at >= ? AND spy_price >= 500
            ORDER BY recorded_at ASC LIMIT ?""",
         (first_trade_date, limit),
     ).fetchall()
@@ -1413,6 +1414,13 @@ def get_benchmark_comparison() -> dict:
         return {"available": False, "message": "No trades made yet — performance tracking vs S&P 500 begins after the first trade"}
 
     conn = _get_connection()
+
+    # Purge any legacy rows stored with SPY ETF prices (< 500) — they are
+    # incompatible with the current ^GSPC index level (~5 000-7 000) and would
+    # produce nonsensical 900%+ "returns" if mixed with index-level prices.
+    conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 500")
+    conn.commit()
+
     # Only use snapshots from the first trade date onward so the baseline reflects
     # the portfolio value at the point trading actually began.
     first = conn.execute(
@@ -1428,32 +1436,32 @@ def get_benchmark_comparison() -> dict:
     if not first or not latest:
         return {"available": False, "message": "No benchmark data yet — run the agent at least once after making a trade"}
 
-    start_portfolio = first[0]
-    start_spy_price = first[1]
-    # Recalculate spy_shares from the post-trade baseline so the comparison is fair
-    spy_shares = start_portfolio / start_spy_price if start_spy_price > 0 else 0
-    start_date = first[2][:10]
+    start_portfolio  = first[0]
+    start_spy_price  = first[1]
+    start_date       = first[2][:10]
 
     current_portfolio = latest[0]
     current_spy_price = latest[1]
-    current_date = latest[2][:10]
+    current_date      = latest[2][:10]
 
-    spy_current_value = spy_shares * current_spy_price
-
+    # Use pure % return — immune to unit changes (SPY ETF vs ^GSPC index level)
     portfolio_return = (current_portfolio - start_portfolio) / start_portfolio if start_portfolio else 0
-    spy_return = (spy_current_value - start_portfolio) / start_portfolio if start_portfolio else 0
-    alpha = portfolio_return - spy_return
+    sp500_return     = (current_spy_price - start_spy_price) / start_spy_price if start_spy_price else 0
+    alpha            = portfolio_return - sp500_return
+
+    # What the starting portfolio value would be worth if invested in S&P 500
+    sp500_equivalent_value = start_portfolio * (1 + sp500_return)
 
     return {
         "available": True,
         "start_date": start_date,
         "current_date": current_date,
-        "portfolio_return_pct": round(portfolio_return * 100, 2),
-        "spy_return_pct": round(spy_return * 100, 2),
-        "alpha_pct": round(alpha * 100, 2),
-        "beating_market": alpha > 0,
-        "portfolio_value": round(current_portfolio, 2),
-        "spy_equivalent_value": round(spy_current_value, 2),
+        "portfolio_return_pct":  round(portfolio_return * 100, 2),
+        "spy_return_pct":        round(sp500_return * 100, 2),
+        "alpha_pct":             round(alpha * 100, 2),
+        "beating_market":        alpha > 0,
+        "portfolio_value":       round(current_portfolio, 2),
+        "spy_equivalent_value":  round(sp500_equivalent_value, 2),
         "start_portfolio_value": round(start_portfolio, 2),
     }
 
