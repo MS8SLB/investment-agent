@@ -902,8 +902,8 @@ def get_portfolio_metrics() -> dict:
     Compute risk and return metrics from portfolio snapshot history.
     Returns Sharpe ratio, max drawdown, annualised volatility, and
     rolling 1/3/6-month returns vs S&P 500.
-    Assumes snapshots are roughly monthly (one per review session).
     Only considers snapshots from the first trade date onward.
+    Annualisation uses the actual elapsed time between snapshots.
     """
     first_trade_date = get_first_trade_date()
     if not first_trade_date:
@@ -915,25 +915,41 @@ def get_portfolio_metrics() -> dict:
     snapshots = [s for s in all_snapshots if s["ts"][:10] >= first_trade_date]
     if len(snapshots) < 2:
         return {
-            "message": "Need at least 2 review sessions after the first trade to compute metrics. Run more reviews.",
+            "message": "Need at least 2 snapshots after the first trade to compute metrics.",
             "n_snapshots": len(snapshots),
         }
 
     values = [s["portfolio_value"] for s in snapshots]
-    spy_prices = [s.get("benchmark_price") for s in snapshots]
     n = len(values)
 
-    # Period-over-period returns (between consecutive snapshots)
+    # ── Actual time span ───────────────────────────────────────────────────────
+    from datetime import datetime as _dt
+    try:
+        first_dt = _dt.fromisoformat(snapshots[0]["ts"])
+        last_dt  = _dt.fromisoformat(snapshots[-1]["ts"])
+        span_days = max((last_dt - first_dt).total_seconds() / 86400, 0.01)
+    except Exception:
+        span_days = 0.0
+
+    # Annualised stats are only meaningful once we have >= 30 days of data
+    enough_data = span_days >= 30
+
+    # Period-over-period returns
     returns = [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, n)]
-
-    avg_r = sum(returns) / len(returns)
+    avg_r    = sum(returns) / len(returns)
     variance = sum((r - avg_r) ** 2 for r in returns) / max(len(returns) - 1, 1)
-    std_r = variance ** 0.5
+    std_r    = variance ** 0.5
 
-    # Annualise assuming monthly snapshots
-    annualised_return = ((1 + avg_r) ** 12 - 1) * 100
-    annualised_vol = std_r * (12 ** 0.5) * 100
-    risk_free = 4.5  # % annual, approx current 10yr treasury
+    # Annualise using ACTUAL inter-snapshot frequency
+    if span_days > 0 and len(returns) > 0:
+        avg_period_days = span_days / len(returns)        # avg days between snapshots
+        periods_per_year = 365.0 / avg_period_days
+    else:
+        periods_per_year = 12.0                           # fallback
+
+    annualised_return = ((1 + avg_r) ** periods_per_year - 1) * 100
+    annualised_vol    = std_r * (periods_per_year ** 0.5) * 100
+    risk_free         = 4.5   # % annual, approx 10yr treasury
 
     sharpe = (
         round((annualised_return - risk_free) / annualised_vol, 2)
@@ -941,7 +957,7 @@ def get_portfolio_metrics() -> dict:
     )
 
     # Max drawdown
-    peak = values[0]
+    peak   = values[0]
     max_dd = 0.0
     for v in values:
         if v > peak:
@@ -950,41 +966,43 @@ def get_portfolio_metrics() -> dict:
         if dd > max_dd:
             max_dd = dd
 
-    # Rolling returns — portfolio
+    # Rolling returns — portfolio (measured in snapshots, not calendar time)
     def _port_return(n_periods: int) -> Optional[float]:
         if n < n_periods + 1:
             return None
         start, end = values[-(n_periods + 1)], values[-1]
         return round((end - start) / start * 100, 2)
 
-    # Rolling returns — S&P 500 (only use snapshots where benchmark exists)
+    # Rolling returns — S&P 500
     spy_valid = [(s["ts"], s["benchmark_price"]) for s in snapshots if s.get("benchmark_price")]
 
     def _spy_return(n_periods: int) -> Optional[float]:
         if len(spy_valid) < n_periods + 1:
             return None
         start = spy_valid[-(n_periods + 1)][1]
-        end = spy_valid[-1][1]
+        end   = spy_valid[-1][1]
         return round((end - start) / start * 100, 2)
 
     total_return = round((values[-1] - values[0]) / values[0] * 100, 2)
 
     return {
-        "n_snapshots": n,
-        "total_return_pct": total_return,
-        "annualised_return_pct": round(annualised_return, 2) if n >= 3 else None,
-        "annualised_volatility_pct": round(annualised_vol, 2) if len(returns) > 1 else None,
-        "sharpe_ratio": sharpe if len(returns) > 1 else None,
-        "max_drawdown_pct": round(max_dd * 100, 2),
+        "n_snapshots":             n,
+        "span_days":               round(span_days, 1),
+        "total_return_pct":        total_return,
+        "annualised_return_pct":   round(annualised_return, 2) if enough_data else None,
+        "annualised_volatility_pct": round(annualised_vol, 2)  if enough_data else None,
+        "sharpe_ratio":            sharpe                       if enough_data else None,
+        "max_drawdown_pct":        round(max_dd * 100, 2),
         "rolling": {
             "1m": {"portfolio_pct": _port_return(1), "benchmark_pct": _spy_return(1)},
             "3m": {"portfolio_pct": _port_return(3), "benchmark_pct": _spy_return(3)},
             "6m": {"portfolio_pct": _port_return(6), "benchmark_pct": _spy_return(6)},
         },
         "note": (
-            f"Based on {n} snapshots. "
-            "Annualised figures assume monthly snapshot frequency. "
-            "Sharpe uses 4.5% annual risk-free rate."
+            f"Based on {n} snapshots over {round(span_days, 1)} days. "
+            + ("Annualised figures use actual snapshot frequency. Sharpe uses 4.5% risk-free rate."
+               if enough_data else
+               "Annualised stats require 30+ days of data.")
         ),
     }
 
@@ -1370,6 +1388,24 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
     conn.close()
 
 
+def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
+    """Return benchmark_snapshots rows oldest-first for charting.
+    Only rows on/after the first trade date are included."""
+    first_trade_date = get_first_trade_date()
+    if not first_trade_date:
+        return []
+    conn = _get_connection()
+    rows = conn.execute(
+        """SELECT recorded_at AS ts, portfolio_value, spy_price AS benchmark_price
+           FROM benchmark_snapshots
+           WHERE recorded_at >= ?
+           ORDER BY recorded_at ASC LIMIT ?""",
+        (first_trade_date, limit),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_benchmark_comparison() -> dict:
     """Compare current portfolio value vs what SPY would be worth."""
     first_trade_date = get_first_trade_date()
@@ -1384,7 +1420,8 @@ def get_benchmark_comparison() -> dict:
         (first_trade_date,),
     ).fetchone()
     latest = conn.execute(
-        "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots ORDER BY recorded_at DESC LIMIT 1"
+        "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at DESC LIMIT 1",
+        (first_trade_date,),
     ).fetchone()
     conn.close()
 

@@ -537,9 +537,10 @@ elif "PERFORMANCE" in page:
 
     from agent.portfolio import (
         get_portfolio_snapshots, get_portfolio_metrics,
-        get_benchmark_comparison, get_transactions,
-        get_holdings, get_cash, save_benchmark_snapshot,
-        save_portfolio_snapshot, get_first_trade_date,
+        get_benchmark_comparison, get_benchmark_snapshots,
+        get_transactions, get_holdings, get_cash,
+        save_benchmark_snapshot, save_portfolio_snapshot,
+        get_first_trade_date,
     )
     from agent.market_data import get_stock_quote
 
@@ -573,6 +574,10 @@ elif "PERFORMANCE" in page:
         else:
             snapshots = []
 
+        # benchmark_snapshots is the single source of truth for SPY tracking
+        # (same data used by get_benchmark_comparison metrics)
+        bench_snaps = get_benchmark_snapshots(limit=500)
+
         spy_bench  = get_benchmark_comparison()
         metrics    = get_portfolio_metrics()
         txs        = get_transactions(limit=200)
@@ -593,18 +598,21 @@ elif "PERFORMANCE" in page:
         delta=fmt_pct(port_ret) if port_ret is not None else None,
         delta_color="normal" if (port_ret or 0) >= 0 else "inverse",
     )
-    c2.metric("SPY RETURN",
+    c2.metric("SPY ETF RETURN",
         fmt_pct(spy_ret) if spy_ret is not None else "N/A",
     )
-    c3.metric("ALPHA VS SPY",
+    c3.metric("ALPHA VS SPY ETF",
         fmt_pct(alpha) if alpha is not None else "N/A",
         "OUTPERFORMING" if beating else ("UNDERPERFORMING" if alpha is not None else None),
         delta_color="normal" if beating else "inverse",
     )
+    _span = metrics.get("span_days", 0)
     c4.metric("SHARPE RATIO",
-        f"{sharpe:.2f}" if sharpe is not None else "N/A",
-        "GOOD" if sharpe is not None and sharpe > 1 else ("WEAK" if sharpe is not None and sharpe < 0 else None),
-        delta_color="normal" if sharpe is not None and sharpe > 0 else "inverse",
+        f"{sharpe:.2f}" if sharpe is not None else ("< 30d" if _span < 30 else "N/A"),
+        "GOOD" if sharpe is not None and sharpe > 1 else (
+            "WEAK" if sharpe is not None and sharpe < 0 else (
+                "NEED 30 DAYS" if _span < 30 else None)),
+        delta_color="normal" if sharpe is not None and sharpe > 0 else "off",
     )
 
     c5, c6, c7, c8 = st.columns(4)
@@ -613,11 +621,11 @@ elif "PERFORMANCE" in page:
         delta_color="off",
     )
     c6.metric("ANNUALISED VOL",
-        f"{vol:.1f}%" if vol is not None else "N/A",
+        f"{vol:.1f}%" if vol is not None else ("< 30d" if _span < 30 else "N/A"),
         delta_color="off",
     )
     c7.metric("ANNUALISED RETURN",
-        f"{ann_ret:+.1f}%" if ann_ret is not None else "N/A",
+        f"{ann_ret:+.1f}%" if ann_ret is not None else ("< 30d" if _span < 30 else "N/A"),
         delta_color="off",
     )
     c8.metric("PORTFOLIO VALUE",
@@ -626,10 +634,13 @@ elif "PERFORMANCE" in page:
     )
 
     if spy_bench.get("available"):
+        spy_eq = spy_bench.get("spy_equivalent_value")
         st.markdown(
             f'<div style="color:#505050;font-size:10px;margin-top:-8px;margin-bottom:12px;">'
             f'Tracked since {spy_bench.get("start_date","N/A")} &nbsp;|&nbsp; '
-            f'SPY equivalent: {fmt_usd(spy_bench.get("spy_equivalent_value"))}'
+            f'SPY ETF equivalent: {fmt_usd(spy_eq)}'
+            f'&nbsp;|&nbsp; <span title="SPY ETF price ≈ S&P 500 index ÷ 10">'
+            f'SPY ETF price is ~1/10th of S&P 500 index level</span>'
             f'</div>', unsafe_allow_html=True,
         )
 
@@ -662,28 +673,48 @@ elif "PERFORMANCE" in page:
 
         df = df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
 
-        # Normalise to % return from first point
+        # Normalise portfolio to % return from first point
         base_port = df["portfolio_value"].iloc[0]
         df["port_pct"] = (df["portfolio_value"] / base_port - 1) * 100
 
-        has_spy = df["benchmark_price"].notna().any()
-        if has_spy:
-            base_spy = df["benchmark_price"].dropna().iloc[0]
-            df["spy_pct"] = (df["benchmark_price"] / base_spy - 1) * 100
-            df["spy_pct"] = df["spy_pct"].ffill()
+        # ── SPY line from benchmark_snapshots (same source as metrics) ────────
+        # Using benchmark_snapshots ensures the chart and summary metrics share
+        # the exact same SPY baseline — portfolio_snapshots.benchmark_price can
+        # diverge when the two tables are written at different intraday times.
+        has_spy = False
+        spy_df  = None
+        if bench_snaps:
+            spy_df = pd.DataFrame(bench_snaps)
+            spy_df["ts"] = pd.to_datetime(spy_df["ts"])
+            spy_df = spy_df.sort_values("ts")
+            # Apply same time-range filter
+            if _RANGES[_sel] is not None:
+                spy_df = spy_df[spy_df["ts"] >= _cutoff].copy()
+            spy_df = spy_df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
+            if not spy_df.empty and spy_df["benchmark_price"].notna().any():
+                base_spy = spy_df["benchmark_price"].dropna().iloc[0]
+                spy_df["spy_pct"] = (spy_df["benchmark_price"] / base_spy - 1) * 100
+                has_spy = True
 
         # ── Main chart: normalised % return with alpha fill ───────────────────
         section("PORTFOLIO vs S&P 500 — NORMALISED RETURN (%)")
 
         fig = go.Figure()
 
-        # Alpha fill (positive = green, negative = red)
-        if has_spy:
-            port_arr = df["port_pct"].values
-            spy_arr  = df["spy_pct"].values
-            xs       = df["ts"].tolist()
+        # Alpha fill (positive = green, negative = red) — interpolate SPY onto
+        # portfolio timestamps for the fill polygon
+        if has_spy and not spy_df.empty:
+            # Merge-resample: use SPY values at portfolio timestamps via ffill
+            merged = pd.merge_asof(
+                df[["ts", "port_pct"]].sort_values("ts"),
+                spy_df[["ts", "spy_pct"]].sort_values("ts"),
+                on="ts", direction="nearest", tolerance=pd.Timedelta("12h"),
+            ).dropna(subset=["spy_pct"])
 
-            # Split into ahead / behind segments for fill colour
+            port_arr = merged["port_pct"].values
+            spy_arr  = merged["spy_pct"].values
+            xs       = merged["ts"].tolist()
+
             for _i in range(len(xs) - 1):
                 _color = "rgba(0,230,118,0.12)" if port_arr[_i] >= spy_arr[_i] else "rgba(255,59,59,0.12)"
                 fig.add_trace(go.Scatter(
@@ -698,11 +729,11 @@ elif "PERFORMANCE" in page:
 
             # SPY line
             fig.add_trace(go.Scatter(
-                x=df["ts"], y=df["spy_pct"],
+                x=spy_df["ts"], y=spy_df["spy_pct"],
                 mode="lines",
-                name="S&P 500",
+                name="SPY ETF",
                 line=dict(color="#404040", width=2),
-                hovertemplate="<b>S&P 500:</b> %{y:+.2f}%<extra></extra>",
+                hovertemplate="<b>SPY ETF:</b> %{y:+.2f}%<extra></extra>",
             ))
 
         # Portfolio line (on top)
@@ -767,8 +798,9 @@ elif "PERFORMANCE" in page:
         st.markdown(
             '<div style="color:#303030;font-size:9px;margin-top:-8px;">'
             '▼ = agent run with trades &nbsp;|&nbsp; '
-            '<span style="color:rgba(0,230,118,0.6)">■</span> ahead of SPY &nbsp;|&nbsp; '
-            '<span style="color:rgba(255,59,59,0.6)">■</span> behind SPY'
+            '<span style="color:rgba(0,230,118,0.6)">■</span> ahead of SPY ETF &nbsp;|&nbsp; '
+            '<span style="color:rgba(255,59,59,0.6)">■</span> behind SPY ETF'
+            ' &nbsp;|&nbsp; SPY ETF price ≈ S&P 500 index ÷ 10'
             '</div>', unsafe_allow_html=True,
         )
 
@@ -780,12 +812,13 @@ elif "PERFORMANCE" in page:
 
         fig_dd = go.Figure()
 
-        if has_spy:
-            df["spy_peak"]     = df["benchmark_price"].ffill().cummax()
-            df["spy_drawdown"] = (df["benchmark_price"].ffill() / df["spy_peak"] - 1) * 100
+        if has_spy and spy_df is not None and not spy_df.empty:
+            _sdd = spy_df.copy()
+            _sdd["spy_peak"]     = _sdd["benchmark_price"].ffill().cummax()
+            _sdd["spy_drawdown"] = (_sdd["benchmark_price"].ffill() / _sdd["spy_peak"] - 1) * 100
             fig_dd.add_trace(go.Scatter(
-                x=df["ts"], y=df["spy_drawdown"],
-                mode="lines", name="S&P 500",
+                x=_sdd["ts"], y=_sdd["spy_drawdown"],
+                mode="lines", name="SPY ETF",
                 line=dict(color="#303030", width=1.5),
                 hovertemplate="<b>SPY DD:</b> %{y:.2f}%<extra></extra>",
             ))
@@ -869,7 +902,7 @@ elif "PERFORMANCE" in page:
                 "PORTFOLIO VALUE": fmt_usd(s["portfolio_value"]),
                 "CASH":            fmt_usd(s["cash"]),
                 "INVESTED":        fmt_usd(s["invested_value"]),
-                "S&P 500 PRICE":   fmt_usd(s.get("benchmark_price")),
+                "SPY ETF PRICE":   fmt_usd(s.get("benchmark_price")),
             })
         st.dataframe(pd.DataFrame(snap_rows), width="stretch", hide_index=True)
 
