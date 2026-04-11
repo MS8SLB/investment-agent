@@ -1197,11 +1197,11 @@ elif "ASK AGENT" in page:
 
     uploaded_files = st.file_uploader(
         "Upload files",
-        type=["png", "jpg", "jpeg", "gif", "webp", "csv", "txt", "md"],
+        type=["png", "jpg", "jpeg", "gif", "webp", "csv", "txt", "md", "pdf"],
         accept_multiple_files=True,
         label_visibility="collapsed",
         disabled=st.session_state.ask_agent_running,
-        help="Images are passed directly to the model. CSV/TXT content is included as context. PDFs: copy-paste the relevant text into the question box.",
+        help="Images are sent directly to the model. CSV/TXT/MD/PDF text is included as context.",
     )
 
     send_btn = st.button(
@@ -1258,6 +1258,25 @@ elif "ASK AGENT" in page:
                     )
                 except Exception:
                     extra_text_parts.append(f"\n\n[Could not read file: {f.name}]")
+            elif ext == "pdf":
+                try:
+                    import io
+                    from pypdf import PdfReader
+                    reader = PdfReader(io.BytesIO(f.read()))
+                    pages_text = []
+                    for i, page in enumerate(reader.pages):
+                        page_text = page.extract_text() or ""
+                        if page_text.strip():
+                            pages_text.append(f"[Page {i+1}]\n{page_text}")
+                    if pages_text:
+                        combined = "\n\n".join(pages_text)
+                        extra_text_parts.append(
+                            f"\n\n--- Attached PDF: {html.escape(f.name)} ---\n{combined}\n--- End of PDF ---"
+                        )
+                    else:
+                        extra_text_parts.append(f"\n\n[PDF {f.name}: no extractable text (scanned/image-based)]")
+                except Exception as _pdf_err:
+                    extra_text_parts.append(f"\n\n[Could not read PDF {f.name}: {_pdf_err}]")
 
         full_prompt = question.strip() + "".join(extra_text_parts)
 
