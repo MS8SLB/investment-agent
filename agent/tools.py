@@ -320,6 +320,36 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_analyst_consensus",
+        "description": (
+            "Return aggregated Wall Street analyst consensus: rating distribution (strong_buy/buy/hold/sell counts), "
+            "price targets (mean/high/low), upside % to mean target, and EPS revision momentum "
+            "(# analysts raising vs cutting estimates last 30 days)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_financial_history",
+        "description": (
+            "Return 4-5 years of annual financial history: revenue, gross/operating/net margins, "
+            "YoY revenue growth %, free cash flow, operating cash flow, total debt, and cash. "
+            "Use to assess long-run business quality and FCF trends."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
         "name": "get_insider_activity",
         "description": (
             "Return recent insider buy/sell transactions by executives, directors, and major shareholders."
@@ -2388,6 +2418,36 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "get_analyst_consensus",
+        "description": (
+            "Return aggregated Wall Street analyst consensus: rating distribution (strong_buy/buy/hold/sell counts), "
+            "price targets (mean/high/low), upside % to mean target, and EPS revision momentum "
+            "(# analysts raising vs cutting estimates last 30 days)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_financial_history",
+        "description": (
+            "Return 4-5 years of annual financial history: revenue, gross/operating/net margins, "
+            "YoY revenue growth %, free cash flow, operating cash flow, total debt, and cash. "
+            "Use to assess long-run business quality and FCF trends."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
         "name": "get_insider_activity",
         "description": (
             "Return recent insider buy/sell transactions by executives, directors, and major shareholders."
@@ -3155,6 +3215,12 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_analyst_upgrades":
         limit = tool_input.get("limit", 10)
         return market_data.get_analyst_upgrades(tool_input["ticker"], limit)
+
+    elif tool_name == "get_analyst_consensus":
+        return market_data.get_analyst_consensus(tool_input["ticker"])
+
+    elif tool_name == "get_financial_history":
+        return market_data.get_financial_history(tool_input["ticker"])
 
     elif tool_name == "get_insider_activity":
         return market_data.get_insider_activity(tool_input["ticker"])

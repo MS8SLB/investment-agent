@@ -1142,6 +1142,234 @@ def get_analyst_upgrades(ticker: str, limit: int = 10) -> list[dict]:
         return [{"error": str(e)}]
 
 
+def get_analyst_consensus(ticker: str) -> dict:
+    """
+    Return aggregated Wall Street analyst consensus: rating distribution, price targets,
+    upside to mean target, and EPS revision momentum (raises vs cuts last 30 days).
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+        info = t.info or {}
+        result = {"ticker": ticker.upper()}
+
+        # ── Price targets ────────────────────────────────────────────────────
+        current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+        result["current_price"]       = current_price
+        result["target_mean_price"]   = info.get("targetMeanPrice")
+        result["target_high_price"]   = info.get("targetHighPrice")
+        result["target_low_price"]    = info.get("targetLowPrice")
+        result["target_median_price"] = info.get("targetMedianPrice")
+        result["num_analysts"]        = info.get("numberOfAnalystOpinions")
+        result["recommendation_key"]  = info.get("recommendationKey")   # "buy","hold","sell"
+        result["recommendation_mean"] = info.get("recommendationMean")  # 1=StrongBuy 5=StrongSell
+
+        if current_price and result.get("target_mean_price"):
+            result["upside_to_mean_pct"] = round(
+                (result["target_mean_price"] / current_price - 1) * 100, 1
+            )
+
+        # ── Rating distribution ──────────────────────────────────────────────
+        try:
+            recs = t.recommendations_summary
+            if recs is not None and not recs.empty:
+                # Normalise column names (varies across yfinance versions)
+                col = {c.lower().replace(" ", "").replace("_", ""): c for c in recs.columns}
+                latest = recs.iloc[0]
+
+                def _rating(keys):
+                    for k in keys:
+                        c = col.get(k)
+                        if c is not None:
+                            v = latest.get(c)
+                            if v is not None:
+                                try:
+                                    return int(float(v))
+                                except (TypeError, ValueError):
+                                    pass
+                    return 0
+
+                sb = _rating(["strongbuy",  "strongbuy"])
+                b  = _rating(["buy"])
+                h  = _rating(["hold"])
+                s  = _rating(["sell"])
+                ss = _rating(["strongsell", "strongsell"])
+                total = sb + b + h + s + ss
+                result["rating_distribution"] = {
+                    "strong_buy":   sb,
+                    "buy":          b,
+                    "hold":         h,
+                    "sell":         s,
+                    "strong_sell":  ss,
+                    "total":        total,
+                }
+                if total > 0:
+                    result["pct_bullish"] = round((sb + b) / total * 100, 1)
+                    result["pct_bearish"] = round((s + ss) / total * 100, 1)
+        except Exception:
+            pass
+
+        # ── EPS revision momentum ────────────────────────────────────────────
+        try:
+            rev = t.eps_revisions
+            if rev is not None and not rev.empty:
+                # Normalise index and column names
+                rev.index = [str(i).lower().replace(" ", "").replace("_", "") for i in rev.index]
+                col_map = {c: c for c in rev.columns}
+
+                def _rev_val(row_key, col):
+                    try:
+                        if row_key in rev.index:
+                            v = rev.at[row_key, col]
+                            return int(float(v)) if v is not None else None
+                    except Exception:
+                        pass
+                    return None
+
+                revisions = {}
+                for c in rev.columns:
+                    period = str(c)
+                    revisions[period] = {
+                        "up_last_7d":  _rev_val("uplast7days",   c),
+                        "up_last_30d": _rev_val("uplast30days",  c),
+                        "dn_last_7d":  _rev_val("downlast7days", c),
+                        "dn_last_30d": _rev_val("downlast30days", c),
+                    }
+                result["eps_revisions"] = revisions
+
+                # Summarise: net revision direction for next year
+                for period_key in ["nextyear", "0y", "1y"]:
+                    if period_key in [str(c).lower().replace(" ", "") for c in rev.columns]:
+                        col_match = next(
+                            (c for c in rev.columns
+                             if str(c).lower().replace(" ", "") == period_key), None
+                        )
+                        if col_match:
+                            up   = (_rev_val("uplast30days",  col_match) or 0)
+                            down = (_rev_val("downlast30days", col_match) or 0)
+                            net  = up - down
+                            result["next_year_revision_net"] = net
+                            result["next_year_revision_direction"] = (
+                                "positive" if net > 0 else "negative" if net < 0 else "neutral"
+                            )
+                            break
+        except Exception:
+            pass
+
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_financial_history(ticker: str) -> dict:
+    """
+    Return 4-5 years of annual financial history: revenue, margins, FCF, debt.
+    Use this to assess long-run business quality and earnings power trends.
+    """
+    try:
+        t = yf.Ticker(ticker.upper())
+
+        def _row(df, *keys):
+            """Return list of floats (newest first, up to 5 cols) for the first matching key."""
+            if df is None or df.empty:
+                return []
+            for key in keys:
+                matches = [i for i in df.index if str(i).lower() == key.lower()]
+                if matches:
+                    row = df.loc[matches[0]]
+                    vals = []
+                    for v in row.iloc[:5]:
+                        try:
+                            vals.append(float(v))
+                        except (TypeError, ValueError):
+                            vals.append(None)
+                    return vals
+            return []
+
+        fin = t.financials
+        cf  = t.cashflow
+        bs  = t.balance_sheet
+
+        years = []
+        if fin is not None and not fin.empty:
+            years = [str(c)[:4] for c in fin.columns[:5]]
+        elif cf is not None and not cf.empty:
+            years = [str(c)[:4] for c in cf.columns[:5]]
+
+        revenue      = _row(fin, "Total Revenue")
+        gross_profit = _row(fin, "Gross Profit")
+        op_income    = _row(fin, "Operating Income", "Ebit")
+        net_income   = _row(fin, "Net Income")
+        op_cf        = _row(cf,  "Operating Cash Flow", "Total Cash From Operating Activities")
+        capex        = _row(cf,  "Capital Expenditure", "Capital Expenditures")
+        total_debt   = _row(bs,  "Total Debt", "Long Term Debt")
+        cash         = _row(bs,  "Cash And Cash Equivalents",
+                                 "Cash Cash Equivalents And Short Term Investments")
+
+        def _pct(num, denom):
+            out = []
+            for i in range(max(len(num), len(denom))):
+                n_val = num[i] if i < len(num) else None
+                d_val = denom[i] if i < len(denom) else None
+                if n_val is not None and d_val and d_val != 0:
+                    out.append(round(n_val / d_val * 100, 1))
+                else:
+                    out.append(None)
+            return out
+
+        gross_margin = _pct(gross_profit, revenue)
+        op_margin    = _pct(op_income,    revenue)
+        net_margin   = _pct(net_income,   revenue)
+
+        rev_growth = []
+        for i in range(len(revenue) - 1):
+            curr, prev = revenue[i], revenue[i + 1]
+            if curr is not None and prev and prev != 0:
+                rev_growth.append(round((curr - prev) / abs(prev) * 100, 1))
+            else:
+                rev_growth.append(None)
+        rev_growth.append(None)
+
+        # capex is typically negative in yfinance; FCF = op_cf + capex
+        fcf = []
+        for i in range(max(len(op_cf), len(capex))):
+            oc = op_cf[i]  if i < len(op_cf)  else None
+            cx = capex[i]  if i < len(capex)  else None
+            if oc is not None and cx is not None:
+                fcf.append(round(oc + cx))
+            elif oc is not None:
+                fcf.append(round(oc))
+            else:
+                fcf.append(None)
+
+        records = []
+        for i, yr in enumerate(years):
+            def _g(lst, idx=i):
+                return lst[idx] if idx < len(lst) else None
+            records.append({
+                "year":                 yr,
+                "revenue":              _g(revenue),
+                "gross_profit":         _g(gross_profit),
+                "operating_income":     _g(op_income),
+                "net_income":           _g(net_income),
+                "gross_margin_pct":     _g(gross_margin),
+                "operating_margin_pct": _g(op_margin),
+                "net_margin_pct":       _g(net_margin),
+                "revenue_growth_pct":   _g(rev_growth),
+                "operating_cf":         _g(op_cf),
+                "free_cash_flow":       _g(fcf),
+                "total_debt":           _g(total_debt),
+                "cash":                 _g(cash),
+            })
+
+        return {
+            "ticker":          ticker.upper(),
+            "years_available": len(years),
+            "history":         records,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def get_insider_activity(ticker: str) -> dict:
     """
     Return recent insider transactions (buys/sells by executives and directors).

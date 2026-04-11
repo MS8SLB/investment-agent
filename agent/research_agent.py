@@ -40,6 +40,8 @@ _RESEARCH_TOOL_NAMES = {
     "get_stock_news",
     "get_earnings_calendar",
     "get_analyst_upgrades",
+    "get_analyst_consensus",
+    "get_financial_history",
     "get_insider_activity",
     "get_google_trends",
     "get_retail_sentiment",
@@ -51,6 +53,7 @@ _RESEARCH_TOOL_NAMES = {
     "get_superinvestor_positions",
     "get_business_trajectory",
     "get_preearnings_briefing",
+    "get_economic_indicators",
 }
 
 RESEARCH_TOOL_DEFINITIONS = [t for t in TOOL_DEFINITIONS if t["name"] in _RESEARCH_TOOL_NAMES]
