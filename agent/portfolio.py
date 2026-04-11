@@ -1361,13 +1361,16 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
     """Save a daily portfolio vs SPY snapshot. One row per day — upserts on same date."""
     conn = _get_connection()
     today = datetime.utcnow().date().isoformat()
-    first = conn.execute(
-        "SELECT spy_price, spy_shares_equivalent FROM benchmark_snapshots ORDER BY recorded_at ASC LIMIT 1"
-    ).fetchone()
-    if first:
-        spy_shares = first[1]
-    else:
-        spy_shares = portfolio_value / spy_price if spy_price > 0 else 0
+
+    # Purge any legacy rows stored with SPY ETF prices before writing new data.
+    # SPY ETF was ~$400-800; ^GSPC has been above 2 000 since 2017.
+    with conn:
+        conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 2000")
+        conn.execute(
+            "UPDATE portfolio_snapshots SET benchmark_price = NULL "
+            "WHERE benchmark_price IS NOT NULL AND benchmark_price < 2000"
+        )
+
     existing = conn.execute(
         "SELECT id FROM benchmark_snapshots WHERE recorded_at LIKE ?",
         (f"{today}%",),
@@ -1383,7 +1386,8 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
         else:
             conn.execute(
                 "INSERT INTO benchmark_snapshots (portfolio_value, spy_price, spy_shares_equivalent, recorded_at) VALUES (?, ?, ?, ?)",
-                (portfolio_value, spy_price, spy_shares, datetime.utcnow().isoformat()),
+                (portfolio_value, spy_price, portfolio_value / spy_price if spy_price > 0 else 0,
+                 datetime.utcnow().isoformat()),
             )
     conn.close()
 
@@ -1391,7 +1395,7 @@ def save_benchmark_snapshot(portfolio_value: float, spy_price: float) -> None:
 def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
     """Return benchmark_snapshots rows oldest-first for charting.
     Only rows on/after the first trade date are included.
-    Legacy SPY-ETF-priced rows (spy_price < 500) are excluded."""
+    Legacy SPY-ETF-priced rows (spy_price < 2000) are excluded."""
     first_trade_date = get_first_trade_date()
     if not first_trade_date:
         return []
@@ -1399,7 +1403,7 @@ def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
     rows = conn.execute(
         """SELECT recorded_at AS ts, portfolio_value, spy_price AS benchmark_price
            FROM benchmark_snapshots
-           WHERE recorded_at >= ? AND spy_price >= 500
+           WHERE recorded_at >= ? AND spy_price >= 2000
            ORDER BY recorded_at ASC LIMIT ?""",
         (first_trade_date, limit),
     ).fetchall()
@@ -1415,10 +1419,12 @@ def get_benchmark_comparison() -> dict:
 
     conn = _get_connection()
 
-    # Purge any legacy rows stored with SPY ETF prices (< 500) — they are
-    # incompatible with the current ^GSPC index level (~5 000-7 000) and would
-    # produce nonsensical 900%+ "returns" if mixed with index-level prices.
-    conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 500")
+    # Purge legacy rows stored with SPY ETF prices.
+    # SPY ETF trades ~$400-800; ^GSPC has been above 2 000 since 2017.
+    # Any row below 2 000 is ETF-era data and must be removed.
+    conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 2000")
+    # Also clean benchmark_price in portfolio_snapshots (same issue)
+    conn.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL AND benchmark_price < 2000")
     conn.commit()
 
     # Only use snapshots from the first trade date onward so the baseline reflects
