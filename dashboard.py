@@ -684,7 +684,7 @@ elif "PERFORMANCE" in page:
         spy_df  = None
         if bench_snaps:
             spy_df = pd.DataFrame(bench_snaps)
-            spy_df["ts"] = pd.to_datetime(spy_df["ts"])
+            spy_df["ts"] = pd.to_datetime(spy_df["ts"], format="ISO8601")
             spy_df = spy_df.sort_values("ts")
             # Apply same time-range filter
             if _RANGES[_sel] is not None:
