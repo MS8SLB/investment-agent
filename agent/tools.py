@@ -3319,8 +3319,8 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         # Auto-snapshot for chart + benchmark tracking — only after the first trade,
         # since performance comparison vs S&P is meaningless on an all-cash portfolio.
         if portfolio.get_first_trade_date():
-            spy = market_data.get_stock_quote("SPY")
-            spy_price = spy.get("price") if "error" not in spy else None
+            sp500 = market_data.get_stock_quote("^GSPC")
+            spy_price = sp500.get("price") if "error" not in sp500 else None
             portfolio.save_portfolio_snapshot(portfolio_value, cash, invested, spy_price, "review")
             if spy_price and portfolio_value:
                 portfolio.save_benchmark_snapshot(portfolio_value, spy_price)

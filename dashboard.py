@@ -558,7 +558,7 @@ elif "PERFORMANCE" in page:
                     price = q.get("price") or h.get("avg_cost", 0)
                     equity_val += h["shares"] * price
                 port_value = cash_val + equity_val
-                spy_q = get_stock_quote("SPY")
+                spy_q = get_stock_quote("^GSPC")
                 spy_price = spy_q.get("price")
                 if port_value > 0:
                     save_portfolio_snapshot(port_value, cash_val, equity_val, spy_price, "daily")
@@ -598,10 +598,10 @@ elif "PERFORMANCE" in page:
         delta=fmt_pct(port_ret) if port_ret is not None else None,
         delta_color="normal" if (port_ret or 0) >= 0 else "inverse",
     )
-    c2.metric("SPY ETF RETURN",
+    c2.metric("S&P 500 RETURN",
         fmt_pct(spy_ret) if spy_ret is not None else "N/A",
     )
-    c3.metric("ALPHA VS SPY ETF",
+    c3.metric("ALPHA VS S&P 500",
         fmt_pct(alpha) if alpha is not None else "N/A",
         "OUTPERFORMING" if beating else ("UNDERPERFORMING" if alpha is not None else None),
         delta_color="normal" if beating else "inverse",
@@ -635,12 +635,11 @@ elif "PERFORMANCE" in page:
 
     if spy_bench.get("available"):
         spy_eq = spy_bench.get("spy_equivalent_value")
+        sp500_level = spy_bench.get("current_sp500_level")
         st.markdown(
             f'<div style="color:#505050;font-size:10px;margin-top:-8px;margin-bottom:12px;">'
             f'Tracked since {spy_bench.get("start_date","N/A")} &nbsp;|&nbsp; '
-            f'SPY ETF equivalent: {fmt_usd(spy_eq)}'
-            f'&nbsp;|&nbsp; <span title="SPY ETF price ≈ S&P 500 index ÷ 10">'
-            f'SPY ETF price is ~1/10th of S&P 500 index level</span>'
+            f'S&amp;P 500 equivalent: {fmt_usd(spy_eq)}'
             f'</div>', unsafe_allow_html=True,
         )
 
@@ -731,9 +730,9 @@ elif "PERFORMANCE" in page:
             fig.add_trace(go.Scatter(
                 x=spy_df["ts"], y=spy_df["spy_pct"],
                 mode="lines",
-                name="SPY ETF",
+                name="S&P 500",
                 line=dict(color="#404040", width=2),
-                hovertemplate="<b>SPY ETF:</b> %{y:+.2f}%<extra></extra>",
+                hovertemplate="<b>S&P 500:</b> %{y:+.2f}%<extra></extra>",
             ))
 
         # Portfolio line (on top)
@@ -798,9 +797,8 @@ elif "PERFORMANCE" in page:
         st.markdown(
             '<div style="color:#303030;font-size:9px;margin-top:-8px;">'
             '▼ = agent run with trades &nbsp;|&nbsp; '
-            '<span style="color:rgba(0,230,118,0.6)">■</span> ahead of SPY ETF &nbsp;|&nbsp; '
-            '<span style="color:rgba(255,59,59,0.6)">■</span> behind SPY ETF'
-            ' &nbsp;|&nbsp; SPY ETF price ≈ S&P 500 index ÷ 10'
+            '<span style="color:rgba(0,230,118,0.6)">■</span> ahead of S&amp;P 500 &nbsp;|&nbsp; '
+            '<span style="color:rgba(255,59,59,0.6)">■</span> behind S&amp;P 500'
             '</div>', unsafe_allow_html=True,
         )
 
@@ -818,9 +816,9 @@ elif "PERFORMANCE" in page:
             _sdd["spy_drawdown"] = (_sdd["benchmark_price"].ffill() / _sdd["spy_peak"] - 1) * 100
             fig_dd.add_trace(go.Scatter(
                 x=_sdd["ts"], y=_sdd["spy_drawdown"],
-                mode="lines", name="SPY ETF",
+                mode="lines", name="S&P 500",
                 line=dict(color="#303030", width=1.5),
-                hovertemplate="<b>SPY DD:</b> %{y:.2f}%<extra></extra>",
+                hovertemplate="<b>S&P 500 DD:</b> %{y:.2f}%<extra></extra>",
             ))
 
         fig_dd.add_trace(go.Scatter(
@@ -902,7 +900,7 @@ elif "PERFORMANCE" in page:
                 "PORTFOLIO VALUE": fmt_usd(s["portfolio_value"]),
                 "CASH":            fmt_usd(s["cash"]),
                 "INVESTED":        fmt_usd(s["invested_value"]),
-                "SPY ETF PRICE":   fmt_usd(s.get("benchmark_price")),
+                "S&P 500 LEVEL":   f"{s['benchmark_price']:,.2f}" if s.get("benchmark_price") else "—",
             })
         st.dataframe(pd.DataFrame(snap_rows), width="stretch", hide_index=True)
 

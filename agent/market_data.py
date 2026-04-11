@@ -218,9 +218,9 @@ def _polygon_get_news(ticker: str, limit: int = 5) -> list[dict]:
 
 
 def get_spy_price() -> Optional[float]:
-    """Fetch current SPY price."""
+    """Fetch current S&P 500 index level (^GSPC)."""
     try:
-        info = yf.Ticker("SPY").info
+        info = yf.Ticker("^GSPC").info
         return info.get("regularMarketPrice") or info.get("previousClose")
     except Exception:
         return None
