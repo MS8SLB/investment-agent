@@ -1453,110 +1453,143 @@ def get_benchmark_snapshots(limit: int = 500) -> list[dict]:
 
 
 def get_benchmark_comparison() -> dict:
-    """Compare current portfolio value vs what S&P 500 would be worth since first trade."""
+    """Compare portfolio vs S&P 500 since the moment of the first trade."""
     first_trade_date = get_first_trade_date()
     if not first_trade_date:
         return {"available": False, "message": "No trades made yet — performance tracking vs S&P 500 begins after the first trade"}
 
     conn = _get_connection()
 
-    # Purge legacy rows stored with SPY ETF prices.
-    # SPY ETF trades ~$400-800; ^GSPC has been above 2 000 since 2017.
+    # Purge legacy rows stored with SPY ETF prices (~$400-800; ^GSPC always >2000).
     conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 2000")
     conn.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL AND benchmark_price < 2000")
     conn.commit()
 
-    # Get the latest benchmark snapshot for current values.
-    latest = conn.execute(
-        "SELECT portfolio_value, spy_price, recorded_at FROM benchmark_snapshots WHERE recorded_at >= ? ORDER BY recorded_at DESC LIMIT 1",
-        (first_trade_date,),
-    ).fetchone()
-
-    # Oldest benchmark snapshot — primary start-price source (populated by backfill).
-    first_bench = conn.execute(
-        "SELECT spy_price, recorded_at FROM benchmark_snapshots "
-        "WHERE recorded_at >= ? AND spy_price >= 2000 ORDER BY recorded_at ASC LIMIT 1",
-        (first_trade_date,),
-    ).fetchone()
-
-    # Get the oldest portfolio snapshot for the starting portfolio value.
+    # Starting portfolio value — oldest portfolio_snapshot on/after first trade.
     first_portfolio = conn.execute(
         "SELECT portfolio_value, ts FROM portfolio_snapshots WHERE ts >= ? ORDER BY ts ASC LIMIT 1",
         (first_trade_date,),
     ).fetchone()
+
+    # Current portfolio value — latest benchmark_snapshot with a real portfolio_value.
+    latest = conn.execute(
+        "SELECT portfolio_value, recorded_at FROM benchmark_snapshots "
+        "WHERE recorded_at >= ? AND portfolio_value > 0 ORDER BY recorded_at DESC LIMIT 1",
+        (first_trade_date,),
+    ).fetchone()
     conn.close()
 
-    if not latest:
+    if not first_portfolio and not latest:
         return {"available": False, "message": "No benchmark data yet — run the agent at least once after making a trade"}
 
-    current_portfolio = latest[0]
-    current_spy_price = latest[1]
-    current_date      = latest[2][:10]
+    start_portfolio = first_portfolio[0] if first_portfolio else 0
+    start_date      = first_portfolio[1][:10] if first_portfolio else first_trade_date[:10]
+    current_portfolio = latest[0] if latest else start_portfolio
+    current_date      = latest[1][:10] if latest else start_date
 
-    # Use the oldest benchmark_snapshot as the start price.
-    # This row was populated by the yfinance backfill in get_benchmark_snapshots().
-    # Only fall back to yfinance here if we have just one day of data (first == latest date).
-    if first_bench and first_bench["spy_price"] >= 2000 and first_bench["spy_price"] != current_spy_price:
-        start_spy_price = first_bench["spy_price"]
-    else:
-        # Single-row DB (backfill hasn't run yet) — fetch historical price directly.
-        start_spy_price = None
-        try:
-            import yfinance as yf
-            trade_dt = datetime.strptime(first_trade_date[:10], "%Y-%m-%d")
-            hist = yf.Ticker("^GSPC").history(period="1mo")
-            if not hist.empty:
-                if hist.index.tz is not None:
-                    hist.index = hist.index.tz_convert(None)
-                trade_str = first_trade_date[:10]
-                # Use strftime for reliable string-based date filtering
-                mask = hist.index.strftime("%Y-%m-%d") >= trade_str
-                after = hist[mask]
-                src = after if not after.empty else hist
-                start_spy_price = float(src.iloc[0]["Close"])
-        except Exception:
-            pass
-        if start_spy_price is None or start_spy_price <= 0:
-            start_spy_price = current_spy_price  # truly no data: show 0%
+    # ── S&P 500 prices from yfinance (single authoritative source) ────────────
+    import yfinance as yf
 
-    # Sanity check: >5× ratio is impossible in normal markets — still-corrupt data.
-    if start_spy_price > 0 and current_spy_price > 0:
-        ratio = current_spy_price / start_spy_price
-        if ratio > 5 or ratio < 0.2:
-            conn2 = _get_connection()
-            conn2.execute("DELETE FROM benchmark_snapshots")
-            conn2.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL")
-            conn2.commit()
-            conn2.close()
-            return {"available": False, "message": "Benchmark data inconsistency detected and cleared. Will re-establish baseline on next page load."}
+    # Full timestamp of first trade so we can get the intraday ^GSPC price
+    # at the exact moment trading began (not just the daily close).
+    conn2 = _get_connection()
+    ts_row = conn2.execute("SELECT MIN(ts) FROM transactions").fetchone()
+    conn2.close()
+    first_trade_ts = ts_row[0] if ts_row and ts_row[0] else first_trade_date
 
-    # Starting portfolio value: oldest snapshot on/after first trade date.
-    if first_portfolio:
-        start_portfolio = first_portfolio[0]
-        start_date      = first_portfolio[1][:10]
-    else:
-        start_portfolio = current_portfolio
-        start_date      = first_trade_date[:10]
+    start_spy_price = None
+    current_spy_price = None
 
-    # Use pure % return — immune to unit changes.
-    portfolio_return = (current_portfolio - start_portfolio) / start_portfolio if start_portfolio else 0
-    sp500_return     = (current_spy_price - start_spy_price) / start_spy_price if start_spy_price else 0
-    alpha            = portfolio_return - sp500_return
+    try:
+        trade_dt   = datetime.fromisoformat(first_trade_ts[:19])   # UTC
+        trade_date = trade_dt.strftime("%Y-%m-%d")
+        next_date  = (trade_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        days_old   = (datetime.utcnow() - trade_dt).days
 
-    # What the starting portfolio value would be worth if invested in S&P 500
-    sp500_equivalent_value = start_portfolio * (1 + sp500_return)
+        # Choose interval: 1 min (≤6 days old), 1 hour (≤58 days), daily (older).
+        if days_old <= 6:
+            intra = yf.Ticker("^GSPC").history(
+                start=trade_date, end=next_date, interval="1m"
+            )
+        elif days_old <= 58:
+            intra = yf.Ticker("^GSPC").history(
+                start=trade_date, end=next_date, interval="1h"
+            )
+        else:
+            intra = yf.Ticker("^GSPC").history(
+                start=trade_date, end=next_date
+            )
+
+        if not intra.empty:
+            if intra.index.tz is not None:
+                intra.index = intra.index.tz_convert(None)
+            # Last bar whose timestamp is ≤ trade_dt gives the price "at" the trade.
+            before = intra[intra.index <= trade_dt]
+            if not before.empty:
+                start_spy_price = float(before.iloc[-1]["Close"])
+            else:
+                # Trade was before the first bar (e.g. pre-market) — use Open.
+                start_spy_price = float(intra.iloc[0]["Open"])
+
+        # Most recent close — use period="5d" daily so weekends return Friday's close.
+        recent = yf.Ticker("^GSPC").history(period="5d")
+        if not recent.empty:
+            if recent.index.tz is not None:
+                recent.index = recent.index.tz_convert(None)
+            current_spy_price = float(recent.iloc[-1]["Close"])
+            current_date = recent.index[-1].strftime("%Y-%m-%d")
+
+    except Exception:
+        pass
+
+    # DB fallback if yfinance unavailable.
+    if start_spy_price is None or current_spy_price is None:
+        conn3 = _get_connection()
+        if start_spy_price is None:
+            fb = conn3.execute(
+                "SELECT spy_price FROM benchmark_snapshots "
+                "WHERE recorded_at >= ? AND spy_price >= 2000 ORDER BY recorded_at ASC LIMIT 1",
+                (first_trade_date,),
+            ).fetchone()
+            start_spy_price = fb["spy_price"] if fb else None
+        if current_spy_price is None:
+            fb2 = conn3.execute(
+                "SELECT spy_price FROM benchmark_snapshots "
+                "WHERE recorded_at >= ? AND spy_price >= 2000 ORDER BY recorded_at DESC LIMIT 1",
+                (first_trade_date,),
+            ).fetchone()
+            current_spy_price = fb2["spy_price"] if fb2 else None
+        conn3.close()
+
+    if not start_spy_price or not current_spy_price:
+        return {"available": False, "message": "Cannot fetch S&P 500 data"}
+
+    # Sanity check: >5× ratio means corrupted mixed-unit data — wipe and rebuild.
+    ratio = current_spy_price / start_spy_price
+    if ratio > 5 or ratio < 0.2:
+        conn4 = _get_connection()
+        conn4.execute("DELETE FROM benchmark_snapshots")
+        conn4.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL")
+        conn4.commit()
+        conn4.close()
+        return {"available": False, "message": "Benchmark data inconsistency detected and cleared. Will re-establish baseline on next page load."}
+
+    portfolio_return        = (current_portfolio - start_portfolio) / start_portfolio if start_portfolio else 0
+    sp500_return            = (current_spy_price - start_spy_price) / start_spy_price
+    alpha                   = portfolio_return - sp500_return
+    sp500_equivalent_value  = start_portfolio * (1 + sp500_return)
 
     return {
         "available": True,
-        "start_date": start_date,
-        "current_date": current_date,
-        "portfolio_return_pct":  round(portfolio_return * 100, 2),
-        "spy_return_pct":        round(sp500_return * 100, 2),
-        "alpha_pct":             round(alpha * 100, 2),
-        "beating_market":        alpha > 0,
-        "portfolio_value":       round(current_portfolio, 2),
-        "spy_equivalent_value":  round(sp500_equivalent_value, 2),
-        "start_portfolio_value": round(start_portfolio, 2),
+        "start_date":           start_date,
+        "current_date":         current_date,
+        "portfolio_return_pct": round(portfolio_return * 100, 2),
+        "spy_return_pct":       round(sp500_return * 100, 2),
+        "alpha_pct":            round(alpha * 100, 2),
+        "beating_market":       alpha > 0,
+        "portfolio_value":      round(current_portfolio, 2),
+        "spy_equivalent_value": round(sp500_equivalent_value, 2),
+        "start_portfolio_value":round(start_portfolio, 2),
     }
 
 
