@@ -33,6 +33,9 @@ def _save_screener_cache(date: str, results: list) -> None:
         json.dump({"date": date, "results": results}, f)
 
 
+_SCREENER_STALE_DAYS = 7   # Re-fetch a ticker's fundamentals after this many days
+
+
 # ── Financial Modeling Prep (primary for fundamentals) ────────────────────────
 FMP_API_KEY = os.environ.get("FMP_API_KEY")
 _FMP_BASE = "https://financialmodelingprep.com/api/v3"
@@ -2253,21 +2256,46 @@ def get_stock_universe(
 
 def screen_stocks(tickers: list) -> list:
     """
-    Run a fast parallel fundamental screen across a list of tickers.
-    Results are cached daily — subsequent calls on the same date return the
-    cached sorted list immediately (no additional API calls). This ensures
-    consistent, globally-ranked results across all calls within a session.
+    Run a parallel fundamental screen.  Results accumulate in a persistent
+    cache across sessions — new tickers are merged in and existing scores are
+    only refreshed when stale (>7 days old).  This produces a stable,
+    globally-ranked list the agent can work through sequentially across many
+    sessions rather than re-ranking a different random sample each time.
     """
     today = datetime.utcnow().date().isoformat()
+    stale_cutoff = (
+        datetime.utcnow() - timedelta(days=_SCREENER_STALE_DAYS)
+    ).date().isoformat()
+
     cache = _load_screener_cache()
-    if cache.get("date") == today and cache.get("results"):
-        cached_results = cache["results"]
-        # Full-universe request (≥50 tickers) → return full cached list
-        if len(tickers) >= 50:
-            return cached_results
-        # Subset request (e.g. watchlist re-check) → filter to requested tickers
-        requested = {t.upper() for t in tickers}
-        return [r for r in cached_results if r["ticker"] in requested]
+    # Build a lookup: ticker -> result dict (includes a "cached_date" field)
+    cache_by_ticker: dict = {}
+    for r in cache.get("results", []):
+        cache_by_ticker[r["ticker"]] = r
+
+    upper_tickers = [t.upper() for t in tickers]
+
+    if len(tickers) >= 50:
+        # Full-universe request: only fetch tickers that are new or stale.
+        tickers_to_fetch = [
+            t for t in upper_tickers
+            if t not in cache_by_ticker
+            or cache_by_ticker[t].get("cached_date", "1970-01-01") < stale_cutoff
+        ]
+        if not tickers_to_fetch:
+            # Everything is fresh — return the full accumulated ranked list.
+            return sorted(cache_by_ticker.values(), key=lambda x: x["score"], reverse=True)
+    else:
+        # Subset request (e.g. watchlist re-check): fetch any not in cache or stale.
+        tickers_to_fetch = [
+            t for t in upper_tickers
+            if t not in cache_by_ticker
+            or cache_by_ticker[t].get("cached_date", "1970-01-01") < stale_cutoff
+        ]
+        if not tickers_to_fetch:
+            requested = set(upper_tickers)
+            return [r for r in sorted(cache_by_ticker.values(), key=lambda x: x["score"], reverse=True)
+                    if r["ticker"] in requested]
 
     def _fetch(ticker: str) -> Optional[dict]:
         try:
@@ -2447,24 +2475,35 @@ def screen_stocks(tickers: list) -> list:
     BATCH_SIZE = 60
     BATCH_PAUSE = 1.5  # seconds between batches
 
-    for _batch_start in range(0, len(tickers), BATCH_SIZE):
-        batch = tickers[_batch_start: _batch_start + BATCH_SIZE]
+    for _batch_start in range(0, len(tickers_to_fetch), BATCH_SIZE):
+        batch = tickers_to_fetch[_batch_start: _batch_start + BATCH_SIZE]
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = {executor.submit(_fetch, t): t for t in batch}
             for future in as_completed(futures):
                 res = future.result()
                 if res:
                     results.append(res)
-        if _batch_start + BATCH_SIZE < len(tickers):
+        if _batch_start + BATCH_SIZE < len(tickers_to_fetch):
             _time.sleep(BATCH_PAUSE)
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    # Cache the sorted results for the rest of today
-    if results:
-        _save_screener_cache(today, results)
+    # Stamp each freshly-fetched result with today's date, then merge into the
+    # accumulated cache so the global ranking grows and stabilises over time.
+    for r in results:
+        r["cached_date"] = today
+        cache_by_ticker[r["ticker"]] = r
 
-    return results
+    all_results = sorted(cache_by_ticker.values(), key=lambda x: x["score"], reverse=True)
+
+    if all_results:
+        _save_screener_cache(today, all_results)
+
+    if len(tickers) >= 50:
+        return all_results
+    # Subset: filter to requested tickers only
+    requested = set(upper_tickers)
+    return [r for r in all_results if r["ticker"] in requested]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
