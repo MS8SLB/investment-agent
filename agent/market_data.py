@@ -1640,17 +1640,17 @@ def get_hedge_recommendations(equity_pct: Optional[float] = None, cash_pct: Opti
         total_hedge_pct = 20.0
 
     # ── Hedge warranted? ──────────────────────────────────────────────────────
-    # Hedges are insurance for equity positions. With less than 20% in equities
-    # the portfolio is already overwhelmingly cash-defensive; hedging a tiny
+    # Hedges are insurance for equity positions. With less than 25% in equities
+    # the portfolio is already overwhelmingly cash-defensive; hedging a small
     # equity sliver adds noise without meaningful protection.
-    if equity_pct is not None and equity_pct < 20:
+    if equity_pct is not None and equity_pct < 25:
         return {
             "regime": regime,
             "hedge_warranted": False,
             "no_hedge_rationale": (
                 f"Equity exposure is only {equity_pct:.0f}% — the portfolio is already "
                 "predominantly cash, which is the most effective defensive position. "
-                "Hedges protect significant equity holdings; build equity positions to ≥20% "
+                "Hedges protect significant equity holdings; build equity positions to ≥25% "
                 "before layering on cross-asset insurance."
             ),
             "recommendations": [],

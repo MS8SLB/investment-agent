@@ -786,6 +786,60 @@ def remove_from_watchlist(ticker: str) -> dict:
     return {"success": True, "ticker": ticker}
 
 
+def prune_watchlist(price_lookup: dict) -> dict:
+    """
+    Archive watchlist entries where current price > 40% above target entry price.
+    Moved to shadow portfolio — still tracked but no longer cluttering the active list.
+
+    price_lookup: dict mapping ticker -> current price (float), pre-fetched by the caller.
+    """
+    conn = _get_connection()
+    rows = conn.execute(
+        "SELECT ticker, company_name, reason, target_entry_price, added_at "
+        "FROM watchlist WHERE target_entry_price IS NOT NULL"
+    ).fetchall()
+    items = [dict(r) for r in rows]
+    conn.close()
+
+    archived = []
+    for item in items:
+        target = item["target_entry_price"]
+        ticker = item["ticker"].upper()
+        current = price_lookup.get(ticker)
+        if not current or not target or target <= 0:
+            continue
+        if current > target * 1.4:
+            pct_above = round((current / target - 1) * 100, 1)
+            shadow_reason = (
+                f"Archived from watchlist: ${current:.2f} is {pct_above}% above "
+                f"target entry ${target:.2f}. Will revisit on a meaningful pullback. "
+                f"Original note: {item['reason']}"
+            )
+            add_to_shadow_portfolio(
+                ticker, current, shadow_reason,
+                notes="Auto-archived from watchlist — price too far above entry target"
+            )
+            remove_from_watchlist(ticker)
+            archived.append({
+                "ticker": ticker,
+                "current_price": current,
+                "target_price": target,
+                "pct_above_target": pct_above,
+            })
+
+    remaining = len(items) - len(archived)
+    return {
+        "archived_count": len(archived),
+        "archived": archived,
+        "remaining_watchlist_count": remaining,
+        "message": (
+            f"Pruned {len(archived)} item(s) >40% above target entry — moved to shadow portfolio."
+            if archived else
+            "No watchlist items are >40% above their target entry price."
+        ),
+    }
+
+
 # ── Trade signal log ──────────────────────────────────────────────────────────
 
 def save_trade_signals(transaction_id: int, ticker: str, signals: dict) -> None:

@@ -597,6 +597,16 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "prune_watchlist",
+        "description": (
+            "Archive watchlist entries where the current price is more than 40% above the target "
+            "entry price into the shadow portfolio. Stocks that have run far past their entry target "
+            "are not actionable — they clutter the watchlist and get re-researched unnecessarily. "
+            "Call this once at session start immediately after get_watchlist."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "get_trade_outcomes",
         "description": (
             "Return all past buy signal snapshots with screener signals at purchase time "
@@ -1284,7 +1294,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "save_session_reflection",
         "description": (
-            "Save a structured post-session reflection. Required sections: Actions Taken, "
+            "Save a structured post-session reflection. Required sections: Actions Taken "
+            "(include a 'New Hedge Positions' subsection ONLY if hedge ETFs were actually "
+            "purchased this session — omit entirely if no hedges were bought), "
             "Thesis Validation, Signal Performance, Macro Observations, Shadow Portfolio Review, "
             "Lessons for Next Session."
         ),
@@ -2669,6 +2681,16 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "prune_watchlist",
+        "description": (
+            "Archive watchlist entries where the current price is more than 40% above the target "
+            "entry price into the shadow portfolio. Stocks that have run far past their entry target "
+            "are not actionable — they clutter the watchlist and get re-researched unnecessarily. "
+            "Call this once at session start immediately after get_watchlist."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "get_trade_outcomes",
         "description": (
             "Return all past buy signal snapshots with screener signals at purchase time "
@@ -3073,7 +3095,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "save_session_reflection",
         "description": (
-            "Save a structured post-session reflection. Required sections: Actions Taken, "
+            "Save a structured post-session reflection. Required sections: Actions Taken "
+            "(include a 'New Hedge Positions' subsection ONLY if hedge ETFs were actually "
+            "purchased this session — omit entirely if no hedges were bought), "
             "Thesis Validation, Signal Performance, Macro Observations, Shadow Portfolio Review, "
             "Lessons for Next Session."
         ),
@@ -3232,8 +3256,8 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         # Compute equity/cash % from live portfolio state if not supplied by caller
         equity_pct = tool_input.get("equity_pct")
         cash_pct = tool_input.get("cash_pct")
+        holdings = portfolio.get_holdings()
         if equity_pct is None or cash_pct is None:
-            holdings = portfolio.get_holdings()
             cash = portfolio.get_cash()
             equity_value = 0.0
             for h in holdings:
@@ -3247,6 +3271,22 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
             if total > 0:
                 equity_pct = round(equity_value / total * 100, 1)
                 cash_pct = round(cash / total * 100, 1)
+        # If any hedge ETF is already held, don't layer additional insurance on top
+        _HEDGE_ETFS = {"GLD", "TIP", "TLT", "IEF", "SHV", "GSG"}
+        existing_hedges = [h["ticker"] for h in holdings if h["ticker"].upper() in _HEDGE_ETFS]
+        if existing_hedges:
+            return {
+                "hedge_warranted": False,
+                "no_hedge_rationale": (
+                    f"Portfolio already holds hedge position(s): {', '.join(existing_hedges)}. "
+                    "Do not add new hedges while existing ones are open. "
+                    "Review the exit conditions for the existing hedge(s) instead — "
+                    "sell them if the triggering regime has resolved."
+                ),
+                "existing_hedges": existing_hedges,
+                "recommendations": [],
+                "total_recommended_hedge_pct": 0,
+            }
         return market_data.get_hedge_recommendations(equity_pct=equity_pct, cash_pct=cash_pct)
 
     elif tool_name == "get_international_universe":
@@ -3299,6 +3339,20 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "remove_from_watchlist":
         return portfolio.remove_from_watchlist(tool_input["ticker"])
+
+    elif tool_name == "prune_watchlist":
+        items = portfolio.get_watchlist()
+        price_lookup: dict = {}
+        for item in items:
+            if item.get("target_entry_price"):
+                try:
+                    q = market_data.get_stock_quote(item["ticker"])
+                    p = q.get("price")
+                    if p:
+                        price_lookup[item["ticker"]] = float(p)
+                except Exception:
+                    pass
+        return portfolio.prune_watchlist(price_lookup)
 
     elif tool_name == "get_trade_outcomes":
         return portfolio.get_trade_outcomes()

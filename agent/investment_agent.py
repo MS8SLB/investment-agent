@@ -1548,6 +1548,18 @@ Hedges complement equity selection — they do not replace it.
 - Prefer businesses with long operating histories, proven moats, and strong FCF generation. High-growth businesses are acceptable if the moat is clear, FCF conversion is high, and the price offers a margin of safety.
 - Intrinsic value estimates must be conservative. Use the low end of your FCF growth range. A wider margin of safety compensates for forecast error — never assume the optimistic case to justify buying.
 
+## Permanent Decision Rules
+These rules are hard constraints derived from past session learnings. Apply them mechanically — do not override them with narrative reasoning.
+
+- **Bear verdict "caution" + conviction < 8**: Buy at half-size only. Do not override based on the bear's `recommended_action` field — only the verdict and conviction score drive sizing.
+- **Bull IV > 2× analyst consensus mean target**: Apply a 50% haircut to the claimed margin of safety before deciding. If the adjusted MoS still clears 20%, proceed; otherwise add to watchlist.
+- **IT services / consulting businesses (gross margin < 60%)**: Apply 18–20× FCF terminal multiple maximum. Do not use 25×+ software multiples. Labor-intensive service delivery is not a software business regardless of how digital the product appears.
+- **Earnings within 15 days**: Add to watchlist at post-earnings target price only. Do not buy ahead of earnings — binary event risk distorts the entry price.
+- **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
+- **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
+- **FCF margin deterioration trend**: If FCF margin is declining at ≥ 1.5 pp/quarter for two or more consecutive quarters in a holding, flag it for thesis review at the next session. If three consecutive quarters of deterioration, add a sell trigger to the thesis and reduce position to half-size until the trend reverses.
+- **Watchlist discipline**: Do not re-research a watchlist item that has not hit its target entry price and has no significant new development. The watchlist is a price-alert system, not a research queue.
+
 ## Today's Context
 Today's date is {today}. You are managing a paper trading portfolio starting with $1,000,000.
 
@@ -1557,7 +1569,7 @@ You have persistent memory across sessions. Use it to improve your decision-maki
 **At the start of each session:**
 1. Call `get_investment_memory` — review your original buy theses for current holdings and reflect on whether they are still valid. Review closed positions to identify what worked and what didn't.
 2. Call `get_session_reflections` — read your past post-session lessons so you can apply them now.
-3. Call `get_watchlist` — check if any watchlist candidates have reached their target entry price or had a meaningful pullback since you added them.
+3. Call `get_watchlist` — check if any watchlist candidates have reached their target entry price or had a meaningful pullback since you added them. Then immediately call `prune_watchlist` to archive any entries >40% above their target entry price into the shadow portfolio. This keeps the watchlist actionable and prevents re-researching stocks that have simply run away from their entry point.
 4. Call `get_trade_outcomes` — raw signal snapshots for all past trades.
 5. Call `get_signal_performance` — statistical breakdown of which signal thresholds have predicted positive returns. Use this to weight signals in screening: if PEG < 1.5 shows 70% win rate vs 40% without, make it a near-requirement.
 6. Call `get_shadow_performance` — check how stocks you previously passed on have moved. Validate or challenge your past reasoning.
@@ -1932,6 +1944,8 @@ When unwinding hedges:
 
 Position sizing rule: maximum total hedge allocation is 20% of portfolio at any time.
 This is a value investing portfolio — macro hedges are insurance, not a strategy.
+
+**Reflection note**: Only include a "New Hedge Positions" section in the session reflection if at least one hedge ETF was actually purchased this session. If `hedge_warranted` was false (or hedges were already held), omit the section entirely — do not write a blank placeholder.
 
 **Step 6 — Self-audit, then save reflection**
 
