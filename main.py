@@ -11,6 +11,7 @@ Usage:
     python main.py benchmark          # Portfolio vs S&P 500 performance
     python main.py reflections        # Show agent's past session reflections
     python main.py theses             # Show investment theses for holdings
+    python main.py screener-export    # Export screener rankings to CSV
     python main.py ask "your prompt"  # Ask the agent anything
 """
 
@@ -160,6 +161,48 @@ def cmd_ask(prompt: str) -> None:
     )
 
 
+def cmd_export_screener() -> None:
+    """Export the accumulated screener rankings to CSV."""
+    import csv
+    import json
+
+    cache_path = os.path.join(os.path.dirname(__file__), "data", "screener_cache.json")
+    if not os.path.exists(cache_path):
+        console.print("[red]No screener cache found.[/red] Run a portfolio review first to populate the screener.")
+        return
+
+    with open(cache_path) as f:
+        data = json.load(f)
+
+    results = data.get("results", [])
+    if not results:
+        console.print("[red]Screener cache is empty.[/red]")
+        return
+
+    # Canonical column order — matches screen_stocks() output fields
+    columns = [
+        "rank", "ticker", "name", "sector", "industry",
+        "score", "price", "market_cap_b",
+        "pe_ratio", "forward_pe", "peg_ratio",
+        "revenue_growth_pct", "profit_margin_pct", "roe_pct",
+        "debt_to_equity", "fcf_yield_pct",
+        "week52_return_pct", "relative_momentum_pct",
+        "recommendation", "cached_date",
+    ]
+
+    out_path = os.path.join(os.path.dirname(__file__), "data", "screener_rankings.csv")
+    with open(out_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
+        for rank, row in enumerate(results, start=1):
+            writer.writerow({"rank": rank, **row})
+
+    console.print(
+        f"[bold green]Exported {len(results)} tickers[/bold green] → [cyan]{out_path}[/cyan]\n"
+        f"Cache date: {data.get('date', 'unknown')}"
+    )
+
+
 def cmd_interactive() -> None:
     """Interactive menu loop."""
     from utils.display import print_header
@@ -228,6 +271,8 @@ def main() -> None:
         cmd_reflections()
     elif args[0] == "theses":
         cmd_theses()
+    elif args[0] == "screener-export":
+        cmd_export_screener()
     elif args[0] == "ask" and len(args) > 1:
         cmd_ask(" ".join(args[1:]))
     else:
