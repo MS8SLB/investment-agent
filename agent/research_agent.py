@@ -1505,10 +1505,13 @@ def research_stocks_parallel(
     """
     Fan out research subagents across multiple tickers concurrently.
 
+    Checks the research cache first — tickers with a valid cached report
+    (< 30 days old, price move < 10%) are returned immediately without
+    spinning up a subagent. Fresh results are saved to cache for reuse.
+
     Args:
         tickers_with_data: List of dicts, each with 'ticker' and optional 'screener_data'.
-            Example: [{"ticker": "AAPL", "screener_data": {...}}, {"ticker": "MSFT"}]
-        context: Shared portfolio context for all subagents (macro regime, sector exposure, etc.).
+        context: Shared portfolio context for all subagents.
         model: Claude model to use for each subagent.
         max_workers: Maximum concurrent subagents. Keep ≤ 5 to avoid rate limits.
 
@@ -1518,32 +1521,63 @@ def research_stocks_parallel(
     if not tickers_with_data:
         return []
 
-    reports = []
+    from agent import portfolio as _portfolio
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(
-                run_research_subagent,
-                item["ticker"],
-                item.get("screener_data"),
-                context,
-                model,
-            ): item["ticker"]
-            for item in tickers_with_data
-        }
+    # ── Check research cache ───────────────────────────────────────────────────
+    # Skip expensive subagent calls for tickers with a valid recent report.
+    cached_reports: list[dict] = []
+    needs_research: list[dict] = []
 
-        for future in as_completed(futures):
-            ticker = futures[future]
-            try:
-                report = future.result()
-            except Exception as exc:
-                report = {
-                    "ticker": ticker,
-                    "recommendation": "pass",
-                    "conviction_score": 0,
-                    "error": str(exc),
-                }
-            reports.append(report)
+    for item in tickers_with_data:
+        ticker = item["ticker"].upper()
+        current_price = (item.get("screener_data") or {}).get("price")
+        valid, reason = _portfolio.is_research_cache_valid(ticker, current_price)
+        if valid:
+            cached = _portfolio.get_research_cache(ticker)
+            if cached:
+                cached["_from_cache"] = True
+                cached["_cache_reason"] = reason
+                cached_reports.append(cached)
+                continue
+        needs_research.append(item)
+
+    reports: list[dict] = list(cached_reports)
+
+    if needs_research:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(
+                    run_research_subagent,
+                    item["ticker"],
+                    item.get("screener_data"),
+                    context,
+                    model,
+                ): item
+                for item in needs_research
+            }
+
+            for future in as_completed(futures):
+                item = futures[future]
+                ticker = item["ticker"]
+                try:
+                    report = future.result()
+                except Exception as exc:
+                    report = {
+                        "ticker": ticker,
+                        "recommendation": "pass",
+                        "conviction_score": 0,
+                        "error": str(exc),
+                    }
+
+                # Save successful reports to cache for future sessions
+                if not report.get("error"):
+                    try:
+                        price = (item.get("screener_data") or {}).get("price")
+                        _portfolio.save_research_cache(ticker, report, price)
+                    except Exception:
+                        pass
+
+                reports.append(report)
 
     # Sort by conviction score, highest first
     reports.sort(key=lambda r: r.get("conviction_score", 0), reverse=True)
@@ -1552,13 +1586,12 @@ def research_stocks_parallel(
     failed = [r for r in reports if r.get("error")]
     if failed:
         try:
-            from agent import portfolio as _portfolio
             for r in failed:
                 _portfolio.add_to_watchlist(
                     ticker=r["ticker"],
                     reason="Research subagent failed to produce a report — retry next session.",
                 )
         except Exception:
-            pass  # Never let watchlist bookkeeping break the return value
+            pass
 
     return reports
