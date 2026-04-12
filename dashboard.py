@@ -693,14 +693,22 @@ elif "PERFORMANCE" in page:
         df["port_pct"] = (df["portfolio_value"] / base_port - 1) * 100
 
         # ── SPY line: fetch ^GSPC history directly from yfinance ─────────────
-        # This bypasses benchmark_snapshots (which can have stale/identical
-        # prices) and guarantees a complete, accurate S&P 500 line on the chart.
+        # Normalize against the intraday ^GSPC price at the exact trade time
+        # (same baseline as the metrics card) so chart and card are consistent.
+        # spy_bench["start_spy_price"] is the intraday price fetched by
+        # get_benchmark_comparison(); if unavailable fall back to first daily close.
         has_spy = False
         spy_df  = None
         if first_trade_date:
             try:
                 import yfinance as _yf_spy
-                _gspc = _yf_spy.Ticker("^GSPC").history(start=first_trade_date[:10])
+                # Fetch one extra day before the trade date so the chart starts
+                # at the intraday baseline even when yfinance shifts the first
+                # daily row to the next business day.
+                _fetch_start = (
+                    pd.Timestamp(first_trade_date) - pd.Timedelta(days=1)
+                ).strftime("%Y-%m-%d")
+                _gspc = _yf_spy.Ticker("^GSPC").history(start=_fetch_start)
                 if not _gspc.empty:
                     if _gspc.index.tz is not None:
                         _gspc.index = _gspc.index.tz_convert(None)
@@ -709,15 +717,33 @@ elif "PERFORMANCE" in page:
                         "benchmark_price": _gspc["Close"].values,
                     })
                     spy_df = spy_df.sort_values("ts")
+                    # Keep only rows on/after the first trade date
+                    spy_df = spy_df[
+                        spy_df["ts"] >= pd.Timestamp(first_trade_date)
+                    ].copy()
                     if _RANGES[_sel] is not None:
                         spy_df = spy_df[spy_df["ts"] >= _cutoff].copy()
                     spy_df = spy_df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
                     if not spy_df.empty:
-                        base_spy = spy_df["benchmark_price"].iloc[0]
+                        # Prefer the intraday trade-time baseline from get_benchmark_comparison
+                        # so the chart matches the metric cards exactly.
+                        _intra_base = spy_bench.get("start_spy_price") if spy_bench.get("available") else None
+                        base_spy = float(_intra_base) if _intra_base else spy_df["benchmark_price"].iloc[0]
                         spy_df["spy_pct"] = (spy_df["benchmark_price"] / base_spy - 1) * 100
                         has_spy = True
             except Exception:
                 pass
+
+        # Dynamic x-axis tick interval — avoid repeated date labels on short spans.
+        _ts_span = (df["ts"].max() - df["ts"].min()).days + 1
+        if _ts_span <= 14:
+            _x_dtick = 86_400_000          # 1 day in ms
+        elif _ts_span <= 60:
+            _x_dtick = 7 * 86_400_000     # 1 week
+        elif _ts_span <= 180:
+            _x_dtick = 14 * 86_400_000
+        else:
+            _x_dtick = "M1"               # 1 month
 
         # ── Main chart: normalised % return with alpha fill ───────────────────
         section("PORTFOLIO vs S&P 500 — NORMALISED RETURN (%)")
@@ -806,7 +832,7 @@ elif "PERFORMANCE" in page:
             xaxis=dict(
                 gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
                 showline=True, linecolor="#1a1a1a", title=None,
-                tickformat=_TICK_FMT[_sel], nticks=10,
+                tickformat=_TICK_FMT[_sel], dtick=_x_dtick,
             ),
             yaxis=dict(
                 gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
@@ -864,7 +890,7 @@ elif "PERFORMANCE" in page:
             xaxis=dict(
                 gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),
                 showline=True, linecolor="#1a1a1a", title=None,
-                tickformat=_TICK_FMT[_sel], nticks=10,
+                tickformat=_TICK_FMT[_sel], dtick=_x_dtick,
             ),
             yaxis=dict(
                 gridcolor="#0a0a0a", tickfont=dict(color="#505050", size=10),

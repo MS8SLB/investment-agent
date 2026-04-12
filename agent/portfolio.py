@@ -1693,6 +1693,8 @@ def get_benchmark_comparison() -> dict:
         "portfolio_value":      round(current_portfolio, 2),
         "spy_equivalent_value": round(sp500_equivalent_value, 2),
         "start_portfolio_value":round(start_portfolio, 2),
+        "start_spy_price":      round(start_spy_price, 4),
+        "current_spy_price":    round(current_spy_price, 4),
     }
 
 
