@@ -1865,15 +1865,31 @@ you have: fall back to watchlist items (from `prioritize_watchlist_ml`), review 
 and complete Steps 5-6. Restarting wastes money and does not fix transient API errors.
 
 *Finalist selection — purely mechanical, no judgment:*
-- Walk down the screener result (sorted by `score` descending) and collect the **first 15 tickers**
+- Walk down the screener result (sorted by `score` descending) and collect the **first 25 tickers**
   that meet ALL of the following skip conditions:
   1. NOT already held in the portfolio
   2. NOT already on the watchlist (checked via `prioritize_watchlist_ml` result from Step 1)
   3. NOT in the shadow portfolio already
-  These 15 tickers are your research list. Do not swap, reorder, or substitute based on name recognition.
-  If fewer than 15 tickers remain after skipping, take however many there are.
+  These 25 tickers are your candidate list. Do not swap, reorder, or substitute based on name recognition.
+  If fewer than 25 tickers remain after skipping, take however many there are.
 
-- Call `research_stocks_parallel` with those 15 tickers and their screener rows in `tickers_with_data`.
+- **Pre-filter before research** — before sending candidates to `research_stocks_parallel`, scan each
+  ticker's screener data (`sector`, `industry`). Any ticker matching the criteria below has no durable
+  moat by definition; send it directly to shadow portfolio with the reason shown, and do NOT spend a
+  research subagent call on it:
+
+  | Condition | Reason |
+  |---|---|
+  | sector = "Basic Materials" | Commodity pricing; no moat |
+  | industry contains "Oil & Gas Exploration" or "Oil & Gas E&P" | Commodity E&P; price-taker |
+  | industry contains "Airlines" | No moat; commodity seat pricing |
+  | industry contains "Cruise" | No moat; extreme leverage |
+  | industry contains "Metal & Mining" or "Gold" or "Silver" or "Copper" | Commodity mining |
+  | industry contains "Coal" | Commodity; secular decline |
+
+  After this pre-filter, send the remaining tickers (typically 15–20) to `research_stocks_parallel`.
+
+- Call `research_stocks_parallel` with the pre-filtered tickers and their screener rows in `tickers_with_data`.
   Pass a concise `context` string covering: current macro regime, sector exposure weights, available
   cash, intrinsic value investment mandate (moat required, 20% margin of safety required).
   Each subagent runs the full research checklist and returns a structured JSON report.
