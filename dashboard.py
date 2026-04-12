@@ -660,7 +660,7 @@ elif "PERFORMANCE" in page:
         # ── Time range selector ───────────────────────────────────────────────
         _RANGES   = {"1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": None}
         _TICK_FMT = {"1W": "%b %d", "1M": "%b %d", "3M": "%b %d",
-                     "6M": "%b %d", "1Y": "%b '%y", "ALL": "%b '%y"}
+                     "6M": "%b %d", "1Y": "%b '%y", "ALL": "%b %d"}
 
         if "perf_range" not in st.session_state:
             st.session_state.perf_range = "ALL"
@@ -758,7 +758,7 @@ elif "PERFORMANCE" in page:
                 x=spy_df["ts"], y=spy_df["spy_pct"],
                 mode="lines",
                 name="S&P 500",
-                line=dict(color="#404040", width=2),
+                line=dict(color="#888888", width=1.5),
                 hovertemplate="<b>S&P 500:</b> %{y:+.2f}%<extra></extra>",
             ))
 
@@ -844,7 +844,7 @@ elif "PERFORMANCE" in page:
             fig_dd.add_trace(go.Scatter(
                 x=_sdd["ts"], y=_sdd["spy_drawdown"],
                 mode="lines", name="S&P 500",
-                line=dict(color="#303030", width=1.5),
+                line=dict(color="#707070", width=1.5),
                 hovertemplate="<b>S&P 500 DD:</b> %{y:.2f}%<extra></extra>",
             ))
 
