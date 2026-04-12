@@ -252,6 +252,31 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         """)
 
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS trade_triggers (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker      TEXT NOT NULL,
+                trigger_type TEXT NOT NULL,
+                trigger_value TEXT NOT NULL,
+                action      TEXT NOT NULL,
+                notes       TEXT,
+                created_at  TEXT NOT NULL,
+                expires_at  TEXT,
+                fired_at    TEXT,
+                status      TEXT NOT NULL DEFAULT 'active'
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS master_lessons (
+                id               INTEGER PRIMARY KEY CHECK (id = 1),
+                content          TEXT NOT NULL,
+                sessions_covered INTEGER NOT NULL DEFAULT 0,
+                created_at       TEXT NOT NULL,
+                updated_at       TEXT NOT NULL
+            )
+        """)
+
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS session_audit (
                 id                          INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_date                TEXT NOT NULL,
@@ -2352,3 +2377,150 @@ def get_behaviour_summary(n_sessions: int = 10) -> dict:
             "If duplicate_tool_calls > 0, you called the same tool twice unnecessarily."
         ),
     }
+
+
+# ── Trade Triggers ─────────────────────────────────────────────────────────────
+
+def add_trade_trigger(
+    ticker: str,
+    trigger_type: str,
+    trigger_value: str,
+    action: str,
+    notes: str = None,
+    expires_at: str = None,
+) -> dict:
+    """
+    Set a conditional trigger for a future trade action.
+
+    trigger_type: 'price_below' | 'price_above' | 'date' | 'earnings_after'
+    trigger_value: price as string (e.g. '380.00') or date (e.g. '2024-05-22')
+    action: 'research' | 'buy' | 'add' | 'sell' | 'review'
+    """
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    with conn:
+        cursor = conn.execute(
+            """INSERT INTO trade_triggers
+               (ticker, trigger_type, trigger_value, action, notes, created_at, expires_at, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'active')""",
+            (ticker.upper(), trigger_type, str(trigger_value), action, notes, now, expires_at),
+        )
+        trigger_id = cursor.lastrowid
+    conn.close()
+    return {"success": True, "trigger_id": trigger_id, "ticker": ticker.upper(),
+            "trigger_type": trigger_type, "trigger_value": trigger_value, "action": action}
+
+
+def get_active_triggers() -> list[dict]:
+    """Return all active (unfired, unexpired) triggers."""
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    rows = conn.execute(
+        """SELECT id, ticker, trigger_type, trigger_value, action, notes, created_at, expires_at
+           FROM trade_triggers
+           WHERE status = 'active'
+             AND (expires_at IS NULL OR expires_at > ?)
+           ORDER BY created_at ASC""",
+        (now,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def fire_trigger(trigger_id: int) -> None:
+    """Mark a trigger as fired."""
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            "UPDATE trade_triggers SET status = 'fired', fired_at = ? WHERE id = ?",
+            (datetime.utcnow().isoformat(), trigger_id),
+        )
+    conn.close()
+
+
+def cancel_trigger(trigger_id: int) -> None:
+    """Cancel an active trigger."""
+    conn = _get_connection()
+    with conn:
+        conn.execute(
+            "UPDATE trade_triggers SET status = 'cancelled' WHERE id = ?",
+            (trigger_id,),
+        )
+    conn.close()
+
+
+def check_triggers_vs_prices(prices: dict) -> list[dict]:
+    """
+    Compare active triggers against a {ticker: price} dict.
+    Returns a list of triggers whose conditions are now met (price_below / price_above).
+    Automatically fires matched triggers.
+    """
+    triggers = get_active_triggers()
+    fired = []
+    now_date = datetime.utcnow().date().isoformat()
+
+    for t in triggers:
+        ticker = t["ticker"]
+        ttype = t["trigger_type"]
+        tval = t["trigger_value"]
+        matched = False
+
+        if ttype == "price_below" and ticker in prices:
+            try:
+                if float(prices[ticker]) <= float(tval):
+                    matched = True
+            except (ValueError, TypeError):
+                pass
+        elif ttype == "price_above" and ticker in prices:
+            try:
+                if float(prices[ticker]) >= float(tval):
+                    matched = True
+            except (ValueError, TypeError):
+                pass
+        elif ttype in ("date", "earnings_after"):
+            try:
+                if now_date >= tval[:10]:
+                    matched = True
+            except Exception:
+                pass
+
+        if matched:
+            fire_trigger(t["id"])
+            fired.append({**t, "current_price": prices.get(ticker)})
+
+    return fired
+
+
+# ── Master Lessons ─────────────────────────────────────────────────────────────
+
+def save_master_lessons(content: str, sessions_covered: int) -> None:
+    """Upsert the master lessons distillation (single row, id=1)."""
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    existing = conn.execute("SELECT id FROM master_lessons WHERE id = 1").fetchone()
+    with conn:
+        if existing:
+            conn.execute(
+                "UPDATE master_lessons SET content=?, sessions_covered=?, updated_at=? WHERE id=1",
+                (content, sessions_covered, now),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO master_lessons (id, content, sessions_covered, created_at, updated_at) "
+                "VALUES (1, ?, ?, ?, ?)",
+                (content, sessions_covered, now, now),
+            )
+    conn.close()
+
+
+def get_master_lessons() -> Optional[dict]:
+    """Return the master lessons document, or None if not yet created."""
+    conn = _get_connection()
+    row = conn.execute(
+        "SELECT content, sessions_covered, updated_at FROM master_lessons WHERE id = 1"
+    ).fetchone()
+    conn.close()
+    if row:
+        return {"content": row["content"], "sessions_covered": row["sessions_covered"],
+                "updated_at": row["updated_at"]}
+    return None

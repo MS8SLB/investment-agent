@@ -470,9 +470,51 @@ def prioritize_watchlist_ml() -> dict:
     weights   = fw_result["blended_weights"]
     regime    = fw_result["regime"]
 
+    # Pre-filter: get current prices cheaply to skip items trading far above target entry.
+    # If price > target × 1.15 (more than 15% above our desired entry), the opportunity
+    # has drifted away — skip the expensive fundamental fetch entirely.
+    import json as _json
+    try:
+        from agent import market_data as _md
+        tickers_list = [item["ticker"] for item in watchlist if item.get("target_entry_price")]
+        price_map: dict = {}
+        if tickers_list:
+            for _t in tickers_list:
+                try:
+                    _q = _md.get_stock_quote(_t)
+                    if _q and not _q.get("error"):
+                        price_map[_t.upper()] = _q.get("price")
+                except Exception:
+                    pass
+    except Exception:
+        price_map = {}
+
     ranked = []
     for item in watchlist:
         ticker = item["ticker"]
+        target = item.get("target_entry_price")
+        current_price_quick = price_map.get(ticker.upper())
+
+        # Proximity filter: skip deep fundamental fetch if price is >15% above target entry
+        if target and target > 0 and current_price_quick:
+            pct_above = (current_price_quick - target) / target * 100
+            if pct_above > 15:
+                ranked.append({
+                    "rank":             None,
+                    "ticker":           ticker,
+                    "ml_score":         None,
+                    "current_price":    current_price_quick,
+                    "target_entry":     target,
+                    "vs_target":        f"+{pct_above:.1f}% vs target ${target:.2f}",
+                    "near_entry_price": False,
+                    "watchlist_reason": item.get("reason", ""),
+                    "features":         {},
+                    "strengths":        [],
+                    "risk_flags":       [f"Price {pct_above:.1f}% above target entry — not actionable yet"],
+                    "skipped_reason":   "proximity_filter: >15% above target entry",
+                })
+                continue
+
         feats  = _fetch_screener_features(ticker)
         if not feats:
             ranked.append({

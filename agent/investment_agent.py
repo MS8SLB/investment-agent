@@ -1568,12 +1568,13 @@ You have persistent memory across sessions. Use it to improve your decision-maki
 
 **At the start of each session:**
 1. Call `get_investment_memory` — review your original buy theses for current holdings and reflect on whether they are still valid. Review closed positions to identify what worked and what didn't.
-2. Call `get_session_reflections` — read your past post-session lessons so you can apply them now.
-3. Call `get_watchlist` — check if any watchlist candidates have reached their target entry price or had a meaningful pullback since you added them. Then immediately call `prune_watchlist` to archive any entries >40% above their target entry price into the shadow portfolio. This keeps the watchlist actionable and prevents re-researching stocks that have simply run away from their entry point.
-4. Call `get_trade_outcomes` — raw signal snapshots for all past trades.
-5. Call `get_signal_performance` — statistical breakdown of which signal thresholds have predicted positive returns. Use this to weight signals in screening: if PEG < 1.5 shows 70% win rate vs 40% without, make it a near-requirement.
-6. Call `get_shadow_performance` — check how stocks you previously passed on have moved. Validate or challenge your past reasoning.
-7. **If you have ≥ 5 closed trades**, call `run_backtest` twice:
+2. Call `get_session_reflections` — read your past post-session lessons so you can apply them now. If the result includes `master_lessons`, read it carefully — it is the distilled wisdom from all past sessions. If there are ≥5 full reflections and no master exists yet, plan to call `save_master_lessons` at the end of this session.
+3. Call `get_active_triggers` — check for trade triggers set in previous sessions whose conditions may now be met (e.g. price targets hit, earnings dates passed). For each fired trigger: treat `action=research` as a forced research item to add to Step 4, `action=buy`/`add` as a high-priority buy candidate, `action=sell` as an immediate review item. Cancel triggers that are no longer relevant.
+4. Call `get_watchlist` — check if any watchlist candidates have reached their target entry price or had a meaningful pullback since you added them. Then immediately call `prune_watchlist` to archive any entries >40% above their target entry price into the shadow portfolio. This keeps the watchlist actionable and prevents re-researching stocks that have simply run away from their entry point.
+5. Call `get_trade_outcomes` — raw signal snapshots for all past trades.
+6. Call `get_signal_performance` — statistical breakdown of which signal thresholds have predicted positive returns. Use this to weight signals in screening: if PEG < 1.5 shows 70% win rate vs 40% without, make it a near-requirement.
+7. Call `get_shadow_performance` — check how stocks you previously passed on have moved. Validate or challenge your past reasoning.
+8. **If you have ≥ 5 closed trades**, call `run_backtest` twice:
    - `mode="trade_history"` — full closed-trade analysis: win rate, Sharpe, max drawdown, S&P 500 alpha, and regime breakdown. If win_rate_pct < 50% or sharpe_ratio < 0.5, tighten entry criteria before buying anything new this session.
    - `mode="signal_cohorts"` — see which signal thresholds (PEG, FCF yield, momentum, score) have historically separated winners from losers in YOUR portfolio. Apply the winning cohort definitions as hard filters in Step 3 screening this session.
    - If the backtest reveals that bear_entry trades (VIX ≥ 20) underperform bull_entry trades by > 10pp avg return, require a wider margin of safety (25%+) on any buy today if VIX is currently elevated.
@@ -1806,7 +1807,16 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
   position must be investigated before new capital is deployed. `watch` alerts go on the review agenda.
   `noise` alerts can be noted and ignored.
 - Call `get_investment_memory` to review past theses for current holdings and closed positions
-- Call `get_session_reflections` to review lessons from past sessions
+- Call `get_session_reflections` to review lessons from past sessions. If the result contains
+  `master_lessons`, read it carefully — it supersedes the individual reflections as the distilled
+  wisdom of all past sessions. Note whether `sessions_covered` matches the current total — if not,
+  update it at end of session.
+- Call `get_active_triggers` — check for trade triggers set in previous sessions. For each:
+  - `trigger_type=price_below/above`: the tool auto-fires matched triggers; surfaced ones in the result
+    are already confirmed. Treat `action=research` as mandatory addition to Step 4 research list;
+    `action=buy/add` as priority capital deployment; `action=sell` as an immediate position review.
+  - `trigger_type=date/earnings_after`: date-based triggers also auto-fire; investigate the event now.
+  - Cancel any triggered items that are no longer relevant (thesis changed, position already closed).
 - Call `get_watchlist` — check if any watchlist candidates have hit their target price or had a meaningful pullback
 - Call `get_trade_outcomes` — review raw signal snapshots for all past trades
 - Call `get_signal_performance` — binary threshold win-rate analysis of signals
@@ -1873,10 +1883,9 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
   These 25 tickers are your candidate list. Do not swap, reorder, or substitute based on name recognition.
   If fewer than 25 tickers remain after skipping, take however many there are.
 
-- **Pre-filter before research** — before sending candidates to `research_stocks_parallel`, scan each
-  ticker's screener data (`sector`, `industry`). Any ticker matching the criteria below has no durable
-  moat by definition; send it directly to shadow portfolio with the reason shown, and do NOT spend a
-  research subagent call on it:
+- **Pre-filter before research (step 1 — sector/moat)** — scan each ticker's screener data. Any ticker
+  matching the criteria below has no durable moat by definition; send it directly to shadow portfolio
+  with the reason shown, and do NOT spend a research subagent call on it:
 
   | Condition | Reason |
   |---|---|
@@ -1887,9 +1896,12 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
   | industry contains "Metal & Mining" or "Gold" or "Silver" or "Copper" | Commodity mining |
   | industry contains "Coal" | Commodity; secular decline |
 
-  After this pre-filter, send the remaining tickers (typically 15–20) to `research_stocks_parallel`.
+- **Pre-filter before research (step 2 — valuation screen)**: call `quick_check_tickers` with the
+  survivors from step 1. This cheap batch call returns price + P/E + PEG + FCF yield + revenue growth
+  in seconds. Filter out any with `skip: true` (2+ valuation red flags like P/E > 60 + no FCF). Pass
+  only the final survivors to `research_stocks_parallel`. Typical result: 25 → 18 → 14 survivors.
 
-- Call `research_stocks_parallel` with the pre-filtered tickers and their screener rows in `tickers_with_data`.
+- Call `research_stocks_parallel` with the final pre-filtered tickers and their screener rows in `tickers_with_data`.
   Pass a concise `context` string covering: current macro regime, sector exposure weights, available
   cash, intrinsic value investment mandate (moat required, 20% margin of safety required).
   Each subagent runs the full research checklist and returns a structured JSON report.
@@ -1934,6 +1946,24 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
   conviction_score, predicted_iv, and mos_pct so the ML can learn from this decision.
 - For sells: the thesis must explicitly address whether the moat is impaired — not just whether the
   stock has underperformed. If the moat is intact and the price has fallen, that is NOT a sell signal.
+
+**Sell / Add decision framework — apply to every existing holding each session:**
+
+| Situation | Action |
+|-----------|--------|
+| Moat impaired (new competitor, pricing power lost, key exec departure + mgmt track record broken) | **Sell full position** — record thesis_breaking reason in notes |
+| Moat intact + price fell ≥ 15% since buy + IV unchanged | **Add** — this is what you bought for; size up to 20% cap |
+| Moat intact + IV has risen (business compounding) + MoS still ≥ 10% | **Add** — conviction growing; size up to 20% cap |
+| Moat intact + price rose ≥ 40% above IV (overvalued) | **Sell full position** — redeploy into next best opportunity |
+| Moat intact + price rose 20-40% above IV | **Trim 30-50%** — reduce concentration in overvalued name |
+| Moat intact + price near IV (MoS < 10%) + no better opportunity | **Hold** — do not sell just because upside is limited |
+| Thesis-breaking news (material weakness, fraud, regulatory block) | **Sell immediately** — do not wait for next session |
+| Price near target entry on watchlist ticker | **Set `add_trade_trigger` with price_below** — ensures you capture the entry automatically next session |
+
+**When to use `add_trade_trigger` vs `add_to_watchlist`:**
+- Use `add_to_watchlist` when the business is good but you need more price margin: you expect to wait weeks/months.
+- Use `add_trade_trigger` for near-term, specific, time-sensitive conditions: "buy if drops to $X before earnings", "review after Q3 earnings date", "add if SPY drops 10% (macro opportunity)".
+- Triggers fire at session start and surface as action items — they ensure no time-sensitive opportunity is missed.
 
 **Step 5b — Cross-asset hedge review**
 Only call `get_hedge_recommendations` if the portfolio has at least one equity position — hedges protect existing holdings; an all-cash portfolio needs no insurance.
@@ -1985,6 +2015,11 @@ the same problem next session. severity="high" if it caused a wrong decision.
   note it in the reflection.
 - Call `save_session_reflection` using the structured template defined in the tool description
 - Be specific in "Lessons for Next Session" — write rules, not vague intentions
+- **If ≥5 past reflections exist and no master_lessons document exists (or it covers fewer sessions
+  than are now saved)**: call `save_master_lessons` to distill all past sessions into a compact
+  thematic document (400-600 words, grouped by: Sizing Rules, Sector Rules, Process Discipline,
+  Recurring Mistakes, Key Wins). Future sessions will load this instead of 5 full reflections,
+  saving ~2,000 tokens per session.
 
 Focus on building a concentrated portfolio of wonderful businesses bought at a margin of safety.
 Quality of business and price paid matter far more than diversification for its own sake.

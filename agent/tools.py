@@ -1312,6 +1312,115 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "add_trade_trigger",
+        "description": (
+            "Set a conditional trigger for a future trade action. "
+            "Use when you want to act on a ticker but conditions aren't met yet — e.g. "
+            "'buy MSFT if price drops below $380' or 're-evaluate NVDA after 2024-05-22 earnings'. "
+            "Triggers are checked automatically at the start of each session."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "trigger_type": {
+                    "type": "string",
+                    "description": (
+                        "Condition type: 'price_below' (fire when price ≤ value), "
+                        "'price_above' (fire when price ≥ value), "
+                        "'date' (fire on or after a date), "
+                        "'earnings_after' (fire after an earnings date)."
+                    ),
+                },
+                "trigger_value": {
+                    "type": "string",
+                    "description": "Price level as string (e.g. '380.00') or date (e.g. '2024-05-22').",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "What to do when fired: 'research', 'buy', 'add', 'sell', 'review'.",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Brief reason / context for the trigger.",
+                },
+                "expires_at": {
+                    "type": "string",
+                    "description": "ISO date after which the trigger auto-expires (optional).",
+                },
+            },
+            "required": ["ticker", "trigger_type", "trigger_value", "action"],
+        },
+    },
+    {
+        "name": "get_active_triggers",
+        "description": "Return all active (unfired, unexpired) trade triggers set in previous sessions.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "cancel_trade_trigger",
+        "description": "Cancel an active trade trigger by its ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "trigger_id": {"type": "integer", "description": "Trigger ID from get_active_triggers"}
+            },
+            "required": ["trigger_id"],
+        },
+    },
+    {
+        "name": "save_master_lessons",
+        "description": (
+            "Save a distilled master lessons document that compresses all past reflections into "
+            "a concise, always-loaded memory. Call this at the end of any session where you have "
+            "≥5 past reflections, replacing the old master with an updated synthesis. "
+            "Once saved, get_session_reflections will return master_lessons + only 3 recent "
+            "reflections (instead of 5 full ones), saving significant context tokens."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Concise distillation of all key lessons across all sessions. "
+                        "Group by theme (e.g. Sizing, Sector Rules, Process, Mistakes). "
+                        "Aim for 400-600 words — comprehensive but dense."
+                    ),
+                },
+                "sessions_covered": {
+                    "type": "integer",
+                    "description": "Number of past reflection sessions this document covers.",
+                },
+            },
+            "required": ["content", "sessions_covered"],
+        },
+    },
+    {
+        "name": "quick_check_tickers",
+        "description": (
+            "Lightweight pre-screen: fetches live price + key valuation metrics (P/E, PEG, "
+            "forward P/E, FCF yield, 52-week return, revenue growth) for a list of tickers "
+            "in one batch call — no subagent, no deep research. "
+            "Use this BEFORE research_stocks_parallel to cheaply filter out: "
+            "(a) tickers already in shadow portfolio, "
+            "(b) tickers with obviously stretched valuations (P/E > 60, no FCF), "
+            "(c) tickers whose price has moved far above your target entry. "
+            "Pass only the survivors to research_stocks_parallel."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of ticker symbols to quick-check.",
+                }
+            },
+            "required": ["tickers"],
+        },
+    },
+    {
         "name": "get_stored_thesis",
         "description": "Return the stored investment thesis for a ticker from previous research sessions.",
         "input_schema": {
@@ -3113,6 +3222,115 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "add_trade_trigger",
+        "description": (
+            "Set a conditional trigger for a future trade action. "
+            "Use when you want to act on a ticker but conditions aren't met yet — e.g. "
+            "'buy MSFT if price drops below $380' or 're-evaluate NVDA after 2024-05-22 earnings'. "
+            "Triggers are checked automatically at the start of each session."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol"},
+                "trigger_type": {
+                    "type": "string",
+                    "description": (
+                        "Condition type: 'price_below' (fire when price ≤ value), "
+                        "'price_above' (fire when price ≥ value), "
+                        "'date' (fire on or after a date), "
+                        "'earnings_after' (fire after an earnings date)."
+                    ),
+                },
+                "trigger_value": {
+                    "type": "string",
+                    "description": "Price level as string (e.g. '380.00') or date (e.g. '2024-05-22').",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "What to do when fired: 'research', 'buy', 'add', 'sell', 'review'.",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Brief reason / context for the trigger.",
+                },
+                "expires_at": {
+                    "type": "string",
+                    "description": "ISO date after which the trigger auto-expires (optional).",
+                },
+            },
+            "required": ["ticker", "trigger_type", "trigger_value", "action"],
+        },
+    },
+    {
+        "name": "get_active_triggers",
+        "description": "Return all active (unfired, unexpired) trade triggers set in previous sessions.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "cancel_trade_trigger",
+        "description": "Cancel an active trade trigger by its ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "trigger_id": {"type": "integer", "description": "Trigger ID from get_active_triggers"}
+            },
+            "required": ["trigger_id"],
+        },
+    },
+    {
+        "name": "save_master_lessons",
+        "description": (
+            "Save a distilled master lessons document that compresses all past reflections into "
+            "a concise, always-loaded memory. Call this at the end of any session where you have "
+            "≥5 past reflections, replacing the old master with an updated synthesis. "
+            "Once saved, get_session_reflections will return master_lessons + only 3 recent "
+            "reflections (instead of 5 full ones), saving significant context tokens."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Concise distillation of all key lessons across all sessions. "
+                        "Group by theme (e.g. Sizing, Sector Rules, Process, Mistakes). "
+                        "Aim for 400-600 words — comprehensive but dense."
+                    ),
+                },
+                "sessions_covered": {
+                    "type": "integer",
+                    "description": "Number of past reflection sessions this document covers.",
+                },
+            },
+            "required": ["content", "sessions_covered"],
+        },
+    },
+    {
+        "name": "quick_check_tickers",
+        "description": (
+            "Lightweight pre-screen: fetches live price + key valuation metrics (P/E, PEG, "
+            "forward P/E, FCF yield, 52-week return, revenue growth) for a list of tickers "
+            "in one batch call — no subagent, no deep research. "
+            "Use this BEFORE research_stocks_parallel to cheaply filter out: "
+            "(a) tickers already in shadow portfolio, "
+            "(b) tickers with obviously stretched valuations (P/E > 60, no FCF), "
+            "(c) tickers whose price has moved far above your target entry. "
+            "Pass only the survivors to research_stocks_parallel."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tickers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of ticker symbols to quick-check.",
+                }
+            },
+            "required": ["tickers"],
+        },
+    },
+    {
         "name": "get_business_trajectory",
         "description": "Analyze 8-quarter business trajectory trends for gross margin, FCF margin, ROIC, and revenue growth. Returns slope-based trend classification.",
         "input_schema": {
@@ -3361,8 +3579,104 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         return portfolio.get_investment_memory()
 
     elif tool_name == "get_session_reflections":
-        limit = tool_input.get("limit", 5)
-        return portfolio.get_reflections(limit)
+        # If master_lessons exists, return it + only 3 recent reflections to save context tokens.
+        # If not yet created, return the last 5 reflections as before.
+        master = portfolio.get_master_lessons()
+        if master:
+            recent = portfolio.get_reflections(3)
+            return {
+                "master_lessons": master,
+                "recent_reflections": recent,
+                "note": (
+                    f"Master lessons covers {master['sessions_covered']} session(s). "
+                    "Showing 3 most recent reflections for detail. "
+                    "Update master_lessons at end of session if new patterns emerge."
+                ),
+            }
+        reflections = portfolio.get_reflections(tool_input.get("limit", 5))
+        if len(reflections) >= 5:
+            return {
+                "reflections": reflections,
+                "tip": (
+                    "You have 5+ reflections. Consider calling save_master_lessons at end of "
+                    "session to distill them into a compact document — saves context in future sessions."
+                ),
+            }
+        return reflections
+
+    elif tool_name == "add_trade_trigger":
+        return portfolio.add_trade_trigger(
+            ticker=tool_input["ticker"],
+            trigger_type=tool_input["trigger_type"],
+            trigger_value=tool_input["trigger_value"],
+            action=tool_input["action"],
+            notes=tool_input.get("notes"),
+            expires_at=tool_input.get("expires_at"),
+        )
+
+    elif tool_name == "get_active_triggers":
+        return portfolio.get_active_triggers()
+
+    elif tool_name == "cancel_trade_trigger":
+        portfolio.cancel_trigger(tool_input["trigger_id"])
+        return {"success": True, "trigger_id": tool_input["trigger_id"], "status": "cancelled"}
+
+    elif tool_name == "save_master_lessons":
+        portfolio.save_master_lessons(tool_input["content"], tool_input["sessions_covered"])
+        return {"success": True, "message": "Master lessons saved. Future get_session_reflections calls will use compressed format."}
+
+    elif tool_name == "quick_check_tickers":
+        tickers = [t.upper() for t in tool_input.get("tickers", [])]
+        shadow = {s["ticker"].upper() for s in portfolio.get_shadow_positions()}
+        results = []
+        for ticker in tickers:
+            if ticker in shadow:
+                results.append({"ticker": ticker, "skip": True, "reason": "in shadow portfolio"})
+                continue
+            try:
+                q = market_data.get_stock_quote(ticker)
+                price = q.get("price")
+                pe = q.get("pe_ratio")
+                forward_pe = q.get("forward_pe")
+                peg = q.get("peg_ratio")
+                fcf_yield = q.get("fcf_yield")
+                revenue_growth = q.get("revenue_growth")
+                week52_return = q.get("52_week_return")
+
+                # Flag obviously stretched valuations
+                flags = []
+                if pe and pe > 60:
+                    flags.append(f"P/E={pe:.0f} (>60)")
+                if forward_pe and forward_pe > 50:
+                    flags.append(f"fwd P/E={forward_pe:.0f} (>50)")
+                if fcf_yield is not None and fcf_yield <= 0:
+                    flags.append("no FCF yield")
+
+                results.append({
+                    "ticker": ticker,
+                    "price": price,
+                    "pe": pe,
+                    "forward_pe": forward_pe,
+                    "peg": peg,
+                    "fcf_yield": fcf_yield,
+                    "revenue_growth_pct": revenue_growth,
+                    "week52_return_pct": week52_return,
+                    "valuation_flags": flags,
+                    "skip": len(flags) >= 2,
+                    "skip_reason": "; ".join(flags) if len(flags) >= 2 else None,
+                })
+            except Exception as e:
+                results.append({"ticker": ticker, "error": str(e), "skip": False})
+
+        passed = [r for r in results if not r.get("skip")]
+        skipped = [r for r in results if r.get("skip")]
+        return {
+            "checked": len(results),
+            "passed": len(passed),
+            "skipped": len(skipped),
+            "pass_list": [r["ticker"] for r in passed if not r.get("error")],
+            "details": results,
+        }
 
     elif tool_name == "save_session_reflection":
         status = _get_portfolio_status()
