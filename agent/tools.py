@@ -3406,18 +3406,22 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         positions = portfolio.get_shadow_positions()
         if not positions:
             return {"message": "No shadow positions recorded yet.", "positions": []}
+        # Enrich only the 30 most recent with live prices (avoids hundreds of quote calls
+        # as the shadow list grows). All entries are still returned so the agent can use
+        # the full list for skip-checking during the screener walkdown.
         enriched = []
-        for p in positions:
-            quote = market_data.get_stock_quote(p["ticker"])
-            current_price = quote.get("price") if "error" not in quote else None
+        for i, p in enumerate(positions):
             entry = dict(p)
-            if current_price and p["price_at_consideration"]:
-                change_pct = (current_price - p["price_at_consideration"]) / p["price_at_consideration"] * 100
-                entry["current_price"] = current_price
-                entry["change_since_pass_pct"] = round(change_pct, 2)
-                entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
+            if i < 30:
+                quote = market_data.get_stock_quote(p["ticker"])
+                current_price = quote.get("price") if "error" not in quote else None
+                if current_price and p["price_at_consideration"]:
+                    change_pct = (current_price - p["price_at_consideration"]) / p["price_at_consideration"] * 100
+                    entry["current_price"] = current_price
+                    entry["change_since_pass_pct"] = round(change_pct, 2)
+                    entry["verdict"] = "pass_validated" if change_pct <= 0 else "missed_gain"
             enriched.append(entry)
-        return {"positions": enriched}
+        return {"total_shadow_count": len(positions), "positions": enriched}
 
     elif tool_name == "research_stocks_parallel":
         # Local import to avoid circular dependency (research_agent imports tools)

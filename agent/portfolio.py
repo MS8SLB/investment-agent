@@ -1033,7 +1033,6 @@ def get_shadow_positions() -> list[dict]:
         SELECT ticker, considered_at, price_at_consideration, reason_passed, notes
         FROM shadow_positions
         ORDER BY considered_at DESC
-        LIMIT 30
     """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
