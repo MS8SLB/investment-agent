@@ -618,6 +618,109 @@ def get_first_trade_date() -> Optional[str]:
     return None
 
 
+def get_portfolio_history_from_transactions() -> list[dict]:
+    """Reconstruct daily portfolio value history from transaction log + yfinance prices.
+
+    Replays every transaction forward in time to compute holdings and cash for
+    each business day, then values holdings at the day's closing price fetched
+    from yfinance.  Returns a list of ``{"ts": ..., "portfolio_value": ...}``
+    dicts ordered oldest-first, covering every trading day from the first trade
+    to today.  Used to supplement the sparse ``portfolio_snapshots`` table so
+    the Performance page chart has a full history rather than 4-5 points.
+    """
+    conn = _get_connection()
+    txs = conn.execute(
+        "SELECT ts, action, ticker, shares, total FROM transactions ORDER BY ts ASC"
+    ).fetchall()
+    txs = [dict(t) for t in txs]
+    state = conn.execute("SELECT cash FROM portfolio_state WHERE id = 1").fetchone()
+    holdings_rows = conn.execute("SELECT ticker, shares FROM holdings").fetchall()
+    conn.close()
+
+    if not txs:
+        return []
+
+    # Reverse all transactions from current DB state to recover pre-trade state
+    cash = float(state["cash"]) if state else 100_000.0
+    holdings: dict = {r["ticker"]: float(r["shares"]) for r in holdings_rows}
+    for tx in reversed(txs):
+        action = tx["action"].upper()
+        ticker, total, shares = tx["ticker"], float(tx["total"]), float(tx["shares"])
+        if action == "BUY":
+            cash += total
+            holdings[ticker] = holdings.get(ticker, 0.0) - shares
+        elif action == "SELL":
+            cash -= total
+            holdings[ticker] = holdings.get(ticker, 0.0) + shares
+    # cash / holdings now represent state *before* the first trade.
+
+    # Fetch historical closes for every ticker that was ever held.
+    import yfinance as yf
+    tickers_ever = list(set(t["ticker"] for t in txs))
+    start_date = txs[0]["ts"][:10]
+    end_str = (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    price_data: dict = {}   # ticker -> {date_str -> float}
+    for ticker in tickers_ever:
+        try:
+            hist = yf.Ticker(ticker).history(start=start_date, end=end_str)
+            if not hist.empty:
+                if hist.index.tz is not None:
+                    hist.index = hist.index.tz_convert(None)
+                price_data[ticker] = {
+                    d.date().isoformat(): float(p)
+                    for d, p in hist["Close"].items()
+                }
+        except Exception:
+            pass
+
+    # Group transactions by date for efficient replay.
+    txs_by_date: dict = {}
+    for tx in txs:
+        txs_by_date.setdefault(tx["ts"][:10], []).append(tx)
+
+    # Walk every business day from first trade to today, applying transactions
+    # and computing end-of-day portfolio value.
+    try:
+        import pandas as pd
+        trade_dates = pd.bdate_range(start=start_date, end=datetime.utcnow().date())
+    except Exception:
+        return []
+
+    result = []
+    for date in trade_dates:
+        date_str = date.date().isoformat()
+
+        # Apply transactions that occurred on this date.
+        for tx in txs_by_date.get(date_str, []):
+            action = tx["action"].upper()
+            ticker, total, shares = tx["ticker"], float(tx["total"]), float(tx["shares"])
+            if action == "BUY":
+                cash -= total
+                holdings[ticker] = holdings.get(ticker, 0.0) + shares
+            elif action == "SELL":
+                cash += total
+                holdings[ticker] = holdings.get(ticker, 0.0) - shares
+
+        # Value all holdings at close price on or before this date.
+        equity_value = 0.0
+        for ticker, n_shares in holdings.items():
+            if n_shares <= 0:
+                continue
+            prices = price_data.get(ticker, {})
+            for days_back in range(6):   # look back up to 5 days for holidays / weekends
+                check = (date - pd.Timedelta(days=days_back)).date().isoformat()
+                if check in prices:
+                    equity_value += n_shares * prices[check]
+                    break
+
+        pv = cash + equity_value
+        if pv > 0:
+            result.append({"ts": date_str + "T16:00:00", "portfolio_value": pv})
+
+    return result
+
+
 def log_agent_message(message: str) -> None:
     conn = _get_connection()
     with conn:

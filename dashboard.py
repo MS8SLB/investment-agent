@@ -543,7 +543,7 @@ elif "PERFORMANCE" in page:
         get_benchmark_comparison, get_benchmark_snapshots,
         get_transactions, get_holdings, get_cash,
         save_benchmark_snapshot, save_portfolio_snapshot,
-        get_first_trade_date,
+        get_first_trade_date, get_portfolio_history_from_transactions,
     )
     from agent.market_data import get_stock_quote
 
@@ -577,8 +577,18 @@ elif "PERFORMANCE" in page:
         else:
             snapshots = []
 
-        # benchmark_snapshots is the single source of truth for SPY tracking
-        # (same data used by get_benchmark_comparison metrics)
+        # Reconstruct dense daily portfolio history from transactions + yfinance.
+        # Merge with actual snapshots: reconstructed gives baseline for every
+        # trading day; actual snapshots override their dates (exact intraday value).
+        recon_history = get_portfolio_history_from_transactions()
+        _chart_by_date: dict = {}
+        for r in recon_history:
+            _chart_by_date[r["ts"][:10]] = r
+        for s in snapshots:
+            _chart_by_date[s["ts"][:10]] = s  # actual snapshot wins for its date
+        chart_snapshots = sorted(_chart_by_date.values(), key=lambda x: x["ts"])
+
+        # benchmark_snapshots backfill — still called for DB consistency / other pages
         bench_snaps = get_benchmark_snapshots(limit=500)
 
         spy_bench  = get_benchmark_comparison()
@@ -646,7 +656,7 @@ elif "PERFORMANCE" in page:
             f'</div>', unsafe_allow_html=True,
         )
 
-    if snapshots:
+    if chart_snapshots or snapshots:
         # ── Time range selector ───────────────────────────────────────────────
         _RANGES   = {"1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": None}
         _TICK_FMT = {"1W": "%b %d", "1M": "%b %d", "3M": "%b %d",
@@ -665,8 +675,11 @@ elif "PERFORMANCE" in page:
         _sel = st.session_state.perf_range
 
         import numpy as np
-        df = pd.DataFrame(snapshots)
-        df["ts"] = pd.to_datetime(df["ts"])
+        # Use chart_snapshots (dense: reconstructed + actual) for the charts;
+        # fall back to sparse actual snapshots if reconstruction failed.
+        _chart_src = chart_snapshots if chart_snapshots else snapshots
+        df = pd.DataFrame(_chart_src)
+        df["ts"] = pd.to_datetime(df["ts"], format="ISO8601")
         df = df.sort_values("ts")
 
         if _RANGES[_sel] is not None:
@@ -679,24 +692,32 @@ elif "PERFORMANCE" in page:
         base_port = df["portfolio_value"].iloc[0]
         df["port_pct"] = (df["portfolio_value"] / base_port - 1) * 100
 
-        # ── SPY line from benchmark_snapshots (same source as metrics) ────────
-        # Using benchmark_snapshots ensures the chart and summary metrics share
-        # the exact same SPY baseline — portfolio_snapshots.benchmark_price can
-        # diverge when the two tables are written at different intraday times.
+        # ── SPY line: fetch ^GSPC history directly from yfinance ─────────────
+        # This bypasses benchmark_snapshots (which can have stale/identical
+        # prices) and guarantees a complete, accurate S&P 500 line on the chart.
         has_spy = False
         spy_df  = None
-        if bench_snaps:
-            spy_df = pd.DataFrame(bench_snaps)
-            spy_df["ts"] = pd.to_datetime(spy_df["ts"], format="ISO8601")
-            spy_df = spy_df.sort_values("ts")
-            # Apply same time-range filter
-            if _RANGES[_sel] is not None:
-                spy_df = spy_df[spy_df["ts"] >= _cutoff].copy()
-            spy_df = spy_df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
-            if not spy_df.empty and spy_df["benchmark_price"].notna().any():
-                base_spy = spy_df["benchmark_price"].dropna().iloc[0]
-                spy_df["spy_pct"] = (spy_df["benchmark_price"] / base_spy - 1) * 100
-                has_spy = True
+        if first_trade_date:
+            try:
+                import yfinance as _yf_spy
+                _gspc = _yf_spy.Ticker("^GSPC").history(start=first_trade_date[:10])
+                if not _gspc.empty:
+                    if _gspc.index.tz is not None:
+                        _gspc.index = _gspc.index.tz_convert(None)
+                    spy_df = pd.DataFrame({
+                        "ts": _gspc.index,
+                        "benchmark_price": _gspc["Close"].values,
+                    })
+                    spy_df = spy_df.sort_values("ts")
+                    if _RANGES[_sel] is not None:
+                        spy_df = spy_df[spy_df["ts"] >= _cutoff].copy()
+                    spy_df = spy_df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
+                    if not spy_df.empty:
+                        base_spy = spy_df["benchmark_price"].iloc[0]
+                        spy_df["spy_pct"] = (spy_df["benchmark_price"] / base_spy - 1) * 100
+                        has_spy = True
+            except Exception:
+                pass
 
         # ── Main chart: normalised % return with alpha fill ───────────────────
         section("PORTFOLIO vs S&P 500 — NORMALISED RETURN (%)")
@@ -706,11 +727,14 @@ elif "PERFORMANCE" in page:
         # Alpha fill (positive = green, negative = red) — interpolate SPY onto
         # portfolio timestamps for the fill polygon
         if has_spy and not spy_df.empty:
-            # Merge-resample: use SPY values at portfolio timestamps via ffill
+            # Merge-resample: use SPY values at portfolio timestamps via ffill.
+            # No tolerance cap — both series are daily, timestamps may differ
+            # by up to 16h (portfolio T16:00:00 vs yfinance T00:00:00), and
+            # weekends add additional gaps; nearest-match without a cap is safe.
             merged = pd.merge_asof(
                 df[["ts", "port_pct"]].sort_values("ts"),
                 spy_df[["ts", "spy_pct"]].sort_values("ts"),
-                on="ts", direction="nearest", tolerance=pd.Timedelta("12h"),
+                on="ts", direction="nearest",
             ).dropna(subset=["spy_pct"])
 
             port_arr = merged["port_pct"].values
