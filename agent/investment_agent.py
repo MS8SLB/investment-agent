@@ -1563,6 +1563,29 @@ These rules are hard constraints derived from past session learnings. Apply them
   | **Proprietary software/platform embedded in IT services wrapper** — recurring license revenue, software-defined workflow lock-in | Gross margin >60%; revenue does not scale linearly with headcount | May qualify for wide moat — evaluate switching costs independently | Standard DCF; software multiples appropriate if recurring revenue confirmed |
 
   **AI disruption context** (as of 2026): Generative AI threatens the commodity tier acutely (BPO, offshore labor, application maintenance). The consulting/integration tier faces a *different* dynamic — enterprises need these firms to *deploy* AI at scale, which is creating new bookings demand. Do not conflate the two. A firm winning record AI transformation mandates is not the same as a firm whose headcount arbitrage is being automated away. Assess which revenue mix dominates before deciding on moat.
+- **Consumer-facing software: default moat assumption is none**:
+  Enterprise and consumer software look similar on the surface (subscriptions, recurring revenue, software margins) but are structurally different on moat durability. Apply a hard skepticism to any claimed moat in consumer-facing software:
+
+  | Factor | Enterprise software | Consumer software |
+  |--------|--------------------|--------------------|
+  | Switching cost source | Mission-critical workflows, IT integration, staff retraining, data migration, re-certification | Inconvenience only; no organizational lock-in |
+  | Pricing power | Strong — fee is small vs. cost of failure | Weak — individuals price-compare; churn for discounts |
+  | OS-bundled competition | Rare | Constant (Windows Defender, Google Safe Browsing, Apple built-ins) |
+  | Freemium threat | Low — enterprise buyers don't use free tiers | High — free VPNs, free antivirus, free identity alerts |
+  | Retention rate signal | >95% gross retention = moat; <90% = weak | Mid-80s retention = all customers churn within 7 years = no moat |
+
+  **Moat test for consumer software**: before assigning any moat, verify *both* (a) gross retention ≥ 90% and (b) ARPU growing above inflation for 3+ consecutive years. If either fails, assign no moat — do not rationalise brand recognition or market share as a substitute. A 40% consumer market share with mid-80s retention and flat ARPU is not a moat; it is scale without pricing power.
+
+  *Note on bundling*: multi-product bundles modestly improve retention but do not create switching costs if the bundle can be replaced by a cheaper alternative. Bundling is a *retention management tactic*, not a moat, unless cross-product data creates genuine value that competitors cannot replicate.
+
+- **Cybersecurity: enterprise platform vs. consumer security — AI demand expansion is segment-specific**:
+  A common analytical error is applying the AI cybersecurity tailwind thesis uniformly across all security vendors. The thesis — AI expands the attack surface → more cybersecurity spending → benefits security vendors — is correct but **applies selectively**:
+
+  - **Benefits**: Enterprise security platforms with access to real-time organizational data flow (endpoint detection & response, SIEM/SOAR, cloud security, CASB, network security). As organisations deploy AI, their attack surface expands at the point where AI models interact with internal data — exactly where enterprise platform vendors operate. AI also creates an adversarial dynamic (better offensive AI → better defensive AI demand).
+  - **Does NOT benefit**: Consumer security vendors (antivirus, consumer VPN, personal identity protection). Individual consumers do not deploy enterprise AI workloads. The attack surface expansion that drives enterprise security spending does not translate to higher consumer security demand in the same way.
+
+  When an analyst note says "AI will be good for cybersecurity," always clarify: *which segment?* Do not apply an enterprise cyber demand thesis to a consumer-focused vendor.
+
 - **Software moat re-ratings: AI uncertainty ≠ confirmed impairment**:
   When a software company's moat rating is downgraded by analysts (e.g., wide → narrow) due to AI disruption *uncertainty* rather than confirmed market-share loss or pricing-power erosion, this is **not** a sell signal under the forever-hold framework. Analyst re-ratings based on uncertainty reflect caution about unknowns; they do not constitute a business change. The actual test is business performance:
   - Revenue growth vs. prior guidance (accelerating or decelerating?)
@@ -1612,6 +1635,7 @@ These rules are hard constraints derived from past session learnings. Apply them
 - **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
 - **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
 - **FCF margin deterioration trend**: If FCF margin is declining at ≥ 1.5 pp/quarter for two or more consecutive quarters in a holding, flag it for thesis review at the next session. If three consecutive quarters of deterioration, add a sell trigger to the thesis and reduce position to half-size until the trend reverses.
+- **Leverage amplification in no-moat or consumer businesses**: High financial leverage is dangerous in any business, but it is *especially dangerous* in businesses with (a) no economic moat or (b) consumer-facing revenue. The reason: a moated enterprise business can raise prices to service debt; a no-moat or consumer business cannot. In a recession or competitive downturn, consumers cut discretionary spending and switch to cheaper alternatives — simultaneously compressing revenue and creating refinancing risk. Flag any holding or candidate meeting **both** conditions (no moat + Net Debt/EBITDA > 3×) for a mandatory thesis review: explicitly ask whether the FCF coverage is sufficient to service debt through a 20% revenue decline scenario before maintaining or initiating a position.
 - **Quant-only vs. analyst-driven fair value estimates**: Morningstar (and similar services) produce two distinct types of fair value estimates: (a) *analyst-driven* — built by a human analyst from a DCF model with explicit business assumptions; and (b) *quantitative/model-derived* — statistically inferred from peer group multiples and historical patterns, with no human analyst assigned. Treat them differently:
   - **Analyst-driven FVE**: use as a meaningful cross-check on your own IV; convergence gives confidence, divergence requires a specific explanation
   - **Quant-only FVE**: treat as a secondary data point only — it confirms rough order-of-magnitude but may not capture business-specific moat dynamics, unusual capital structure, or company-specific growth trajectories that a DCF would. Do not use a quant FVE as the primary IV reference; your own fundamental analysis takes precedence
