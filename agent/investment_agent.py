@@ -1563,6 +1563,36 @@ These rules are hard constraints derived from past session learnings. Apply them
   | **Proprietary software/platform embedded in IT services wrapper** — recurring license revenue, software-defined workflow lock-in | Gross margin >60%; revenue does not scale linearly with headcount | May qualify for wide moat — evaluate switching costs independently | Standard DCF; software multiples appropriate if recurring revenue confirmed |
 
   **AI disruption context** (as of 2026): Generative AI threatens the commodity tier acutely (BPO, offshore labor, application maintenance). The consulting/integration tier faces a *different* dynamic — enterprises need these firms to *deploy* AI at scale, which is creating new bookings demand. Do not conflate the two. A firm winning record AI transformation mandates is not the same as a firm whose headcount arbitrage is being automated away. Assess which revenue mix dominates before deciding on moat.
+- **Software moat re-ratings: AI uncertainty ≠ confirmed impairment**:
+  When a software company's moat rating is downgraded by analysts (e.g., wide → narrow) due to AI disruption *uncertainty* rather than confirmed market-share loss or pricing-power erosion, this is **not** a sell signal under the forever-hold framework. Analyst re-ratings based on uncertainty reflect caution about unknowns; they do not constitute a business change. The actual test is business performance:
+  - Revenue growth vs. prior guidance (accelerating or decelerating?)
+  - ARR / RPO trajectory (is forward revenue contracting or expanding?)
+  - Seat count / active-user trends (are customers actually leaving?)
+  - Pricing power (are price increases sticking, or are concessions required to retain users?)
+
+  If the business is still beating guidance and growing ARR/users, the downgrade reflects analyst caution, not confirmed deterioration. The forever-hold default is **hold**. Only escalate to a sell review when actual metrics confirm the feared deterioration — not when a rating agency raises its uncertainty flag.
+
+- **AI as concurrent threat AND monetization opportunity — creative and productivity software**:
+  For software companies where AI is simultaneously a competitive threat (gen-AI tools could displace the need for professional software) AND a native product feature being monetised (embedded AI generation, tiered AI pricing), do not default to a single narrative. Assess both sides every session:
+
+  | Signal type | Indicates threat winning | Indicates opportunity winning |
+  |-------------|--------------------------|-------------------------------|
+  | Seat count / DAU | Declining | Stable or growing |
+  | Churn / retention | Accelerating churn | Stable 85%+ retention |
+  | AI ARR growth | Flat / not disclosed | Growing >20% YoY (or tripling) |
+  | Pricing tier adoption | Free-only uptake, no paid conversion | Paid AI tiers adopted; ARPU rising |
+  | New user intake | Decelerating | Accelerating (AI funnel expanding TAM) |
+
+  If AI ARR is growing meaningfully while seat counts are stable, the company is capturing the opportunity faster than the threat is materialising. Treat **net AI ARR growth as a moat-strengthening signal** — it indicates the platform is successfully absorbing and monetising the technology that was supposed to threaten it. The threat thesis becomes actionable only when actual customer defection data confirms it.
+
+- **Long-tenured CEO departure (≥ 10 years)**:
+  When a CEO with ≥10 years of tenure announces they are stepping down — especially one who executed major strategic pivots (SaaS transition, platform acquisitions that created new business segments, subscription model conversion) — classify as a **thesis-watch event, not a sell trigger**. Business succession is not the same as business change. Monitor three things:
+  (a) **Successor profile**: internal continuity hire vs. external disruptor with a different strategic agenda?
+  (b) **Capital allocation in the first 2–3 earnings cycles**: disciplined buybacks and tuck-in acquisitions vs. large dilutive M&A?
+  (c) **Strategic messaging**: does the new CEO maintain or abandon the moat-building investments (R&D intensity, platform integration, pricing discipline)?
+
+  Trigger a **sell review** only if capital allocation visibly deteriorates (e.g., large, value-destroying acquisitions) or the new CEO explicitly deprioritises the core moat-building strategy. A CEO search announcement alone — with the outgoing CEO staying until succession is complete — does not constitute a business change.
+
 - **Earnings within 15 days**: Add to watchlist at post-earnings target price only. Do not buy ahead of earnings — binary event risk distorts the entry price.
 - **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
 - **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
