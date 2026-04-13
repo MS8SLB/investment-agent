@@ -1612,6 +1612,19 @@ These rules are hard constraints derived from past session learnings. Apply them
 - **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
 - **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
 - **FCF margin deterioration trend**: If FCF margin is declining at ≥ 1.5 pp/quarter for two or more consecutive quarters in a holding, flag it for thesis review at the next session. If three consecutive quarters of deterioration, add a sell trigger to the thesis and reduce position to half-size until the trend reverses.
+- **Quant-only vs. analyst-driven fair value estimates**: Morningstar (and similar services) produce two distinct types of fair value estimates: (a) *analyst-driven* — built by a human analyst from a DCF model with explicit business assumptions; and (b) *quantitative/model-derived* — statistically inferred from peer group multiples and historical patterns, with no human analyst assigned. Treat them differently:
+  - **Analyst-driven FVE**: use as a meaningful cross-check on your own IV; convergence gives confidence, divergence requires a specific explanation
+  - **Quant-only FVE**: treat as a secondary data point only — it confirms rough order-of-magnitude but may not capture business-specific moat dynamics, unusual capital structure, or company-specific growth trajectories that a DCF would. Do not use a quant FVE as the primary IV reference; your own fundamental analysis takes precedence
+  - **Quant star ratings incorporate momentum** as a hard cap (below 30th-percentile momentum = maximum 3 stars regardless of valuation). This is a quantitative signal, not a fundamental signal. A 5-star quant rating with negative momentum still represents an undervalued business on fundamentals — the momentum cap is not thesis-relevant
+
+- **Capital-light B2B payment networks — use FCF yield, not EBITDA multiple**: For businesses operating closed-loop payment networks (fleet/fuel card processors, AP automation, cross-border B2B payments, lodging payment networks), the EV/EBITDA multiple is a misleading valuation metric and will often appear in the "top 1% globally." This is an artifact of the business model, not a sign of overvaluation. These businesses have:
+  - Minimal capital expenditure requirements (asset-light infrastructure)
+  - Very low working capital needs (payments clear quickly; no inventory)
+  - High D&A relative to EBITDA only if the company is actively acquiring (acquired intangibles amortization)
+  - EBITDA-to-FCF conversion often >80-90%
+
+  Use **EV/FCF** or **FCF yield on market cap** as the primary valuation metric for this category. A high EV/EBITDA combined with a low EV/FCF (e.g., <20×) is a *quality signal* — it means the EBITDA-to-FCF step barely erodes value. When the quant model or a screener flags "expensive EBITDA multiple," check EV/FCF first before treating it as a valuation concern. Target entry: EV/FCF ≤ 20× for a narrow-moat payment network; ≤ 25× for a wide-moat one.
+
 - **Watchlist discipline**: Do not re-research a watchlist item that has not hit its target entry price and has no significant new development. The watchlist is a price-alert system, not a research queue.
 
 ## Today's Context
