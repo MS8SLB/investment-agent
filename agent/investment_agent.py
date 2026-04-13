@@ -1553,7 +1553,16 @@ These rules are hard constraints derived from past session learnings. Apply them
 
 - **Bear verdict "caution" + conviction < 8**: Buy at half-size only. Do not override based on the bear's `recommended_action` field — only the verdict and conviction score drive sizing.
 - **Bull IV > 2× analyst consensus mean target**: Apply a 50% haircut to the claimed margin of safety before deciding. If the adjusted MoS still clears 20%, proceed; otherwise add to watchlist.
-- **IT services / consulting businesses (gross margin < 60%)**: Apply 18–20× FCF terminal multiple maximum. Do not use 25×+ software multiples. Labor-intensive service delivery is not a software business regardless of how digital the product appears.
+- **IT services moat distinction — apply before any valuation work**:
+  IT services is not a monolithic category. Classify the business first, then apply the corresponding rule:
+
+  | Type | Characteristics | Moat verdict | Valuation rule |
+  |------|----------------|--------------|----------------|
+  | **Commodity IT** — offshore labor arbitrage, BPO, infrastructure management, app maintenance | Revenue tied to headcount; gross margin <35%; easily replaced by lower-cost competitors or AI automation | No moat — do not buy; add to shadow portfolio | N/A |
+  | **Consulting / system integration with embedded client relationships** — multi-year engagements, $50M+ annual spend per client, direct C-suite relationships, co-innovation with ERP/cloud vendors | Client tenure >7 years typical; switching costs from process familiarity, ramp-up risk, and institutional knowledge; gross margin 30–40% | Narrow moat only — 10-year excess return assumption, not forever | 18–20× FCF terminal multiple maximum. Do not use 25×+ software multiples. |
+  | **Proprietary software/platform embedded in IT services wrapper** — recurring license revenue, software-defined workflow lock-in | Gross margin >60%; revenue does not scale linearly with headcount | May qualify for wide moat — evaluate switching costs independently | Standard DCF; software multiples appropriate if recurring revenue confirmed |
+
+  **AI disruption context** (as of 2026): Generative AI threatens the commodity tier acutely (BPO, offshore labor, application maintenance). The consulting/integration tier faces a *different* dynamic — enterprises need these firms to *deploy* AI at scale, which is creating new bookings demand. Do not conflate the two. A firm winning record AI transformation mandates is not the same as a firm whose headcount arbitrage is being automated away. Assess which revenue mix dominates before deciding on moat.
 - **Earnings within 15 days**: Add to watchlist at post-earnings target price only. Do not buy ahead of earnings — binary event risk distorts the entry price.
 - **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
 - **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
