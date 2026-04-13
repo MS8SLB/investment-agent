@@ -1593,6 +1593,21 @@ These rules are hard constraints derived from past session learnings. Apply them
 
   Trigger a **sell review** only if capital allocation visibly deteriorates (e.g., large, value-destroying acquisitions) or the new CEO explicitly deprioritises the core moat-building strategy. A CEO search announcement alone — with the outgoing CEO staying until succession is complete — does not constitute a business change.
 
+- **Contract-dependent moat (third-party licensed IP)**: When a company's primary moat and >40% of its revenue depend on a single exclusive license from a third party — rather than owned intellectual property — the moat is *time-bounded* by the contract expiration, not structural in perpetuity. Apply different rules than for owned-IP moats:
+  - **Cap the excess-returns period** in your IV model to the contract term (do not assume perpetual excess returns past expiration)
+  - **Maximum position size: 10%** until the license is renewed, vs. the normal 20% cap for structural moats
+  - **Within 3 years of expiration**: treat renewal uncertainty as an active thesis risk; monitor for any public signals from the licensor (alternative bidders, royalty renegotiation demands, bidding process announcements)
+  - **Renewal failure = sell trigger**: if the contract is lost or not renewed, this is a thesis-breaking business change — sell the position regardless of the current price
+  - **Renewal at materially higher royalty rates** (e.g., 3×+ current rate) may impair the economics even without a loss of the license — model the impact and reassess IV before deciding to hold
+
+  *Note*: a partial offset exists when the licensor itself is economically harmed by switching — if the licensee's liquidity pool generates royalty revenue on trading volume that would fragment or migrate to ETF alternatives upon switching, the licensor faces economic risk from non-renewal too. This raises the probability of renewal but does not eliminate it. Retain the position cap until the contract is formally renewed.
+
+- **Volume/volatility revenue normalization for exchanges and trading businesses**: For businesses where >50% of revenue is driven by market volume, volatility, or transaction counts (option trading fees, futures fees, equity trading fees), **do not use peak-cycle earnings as the basis for intrinsic value estimates**. Trading revenue is highly sensitive to market volatility (VIX) and retail participation cycles — conditions that can fall 30-50% when markets calm. Rules:
+  - Use **mid-cycle normalized earnings** for IV: average revenue and margins across a full market cycle, including at least one period of subdued volatility (VIX < 15 environment)
+  - When current-year earnings are driven by unusually elevated volatility or retail activity that Morningstar or consensus analysts explicitly flag as cyclically elevated, **apply a 20-30% normalization haircut** to earnings before computing a terminal multiple
+  - **Do not add to a position** in an exchange business when the current trailing P/E is based on peak-cycle results unless you have specifically calculated the mid-cycle P/E and it still offers ≥20% MoS
+  - Strong 12-month results alone are not a thesis-confirming signal for exchange businesses — check whether volume growth is structural (new product adoption, new user demographics, expanded expiry dates) or cyclical (elevated VIX, macro uncertainty, retail mania)
+
 - **Earnings within 15 days**: Add to watchlist at post-earnings target price only. Do not buy ahead of earnings — binary event risk distorts the entry price.
 - **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
 - **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
