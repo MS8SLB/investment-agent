@@ -252,6 +252,17 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         """)
 
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS kb_entries (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                category   TEXT NOT NULL,
+                ticker     TEXT,
+                content    TEXT NOT NULL,
+                source     TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS trade_triggers (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 ticker      TEXT NOT NULL,
@@ -437,9 +448,10 @@ def sell_stock(ticker: str, shares: float, price_per_share: float, notes: str = 
 
             realized_pnl = (price_per_share - holding["avg_cost"]) * shares
 
-            # Update or remove holding
-            remaining = holding["shares"] - shares
-            if remaining < 1e-6:
+            # Update or remove holding. Round to 8 decimal places to avoid
+            # floating-point dust (e.g. 0.9999999999 remaining from a sell-all).
+            remaining = round(holding["shares"] - shares, 8)
+            if remaining <= 0:
                 conn.execute("DELETE FROM holdings WHERE ticker = ?", (ticker,))
             else:
                 conn.execute(
@@ -1222,11 +1234,11 @@ def log_dividend(ticker: str, amount_per_share: float, shares_held: float, ex_da
     """Log a dividend payment and return total amount received."""
     total = amount_per_share * shares_held
     conn = _get_connection()
-    conn.execute(
-        "INSERT INTO dividends (ticker, amount_per_share, shares_held, total_amount, ex_date, recorded_at) VALUES (?,?,?,?,?,?)",
-        (ticker, amount_per_share, shares_held, total, ex_date, datetime.utcnow().isoformat())
-    )
-    conn.commit()
+    with conn:
+        conn.execute(
+            "INSERT INTO dividends (ticker, amount_per_share, shares_held, total_amount, ex_date, recorded_at) VALUES (?,?,?,?,?,?)",
+            (ticker, amount_per_share, shares_held, total, ex_date, datetime.utcnow().isoformat())
+        )
     conn.close()
     return total
 
@@ -1494,22 +1506,22 @@ def save_regime(regime: str, previous_regime: str = None, indicators: dict = Non
     """Persist the current detected regime to history."""
     conn = _get_connection()
     ind = indicators or {}
-    conn.execute(
-        """INSERT INTO regime_history
-           (regime, previous_regime, vix, gdp_growth, core_cpi, ten_yr_yield, yield_inverted, detected_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            regime,
-            previous_regime,
-            ind.get("vix"),
-            ind.get("gdp_growth"),
-            ind.get("core_cpi"),
-            ind.get("ten_yr_yield"),
-            1 if ind.get("yield_inverted") else 0,
-            datetime.utcnow().isoformat(),
-        ),
-    )
-    conn.commit()
+    with conn:
+        conn.execute(
+            """INSERT INTO regime_history
+               (regime, previous_regime, vix, gdp_growth, core_cpi, ten_yr_yield, yield_inverted, detected_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                regime,
+                previous_regime,
+                ind.get("vix"),
+                ind.get("gdp_growth"),
+                ind.get("core_cpi"),
+                ind.get("ten_yr_yield"),
+                1 if ind.get("yield_inverted") else 0,
+                datetime.utcnow().isoformat(),
+            ),
+        )
     conn.close()
 
 
@@ -1923,13 +1935,13 @@ def update_prediction_outcome(prediction_id: int, outcome_price: float,
                                notes: str = None) -> None:
     """Fill in the actual outcome for a prediction."""
     conn = _get_connection()
-    conn.execute(
-        """UPDATE prediction_tracking SET outcome_price=?, outcome_return_pct=?,
-           outcome_vs_spy_pct=?, outcome_date=?, outcome_notes=? WHERE id=?""",
-        (outcome_price, outcome_return_pct, outcome_vs_spy_pct,
-         datetime.utcnow().isoformat(), notes, prediction_id)
-    )
-    conn.commit()
+    with conn:
+        conn.execute(
+            """UPDATE prediction_tracking SET outcome_price=?, outcome_return_pct=?,
+               outcome_vs_spy_pct=?, outcome_date=?, outcome_notes=? WHERE id=?""",
+            (outcome_price, outcome_return_pct, outcome_vs_spy_pct,
+             datetime.utcnow().isoformat(), notes, prediction_id)
+        )
     conn.close()
 
 
@@ -2293,12 +2305,12 @@ def log_workflow_issue(issue: str, suggestion: str, severity: str = "low") -> di
         "severity": severity,
         "session_date": now[:10],
     })
-    conn.execute(
-        """INSERT INTO kb_entries (category, ticker, content, source, created_at)
-           VALUES ('workflow_issue', NULL, ?, 'agent_self_audit', ?)""",
-        (content, now),
-    )
-    conn.commit()
+    with conn:
+        conn.execute(
+            """INSERT INTO kb_entries (category, ticker, content, source, created_at)
+               VALUES ('workflow_issue', NULL, ?, 'agent_self_audit', ?)""",
+            (content, now),
+        )
     conn.close()
     return {"logged": True, "severity": severity, "issue": issue[:80]}
 

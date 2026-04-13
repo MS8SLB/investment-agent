@@ -3801,31 +3801,27 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_business_trajectory":
         from agent.market_data import get_business_trajectory
-        ticker = tool_input.get("ticker", "")
-        result = get_business_trajectory(ticker)
+        return get_business_trajectory(tool_input.get("ticker", ""))
 
     elif tool_name == "identify_weakest_link":
         from agent.ml_insights import identify_weakest_link
-        result = identify_weakest_link()
+        return identify_weakest_link()
 
     elif tool_name == "get_preearnings_briefing":
         from agent.market_data import get_preearnings_briefing
-        ticker = tool_input.get("ticker", "")
-        result = get_preearnings_briefing(ticker)
+        return get_preearnings_briefing(tool_input.get("ticker", ""))
 
     elif tool_name == "recalibrate_universe_scores":
         from agent.ml_insights import recalibrate_universe_scores
-        result = recalibrate_universe_scores()
+        return recalibrate_universe_scores()
 
     elif tool_name == "run_portfolio_stress_test":
         from agent.ml_insights import run_portfolio_stress_test
-        scenario = tool_input.get("scenario", "all")
-        result = run_portfolio_stress_test(scenario)
+        return run_portfolio_stress_test(tool_input.get("scenario", "all"))
 
     elif tool_name == "get_triaged_alerts":
         from agent.market_data import get_triaged_alerts
-        tickers = tool_input.get("tickers")
-        result = get_triaged_alerts(tickers)
+        return get_triaged_alerts(tool_input.get("tickers"))
 
     elif tool_name == "calculate_intrinsic_value":
         return market_data.calculate_intrinsic_value(tool_input["ticker"])

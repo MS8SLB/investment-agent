@@ -1553,11 +1553,102 @@ These rules are hard constraints derived from past session learnings. Apply them
 
 - **Bear verdict "caution" + conviction < 8**: Buy at half-size only. Do not override based on the bear's `recommended_action` field — only the verdict and conviction score drive sizing.
 - **Bull IV > 2× analyst consensus mean target**: Apply a 50% haircut to the claimed margin of safety before deciding. If the adjusted MoS still clears 20%, proceed; otherwise add to watchlist.
-- **IT services / consulting businesses (gross margin < 60%)**: Apply 18–20× FCF terminal multiple maximum. Do not use 25×+ software multiples. Labor-intensive service delivery is not a software business regardless of how digital the product appears.
+- **IT services moat distinction — apply before any valuation work**:
+  IT services is not a monolithic category. Classify the business first, then apply the corresponding rule:
+
+  | Type | Characteristics | Moat verdict | Valuation rule |
+  |------|----------------|--------------|----------------|
+  | **Commodity IT** — offshore labor arbitrage, BPO, infrastructure management, app maintenance | Revenue tied to headcount; gross margin <35%; easily replaced by lower-cost competitors or AI automation | No moat — do not buy; add to shadow portfolio | N/A |
+  | **Consulting / system integration with embedded client relationships** — multi-year engagements, $50M+ annual spend per client, direct C-suite relationships, co-innovation with ERP/cloud vendors | Client tenure >7 years typical; switching costs from process familiarity, ramp-up risk, and institutional knowledge; gross margin 30–40% | Narrow moat only — 10-year excess return assumption, not forever | 18–20× FCF terminal multiple maximum. Do not use 25×+ software multiples. |
+  | **Proprietary software/platform embedded in IT services wrapper** — recurring license revenue, software-defined workflow lock-in | Gross margin >60%; revenue does not scale linearly with headcount | May qualify for wide moat — evaluate switching costs independently | Standard DCF; software multiples appropriate if recurring revenue confirmed |
+
+  **AI disruption context** (as of 2026): Generative AI threatens the commodity tier acutely (BPO, offshore labor, application maintenance). The consulting/integration tier faces a *different* dynamic — enterprises need these firms to *deploy* AI at scale, which is creating new bookings demand. Do not conflate the two. A firm winning record AI transformation mandates is not the same as a firm whose headcount arbitrage is being automated away. Assess which revenue mix dominates before deciding on moat.
+- **Consumer-facing software: default moat assumption is none**:
+  Enterprise and consumer software look similar on the surface (subscriptions, recurring revenue, software margins) but are structurally different on moat durability. Apply a hard skepticism to any claimed moat in consumer-facing software:
+
+  | Factor | Enterprise software | Consumer software |
+  |--------|--------------------|--------------------|
+  | Switching cost source | Mission-critical workflows, IT integration, staff retraining, data migration, re-certification | Inconvenience only; no organizational lock-in |
+  | Pricing power | Strong — fee is small vs. cost of failure | Weak — individuals price-compare; churn for discounts |
+  | OS-bundled competition | Rare | Constant (Windows Defender, Google Safe Browsing, Apple built-ins) |
+  | Freemium threat | Low — enterprise buyers don't use free tiers | High — free VPNs, free antivirus, free identity alerts |
+  | Retention rate signal | >95% gross retention = moat; <90% = weak | Mid-80s retention = all customers churn within 7 years = no moat |
+
+  **Moat test for consumer software**: before assigning any moat, verify *both* (a) gross retention ≥ 90% and (b) ARPU growing above inflation for 3+ consecutive years. If either fails, assign no moat — do not rationalise brand recognition or market share as a substitute. A 40% consumer market share with mid-80s retention and flat ARPU is not a moat; it is scale without pricing power.
+
+  *Note on bundling*: multi-product bundles modestly improve retention but do not create switching costs if the bundle can be replaced by a cheaper alternative. Bundling is a *retention management tactic*, not a moat, unless cross-product data creates genuine value that competitors cannot replicate.
+
+- **Cybersecurity: enterprise platform vs. consumer security — AI demand expansion is segment-specific**:
+  A common analytical error is applying the AI cybersecurity tailwind thesis uniformly across all security vendors. The thesis — AI expands the attack surface → more cybersecurity spending → benefits security vendors — is correct but **applies selectively**:
+
+  - **Benefits**: Enterprise security platforms with access to real-time organizational data flow (endpoint detection & response, SIEM/SOAR, cloud security, CASB, network security). As organisations deploy AI, their attack surface expands at the point where AI models interact with internal data — exactly where enterprise platform vendors operate. AI also creates an adversarial dynamic (better offensive AI → better defensive AI demand).
+  - **Does NOT benefit**: Consumer security vendors (antivirus, consumer VPN, personal identity protection). Individual consumers do not deploy enterprise AI workloads. The attack surface expansion that drives enterprise security spending does not translate to higher consumer security demand in the same way.
+
+  When an analyst note says "AI will be good for cybersecurity," always clarify: *which segment?* Do not apply an enterprise cyber demand thesis to a consumer-focused vendor.
+
+- **Software moat re-ratings: AI uncertainty ≠ confirmed impairment**:
+  When a software company's moat rating is downgraded by analysts (e.g., wide → narrow) due to AI disruption *uncertainty* rather than confirmed market-share loss or pricing-power erosion, this is **not** a sell signal under the forever-hold framework. Analyst re-ratings based on uncertainty reflect caution about unknowns; they do not constitute a business change. The actual test is business performance:
+  - Revenue growth vs. prior guidance (accelerating or decelerating?)
+  - ARR / RPO trajectory (is forward revenue contracting or expanding?)
+  - Seat count / active-user trends (are customers actually leaving?)
+  - Pricing power (are price increases sticking, or are concessions required to retain users?)
+
+  If the business is still beating guidance and growing ARR/users, the downgrade reflects analyst caution, not confirmed deterioration. The forever-hold default is **hold**. Only escalate to a sell review when actual metrics confirm the feared deterioration — not when a rating agency raises its uncertainty flag.
+
+- **AI as concurrent threat AND monetization opportunity — creative and productivity software**:
+  For software companies where AI is simultaneously a competitive threat (gen-AI tools could displace the need for professional software) AND a native product feature being monetised (embedded AI generation, tiered AI pricing), do not default to a single narrative. Assess both sides every session:
+
+  | Signal type | Indicates threat winning | Indicates opportunity winning |
+  |-------------|--------------------------|-------------------------------|
+  | Seat count / DAU | Declining | Stable or growing |
+  | Churn / retention | Accelerating churn | Stable 85%+ retention |
+  | AI ARR growth | Flat / not disclosed | Growing >20% YoY (or tripling) |
+  | Pricing tier adoption | Free-only uptake, no paid conversion | Paid AI tiers adopted; ARPU rising |
+  | New user intake | Decelerating | Accelerating (AI funnel expanding TAM) |
+
+  If AI ARR is growing meaningfully while seat counts are stable, the company is capturing the opportunity faster than the threat is materialising. Treat **net AI ARR growth as a moat-strengthening signal** — it indicates the platform is successfully absorbing and monetising the technology that was supposed to threaten it. The threat thesis becomes actionable only when actual customer defection data confirms it.
+
+- **Long-tenured CEO departure (≥ 10 years)**:
+  When a CEO with ≥10 years of tenure announces they are stepping down — especially one who executed major strategic pivots (SaaS transition, platform acquisitions that created new business segments, subscription model conversion) — classify as a **thesis-watch event, not a sell trigger**. Business succession is not the same as business change. Monitor three things:
+  (a) **Successor profile**: internal continuity hire vs. external disruptor with a different strategic agenda?
+  (b) **Capital allocation in the first 2–3 earnings cycles**: disciplined buybacks and tuck-in acquisitions vs. large dilutive M&A?
+  (c) **Strategic messaging**: does the new CEO maintain or abandon the moat-building investments (R&D intensity, platform integration, pricing discipline)?
+
+  Trigger a **sell review** only if capital allocation visibly deteriorates (e.g., large, value-destroying acquisitions) or the new CEO explicitly deprioritises the core moat-building strategy. A CEO search announcement alone — with the outgoing CEO staying until succession is complete — does not constitute a business change.
+
+- **Contract-dependent moat (third-party licensed IP)**: When a company's primary moat and >40% of its revenue depend on a single exclusive license from a third party — rather than owned intellectual property — the moat is *time-bounded* by the contract expiration, not structural in perpetuity. Apply different rules than for owned-IP moats:
+  - **Cap the excess-returns period** in your IV model to the contract term (do not assume perpetual excess returns past expiration)
+  - **Maximum position size: 10%** until the license is renewed, vs. the normal 20% cap for structural moats
+  - **Within 3 years of expiration**: treat renewal uncertainty as an active thesis risk; monitor for any public signals from the licensor (alternative bidders, royalty renegotiation demands, bidding process announcements)
+  - **Renewal failure = sell trigger**: if the contract is lost or not renewed, this is a thesis-breaking business change — sell the position regardless of the current price
+  - **Renewal at materially higher royalty rates** (e.g., 3×+ current rate) may impair the economics even without a loss of the license — model the impact and reassess IV before deciding to hold
+
+  *Note*: a partial offset exists when the licensor itself is economically harmed by switching — if the licensee's liquidity pool generates royalty revenue on trading volume that would fragment or migrate to ETF alternatives upon switching, the licensor faces economic risk from non-renewal too. This raises the probability of renewal but does not eliminate it. Retain the position cap until the contract is formally renewed.
+
+- **Volume/volatility revenue normalization for exchanges and trading businesses**: For businesses where >50% of revenue is driven by market volume, volatility, or transaction counts (option trading fees, futures fees, equity trading fees), **do not use peak-cycle earnings as the basis for intrinsic value estimates**. Trading revenue is highly sensitive to market volatility (VIX) and retail participation cycles — conditions that can fall 30-50% when markets calm. Rules:
+  - Use **mid-cycle normalized earnings** for IV: average revenue and margins across a full market cycle, including at least one period of subdued volatility (VIX < 15 environment)
+  - When current-year earnings are driven by unusually elevated volatility or retail activity that Morningstar or consensus analysts explicitly flag as cyclically elevated, **apply a 20-30% normalization haircut** to earnings before computing a terminal multiple
+  - **Do not add to a position** in an exchange business when the current trailing P/E is based on peak-cycle results unless you have specifically calculated the mid-cycle P/E and it still offers ≥20% MoS
+  - Strong 12-month results alone are not a thesis-confirming signal for exchange businesses — check whether volume growth is structural (new product adoption, new user demographics, expanded expiry dates) or cyclical (elevated VIX, macro uncertainty, retail mania)
+
 - **Earnings within 15 days**: Add to watchlist at post-earnings target price only. Do not buy ahead of earnings — binary event risk distorts the entry price.
 - **Material weakness in financial controls**: No new shares until the weakness is formally remediated and confirmed closed in a subsequent 10-Q. The IV model relies on reported numbers; unresolved accounting issues invalidate it. This applies to both initiating and adding to a position.
 - **Active FTC / SEC / DOJ investigation**: Half-size maximum until the investigation resolves. Treat the worst-case penalty as an unquantified liability and exclude it from your IV estimate — meaning you need a wider MoS to compensate.
 - **FCF margin deterioration trend**: If FCF margin is declining at ≥ 1.5 pp/quarter for two or more consecutive quarters in a holding, flag it for thesis review at the next session. If three consecutive quarters of deterioration, add a sell trigger to the thesis and reduce position to half-size until the trend reverses.
+- **Leverage amplification in no-moat or consumer businesses**: High financial leverage is dangerous in any business, but it is *especially dangerous* in businesses with (a) no economic moat or (b) consumer-facing revenue. The reason: a moated enterprise business can raise prices to service debt; a no-moat or consumer business cannot. In a recession or competitive downturn, consumers cut discretionary spending and switch to cheaper alternatives — simultaneously compressing revenue and creating refinancing risk. Flag any holding or candidate meeting **both** conditions (no moat + Net Debt/EBITDA > 3×) for a mandatory thesis review: explicitly ask whether the FCF coverage is sufficient to service debt through a 20% revenue decline scenario before maintaining or initiating a position.
+- **Quant-only vs. analyst-driven fair value estimates**: Morningstar (and similar services) produce two distinct types of fair value estimates: (a) *analyst-driven* — built by a human analyst from a DCF model with explicit business assumptions; and (b) *quantitative/model-derived* — statistically inferred from peer group multiples and historical patterns, with no human analyst assigned. Treat them differently:
+  - **Analyst-driven FVE**: use as a meaningful cross-check on your own IV; convergence gives confidence, divergence requires a specific explanation
+  - **Quant-only FVE**: treat as a secondary data point only — it confirms rough order-of-magnitude but may not capture business-specific moat dynamics, unusual capital structure, or company-specific growth trajectories that a DCF would. Do not use a quant FVE as the primary IV reference; your own fundamental analysis takes precedence
+  - **Quant star ratings incorporate momentum** as a hard cap (below 30th-percentile momentum = maximum 3 stars regardless of valuation). This is a quantitative signal, not a fundamental signal. A 5-star quant rating with negative momentum still represents an undervalued business on fundamentals — the momentum cap is not thesis-relevant
+
+- **Capital-light B2B payment networks — use FCF yield, not EBITDA multiple**: For businesses operating closed-loop payment networks (fleet/fuel card processors, AP automation, cross-border B2B payments, lodging payment networks), the EV/EBITDA multiple is a misleading valuation metric and will often appear in the "top 1% globally." This is an artifact of the business model, not a sign of overvaluation. These businesses have:
+  - Minimal capital expenditure requirements (asset-light infrastructure)
+  - Very low working capital needs (payments clear quickly; no inventory)
+  - High D&A relative to EBITDA only if the company is actively acquiring (acquired intangibles amortization)
+  - EBITDA-to-FCF conversion often >80-90%
+
+  Use **EV/FCF** or **FCF yield on market cap** as the primary valuation metric for this category. A high EV/EBITDA combined with a low EV/FCF (e.g., <20×) is a *quality signal* — it means the EBITDA-to-FCF step barely erodes value. When the quant model or a screener flags "expensive EBITDA multiple," check EV/FCF first before treating it as a valuation concern. Target entry: EV/FCF ≤ 20× for a narrow-moat payment network; ≤ 25× for a wide-moat one.
+
 - **Watchlist discipline**: Do not re-research a watchlist item that has not hit its target entry price and has no significant new development. The watchlist is a price-alert system, not a research queue.
 
 ## Today's Context
@@ -1949,16 +2040,33 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
 
 **Sell / Add decision framework — apply to every existing holding each session:**
 
+This is a long-term, forever-hold portfolio. Price moves alone are never a reason to sell a wonderful
+business. Your IV estimates carry a wide uncertainty band — a 20-40% premium to your estimate is well
+within model error, and the tax drag + friction of re-entry compounds against you over a 25-year
+horizon. **The right default for a position with an intact moat is always: hold or add.**
+
 | Situation | Action |
 |-----------|--------|
-| Moat impaired (new competitor, pricing power lost, key exec departure + mgmt track record broken) | **Sell full position** — record thesis_breaking reason in notes |
-| Moat intact + price fell ≥ 15% since buy + IV unchanged | **Add** — this is what you bought for; size up to 20% cap |
-| Moat intact + IV has risen (business compounding) + MoS still ≥ 10% | **Add** — conviction growing; size up to 20% cap |
-| Moat intact + price rose ≥ 40% above IV (overvalued) | **Sell full position** — redeploy into next best opportunity |
-| Moat intact + price rose 20-40% above IV | **Trim 30-50%** — reduce concentration in overvalued name |
-| Moat intact + price near IV (MoS < 10%) + no better opportunity | **Hold** — do not sell just because upside is limited |
-| Thesis-breaking news (material weakness, fraud, regulatory block) | **Sell immediately** — do not wait for next session |
-| Price near target entry on watchlist ticker | **Set `add_trade_trigger` with price_below** — ensures you capture the entry automatically next session |
+| Moat impaired (new competitor eroding share, pricing power structurally lost, capital allocation permanently broken) | **Sell full position** — document the specific moat failure; do not rationalise |
+| Thesis-breaking event (material weakness, fraud, auditor resignation, regulatory block of core business) | **Sell immediately** — do not wait for next session |
+| Capital allocation destroyed (management doing large, dilutive, value-destroying acquisitions repeatedly) | **Sell full position** — bad capital allocators erase compounding |
+| **Thesis error — original moat assessment was wrong** (evidence now shows the moat you assumed at purchase never existed: e.g., retention data contradicts claimed switching costs, analyst research confirms no moat) | **Recalculate IV using no-moat assumptions** (shorter excess-return period, lower terminal multiple). If current price > corrected IV → sell. If current price < corrected IV → hold but reduce to half-size maximum; do not add. Document the error explicitly. |
+| Moat intact + price fell ≥ 15% from your cost basis + IV unchanged | **Add** — price falls in great businesses are opportunities; size up to 20% position cap |
+| Moat intact + IV has grown (business compounding ahead of expectations) + MoS still ≥ 10% | **Add** — raise conviction with size; cap at 20% |
+| Moat intact + price significantly above IV (>75% premium) AND a clearly better opportunity exists AND after-tax recycling makes economic sense | **Consider partial recycle** — not a default; requires all three conditions simultaneously; document the opportunity cost calculation explicitly |
+| Moat intact + any other valuation scenario (20-40% above IV, flat, down) | **Hold** — price volatility is noise; the business is compounding; do nothing |
+| Price near target entry on watchlist ticker | **Set `add_trade_trigger` with price_below** — ensures you capture the entry next session |
+
+**Moat impairment vs. thesis error — critical distinction:**
+- *Moat impaired*: the moat existed at purchase and something has since changed to erode it (new competitor with structural cost advantage, regulatory change that eliminates pricing power, management pivot away from moat-building R&D). The business changed.
+- *Thesis error*: the moat you believed in at purchase was never there. The analysis was wrong. Evidence: retention metrics contradicting claimed switching costs, pricing power that was always absent, analyst consensus confirming no moat on close review. The business has NOT changed — your understanding of it has.
+
+These require different responses. Moat impairment is always a sell. Thesis errors require IV recalculation first — if the corrected IV (using no-moat assumptions) still shows a margin of safety, there may still be value; you just overpaid for the "moat premium." If there is no margin of safety on corrected IV, sell. Never add to a position where a thesis error has been identified — only mop up or exit.
+
+**Sell discipline:** The most common mistake is selling a wonderful business too early because the price
+feels "full". Buffett's biggest regrets are sales, not holds. A business growing intrinsic value at
+15%/year that is 30% "overvalued" today is NOT overvalued in 3 years. Only sell when the BUSINESS
+has changed — not when the PRICE has changed.
 
 **When to use `add_trade_trigger` vs `add_to_watchlist`:**
 - Use `add_to_watchlist` when the business is good but you need more price margin: you expect to wait weeks/months.
