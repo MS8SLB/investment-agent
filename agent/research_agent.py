@@ -1531,6 +1531,16 @@ def research_stocks_parallel(
     for item in tickers_with_data:
         ticker = item["ticker"].upper()
         current_price = (item.get("screener_data") or {}).get("price")
+        # If screener_data has no price, fetch one directly so the cache's
+        # price-movement check (10% threshold) isn't silently skipped.
+        if not current_price:
+            try:
+                from agent import market_data as _md
+                _q = _md.get_stock_quote(ticker)
+                if _q and "error" not in _q:
+                    current_price = _q.get("price")
+            except Exception:
+                pass
         valid, reason = _portfolio.is_research_cache_valid(ticker, current_price)
         if valid:
             cached = _portfolio.get_research_cache(ticker)
