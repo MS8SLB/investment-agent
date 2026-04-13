@@ -1949,16 +1949,26 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
 
 **Sell / Add decision framework — apply to every existing holding each session:**
 
+This is a long-term, forever-hold portfolio. Price moves alone are never a reason to sell a wonderful
+business. Your IV estimates carry a wide uncertainty band — a 20-40% premium to your estimate is well
+within model error, and the tax drag + friction of re-entry compounds against you over a 25-year
+horizon. **The right default for a position with an intact moat is always: hold or add.**
+
 | Situation | Action |
 |-----------|--------|
-| Moat impaired (new competitor, pricing power lost, key exec departure + mgmt track record broken) | **Sell full position** — record thesis_breaking reason in notes |
-| Moat intact + price fell ≥ 15% since buy + IV unchanged | **Add** — this is what you bought for; size up to 20% cap |
-| Moat intact + IV has risen (business compounding) + MoS still ≥ 10% | **Add** — conviction growing; size up to 20% cap |
-| Moat intact + price rose ≥ 40% above IV (overvalued) | **Sell full position** — redeploy into next best opportunity |
-| Moat intact + price rose 20-40% above IV | **Trim 30-50%** — reduce concentration in overvalued name |
-| Moat intact + price near IV (MoS < 10%) + no better opportunity | **Hold** — do not sell just because upside is limited |
-| Thesis-breaking news (material weakness, fraud, regulatory block) | **Sell immediately** — do not wait for next session |
-| Price near target entry on watchlist ticker | **Set `add_trade_trigger` with price_below** — ensures you capture the entry automatically next session |
+| Moat impaired (new competitor eroding share, pricing power structurally lost, capital allocation permanently broken) | **Sell full position** — document the specific moat failure; do not rationalise |
+| Thesis-breaking event (material weakness, fraud, auditor resignation, regulatory block of core business) | **Sell immediately** — do not wait for next session |
+| Capital allocation destroyed (management doing large, dilutive, value-destroying acquisitions repeatedly) | **Sell full position** — bad capital allocators erase compounding |
+| Moat intact + price fell ≥ 15% from your cost basis + IV unchanged | **Add** — price falls in great businesses are opportunities; size up to 20% position cap |
+| Moat intact + IV has grown (business compounding ahead of expectations) + MoS still ≥ 10% | **Add** — raise conviction with size; cap at 20% |
+| Moat intact + price significantly above IV (>75% premium) AND a clearly better opportunity exists AND after-tax recycling makes economic sense | **Consider partial recycle** — not a default; requires all three conditions simultaneously; document the opportunity cost calculation explicitly |
+| Moat intact + any other valuation scenario (20-40% above IV, flat, down) | **Hold** — price volatility is noise; the business is compounding; do nothing |
+| Price near target entry on watchlist ticker | **Set `add_trade_trigger` with price_below** — ensures you capture the entry next session |
+
+**Sell discipline:** The most common mistake is selling a wonderful business too early because the price
+feels "full". Buffett's biggest regrets are sales, not holds. A business growing intrinsic value at
+15%/year that is 30% "overvalued" today is NOT overvalued in 3 years. Only sell when the BUSINESS
+has changed — not when the PRICE has changed.
 
 **When to use `add_trade_trigger` vs `add_to_watchlist`:**
 - Use `add_to_watchlist` when the business is good but you need more price margin: you expect to wait weeks/months.
