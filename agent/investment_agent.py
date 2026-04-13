@@ -2050,11 +2050,18 @@ horizon. **The right default for a position with an intact moat is always: hold 
 | Moat impaired (new competitor eroding share, pricing power structurally lost, capital allocation permanently broken) | **Sell full position** — document the specific moat failure; do not rationalise |
 | Thesis-breaking event (material weakness, fraud, auditor resignation, regulatory block of core business) | **Sell immediately** — do not wait for next session |
 | Capital allocation destroyed (management doing large, dilutive, value-destroying acquisitions repeatedly) | **Sell full position** — bad capital allocators erase compounding |
+| **Thesis error — original moat assessment was wrong** (evidence now shows the moat you assumed at purchase never existed: e.g., retention data contradicts claimed switching costs, analyst research confirms no moat) | **Recalculate IV using no-moat assumptions** (shorter excess-return period, lower terminal multiple). If current price > corrected IV → sell. If current price < corrected IV → hold but reduce to half-size maximum; do not add. Document the error explicitly. |
 | Moat intact + price fell ≥ 15% from your cost basis + IV unchanged | **Add** — price falls in great businesses are opportunities; size up to 20% position cap |
 | Moat intact + IV has grown (business compounding ahead of expectations) + MoS still ≥ 10% | **Add** — raise conviction with size; cap at 20% |
 | Moat intact + price significantly above IV (>75% premium) AND a clearly better opportunity exists AND after-tax recycling makes economic sense | **Consider partial recycle** — not a default; requires all three conditions simultaneously; document the opportunity cost calculation explicitly |
 | Moat intact + any other valuation scenario (20-40% above IV, flat, down) | **Hold** — price volatility is noise; the business is compounding; do nothing |
 | Price near target entry on watchlist ticker | **Set `add_trade_trigger` with price_below** — ensures you capture the entry next session |
+
+**Moat impairment vs. thesis error — critical distinction:**
+- *Moat impaired*: the moat existed at purchase and something has since changed to erode it (new competitor with structural cost advantage, regulatory change that eliminates pricing power, management pivot away from moat-building R&D). The business changed.
+- *Thesis error*: the moat you believed in at purchase was never there. The analysis was wrong. Evidence: retention metrics contradicting claimed switching costs, pricing power that was always absent, analyst consensus confirming no moat on close review. The business has NOT changed — your understanding of it has.
+
+These require different responses. Moat impairment is always a sell. Thesis errors require IV recalculation first — if the corrected IV (using no-moat assumptions) still shows a margin of safety, there may still be value; you just overpaid for the "moat premium." If there is no margin of safety on corrected IV, sell. Never add to a position where a thesis error has been identified — only mop up or exit.
 
 **Sell discipline:** The most common mistake is selling a wonderful business too early because the price
 feels "full". Buffett's biggest regrets are sales, not holds. A business growing intrinsic value at
