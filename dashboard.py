@@ -372,7 +372,7 @@ if "PORTFOLIO" in page:
     c4.metric(
         "UNREALIZED P&L",
         fmt_usd(pnl),
-        fmt_pct(pnl_pct),
+        f"{fmt_pct(pnl_pct)} on positions",
         delta_color="normal",
     )
     c5.metric("OPEN POSITIONS", str(positions))
@@ -605,10 +605,13 @@ elif "PERFORMANCE" in page:
     beating  = spy_bench.get("beating_market", False)
 
     c1, c2, c3, c4 = st.columns(4)
+    _port_ret_delta = (
+        "VS S&P " + fmt_pct(alpha) if alpha is not None else None
+    )
     c1.metric("PORTFOLIO RETURN",
         fmt_pct(port_ret) if port_ret is not None else "N/A",
-        delta=fmt_pct(port_ret) if port_ret is not None else None,
-        delta_color="normal" if (port_ret or 0) >= 0 else "inverse",
+        delta=_port_ret_delta,
+        delta_color="normal" if (alpha or 0) >= 0 else "inverse",
     )
     c2.metric("S&P 500 RETURN",
         fmt_pct(spy_ret) if spy_ret is not None else "N/A",
