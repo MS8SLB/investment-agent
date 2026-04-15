@@ -671,25 +671,30 @@ def get_portfolio_history_from_transactions() -> list[dict]:
     ).fetchall()
     txs = [dict(t) for t in txs]
     state = conn.execute("SELECT cash FROM portfolio_state WHERE id = 1").fetchone()
-    holdings_rows = conn.execute("SELECT ticker, shares FROM holdings").fetchall()
+    holdings_rows = conn.execute("SELECT ticker, shares, avg_cost FROM holdings").fetchall()
     conn.close()
 
     if not txs:
         return []
 
-    # Reverse all transactions from current DB state to recover pre-trade state
+    # Reverse all transactions from current DB state to recover pre-trade state.
+    # Also reverse cost_basis so we can track it going forward for picks-return charts.
     cash = float(state["cash"]) if state else 100_000.0
     holdings: dict = {r["ticker"]: float(r["shares"]) for r in holdings_rows}
+    cost_basis_by_ticker: dict = {
+        r["ticker"]: float(r["shares"]) * float(r["avg_cost"]) for r in holdings_rows
+    }
     for tx in reversed(txs):
         action = tx["action"].upper()
         ticker, total, shares = tx["ticker"], float(tx["total"]), float(tx["shares"])
         if action == "BUY":
             cash += total
             holdings[ticker] = holdings.get(ticker, 0.0) - shares
+            cost_basis_by_ticker[ticker] = cost_basis_by_ticker.get(ticker, 0.0) - total
         elif action == "SELL":
             cash -= total
             holdings[ticker] = holdings.get(ticker, 0.0) + shares
-    # cash / holdings now represent state *before* the first trade.
+    # cash / holdings / cost_basis_by_ticker now represent state *before* the first trade.
 
     # Fetch historical closes for every ticker that was ever held.
     import yfinance as yf
@@ -735,9 +740,15 @@ def get_portfolio_history_from_transactions() -> list[dict]:
             if action == "BUY":
                 cash -= total
                 holdings[ticker] = holdings.get(ticker, 0.0) + shares
+                cost_basis_by_ticker[ticker] = cost_basis_by_ticker.get(ticker, 0.0) + total
             elif action == "SELL":
+                # Remove cost proportionally to shares sold
+                current_shares = holdings.get(ticker, 0.0)
+                if current_shares > 0:
+                    avg_cb = cost_basis_by_ticker.get(ticker, 0.0) / current_shares
+                    cost_basis_by_ticker[ticker] -= avg_cb * shares
                 cash += total
-                holdings[ticker] = holdings.get(ticker, 0.0) - shares
+                holdings[ticker] = max(0.0, holdings.get(ticker, 0.0) - shares)
 
         # Value all holdings at close price on or before this date.
         equity_value = 0.0
@@ -751,9 +762,16 @@ def get_portfolio_history_from_transactions() -> list[dict]:
                     equity_value += n_shares * prices[check]
                     break
 
+        total_cost_basis = sum(v for v in cost_basis_by_ticker.values() if v > 0)
         pv = cash + equity_value
         if pv > 0:
-            result.append({"ts": date_str + "T16:00:00", "portfolio_value": pv})
+            result.append({
+                "ts": date_str + "T16:00:00",
+                "portfolio_value": pv,
+                "equity_value": round(equity_value, 2),
+                "cost_basis": round(total_cost_basis, 2),
+                "cash": round(cash, 2),
+            })
 
     return result
 
