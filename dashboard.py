@@ -550,15 +550,17 @@ elif "PERFORMANCE" in page:
         # Auto-snapshot: only record if trades have been made (pre-trade
         # snapshots are meaningless for performance comparison).
         first_trade_date = get_first_trade_date()
+        equity_val   = 0.0
+        cost_basis_val = 0.0
         try:
             if first_trade_date:
                 holdings = get_holdings()
                 cash_val = get_cash()
-                equity_val = 0.0
                 for h in holdings:
                     q = get_stock_quote(h["ticker"])
                     price = q.get("price") or h.get("avg_cost", 0)
-                    equity_val += h["shares"] * price
+                    equity_val    += h["shares"] * price
+                    cost_basis_val += h["shares"] * h["avg_cost"]
                 port_value = cash_val + equity_val
                 spy_q = get_stock_quote("^GSPC")
                 spy_price = spy_q.get("price")
@@ -599,27 +601,31 @@ elif "PERFORMANCE" in page:
     drawdown = metrics.get("max_drawdown_pct")
     vol      = metrics.get("annualised_volatility_pct")
     ann_ret  = metrics.get("annualised_return_pct")
-    port_ret = spy_bench.get("portfolio_return_pct") if spy_bench.get("available") else None
-    spy_ret  = spy_bench.get("spy_return_pct")       if spy_bench.get("available") else None
-    alpha    = spy_bench.get("alpha_pct")             if spy_bench.get("available") else None
-    beating  = spy_bench.get("beating_market", False)
+    spy_ret  = spy_bench.get("spy_return_pct") if spy_bench.get("available") else None
+
+    # Stock-picks return: unrealized gain on deployed capital only.
+    # This answers "did my selections beat the market?" independent of
+    # how much cash the portfolio happens to be holding.
+    picks_ret = (
+        round((equity_val - cost_basis_val) / cost_basis_val * 100, 2)
+        if cost_basis_val > 0 else None
+    )
+    picks_alpha   = round(picks_ret - spy_ret, 2) if (picks_ret is not None and spy_ret is not None) else None
+    picks_beating = (picks_alpha or 0) > 0
 
     c1, c2, c3, c4 = st.columns(4)
-    _port_ret_delta = (
-        "VS S&P " + fmt_pct(alpha) if alpha is not None else None
-    )
-    c1.metric("PORTFOLIO RETURN",
-        fmt_pct(port_ret) if port_ret is not None else "N/A",
-        delta=_port_ret_delta,
-        delta_color="normal" if (alpha or 0) >= 0 else "inverse",
+    c1.metric("STOCK PICKS RETURN",
+        fmt_pct(picks_ret) if picks_ret is not None else "N/A",
+        delta=("VS S&P " + fmt_pct(picks_alpha)) if picks_alpha is not None else None,
+        delta_color="normal" if picks_beating else "inverse",
     )
     c2.metric("S&P 500 RETURN",
         fmt_pct(spy_ret) if spy_ret is not None else "N/A",
     )
     c3.metric("ALPHA VS S&P 500",
-        fmt_pct(alpha) if alpha is not None else "N/A",
-        "OUTPERFORMING" if beating else ("UNDERPERFORMING" if alpha is not None else None),
-        delta_color="normal" if beating else "inverse",
+        fmt_pct(picks_alpha) if picks_alpha is not None else "N/A",
+        "OUTPERFORMING" if picks_beating else ("UNDERPERFORMING" if picks_alpha is not None else None),
+        delta_color="normal" if picks_beating else "inverse",
     )
     _span = metrics.get("span_days", 0)
     c4.metric("SHARPE RATIO",
