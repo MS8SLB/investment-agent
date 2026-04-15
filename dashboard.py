@@ -372,7 +372,7 @@ if "PORTFOLIO" in page:
     c4.metric(
         "UNREALIZED P&L",
         fmt_usd(pnl),
-        fmt_pct(pnl_pct),
+        f"{fmt_pct(pnl_pct)} on positions",
         delta_color="normal",
     )
     c5.metric("OPEN POSITIONS", str(positions))
@@ -550,15 +550,17 @@ elif "PERFORMANCE" in page:
         # Auto-snapshot: only record if trades have been made (pre-trade
         # snapshots are meaningless for performance comparison).
         first_trade_date = get_first_trade_date()
+        equity_val   = 0.0
+        cost_basis_val = 0.0
         try:
             if first_trade_date:
                 holdings = get_holdings()
                 cash_val = get_cash()
-                equity_val = 0.0
                 for h in holdings:
                     q = get_stock_quote(h["ticker"])
                     price = q.get("price") or h.get("avg_cost", 0)
-                    equity_val += h["shares"] * price
+                    equity_val    += h["shares"] * price
+                    cost_basis_val += h["shares"] * h["avg_cost"]
                 port_value = cash_val + equity_val
                 spy_q = get_stock_quote("^GSPC")
                 spy_price = spy_q.get("price")
@@ -599,24 +601,31 @@ elif "PERFORMANCE" in page:
     drawdown = metrics.get("max_drawdown_pct")
     vol      = metrics.get("annualised_volatility_pct")
     ann_ret  = metrics.get("annualised_return_pct")
-    port_ret = spy_bench.get("portfolio_return_pct") if spy_bench.get("available") else None
-    spy_ret  = spy_bench.get("spy_return_pct")       if spy_bench.get("available") else None
-    alpha    = spy_bench.get("alpha_pct")             if spy_bench.get("available") else None
-    beating  = spy_bench.get("beating_market", False)
+    spy_ret  = spy_bench.get("spy_return_pct") if spy_bench.get("available") else None
+
+    # Stock-picks return: unrealized gain on deployed capital only.
+    # This answers "did my selections beat the market?" independent of
+    # how much cash the portfolio happens to be holding.
+    picks_ret = (
+        round((equity_val - cost_basis_val) / cost_basis_val * 100, 2)
+        if cost_basis_val > 0 else None
+    )
+    picks_alpha   = round(picks_ret - spy_ret, 2) if (picks_ret is not None and spy_ret is not None) else None
+    picks_beating = (picks_alpha or 0) > 0
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("PORTFOLIO RETURN",
-        fmt_pct(port_ret) if port_ret is not None else "N/A",
-        delta=fmt_pct(port_ret) if port_ret is not None else None,
-        delta_color="normal" if (port_ret or 0) >= 0 else "inverse",
+    c1.metric("STOCK PICKS RETURN",
+        fmt_pct(picks_ret) if picks_ret is not None else "N/A",
+        delta=("VS S&P " + fmt_pct(picks_alpha)) if picks_alpha is not None else None,
+        delta_color="normal" if picks_beating else "inverse",
     )
     c2.metric("S&P 500 RETURN",
         fmt_pct(spy_ret) if spy_ret is not None else "N/A",
     )
     c3.metric("ALPHA VS S&P 500",
-        fmt_pct(alpha) if alpha is not None else "N/A",
-        "OUTPERFORMING" if beating else ("UNDERPERFORMING" if alpha is not None else None),
-        delta_color="normal" if beating else "inverse",
+        fmt_pct(picks_alpha) if picks_alpha is not None else "N/A",
+        "OUTPERFORMING" if picks_beating else ("UNDERPERFORMING" if picks_alpha is not None else None),
+        delta_color="normal" if picks_beating else "inverse",
     )
     _span = metrics.get("span_days", 0)
     c4.metric("SHARPE RATIO",
@@ -687,9 +696,39 @@ elif "PERFORMANCE" in page:
 
         df = df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
 
-        # Normalise portfolio to % return from first point
-        base_port = df["portfolio_value"].iloc[0]
-        df["port_pct"] = (df["portfolio_value"] / base_port - 1) * 100
+        # Build a date→{equity_value, cost_basis} lookup from the reconstructed history.
+        # Snapshot rows that override reconstructed rows (in chart_snapshots) may lack
+        # these fields; fill them in from the reconstruction so the chart is complete.
+        _recon_by_date = {
+            r["ts"][:10]: {"equity_value": r.get("equity_value"), "cost_basis": r.get("cost_basis")}
+            for r in recon_history
+            if r.get("equity_value") is not None
+        }
+
+        def _get_equity(row):
+            d = str(row["ts"].date())
+            ev = _recon_by_date.get(d, {}).get("equity_value")
+            return ev if ev is not None else float("nan")
+
+        def _get_cost_basis(row):
+            d = str(row["ts"].date())
+            cb = _recon_by_date.get(d, {}).get("cost_basis")
+            return cb if cb is not None else 0.0
+
+        df["equity_value"] = df.apply(_get_equity, axis=1)
+        df["cost_basis"]   = df.apply(_get_cost_basis, axis=1)
+        # Forward-fill cost_basis for any gaps (cost basis only changes on trade days)
+        df["cost_basis"] = df["cost_basis"].replace(0, float("nan")).ffill().fillna(0)
+
+        # Stock-picks return: (equity_market_value − cost_basis) / cost_basis
+        # This matches the STOCK PICKS RETURN metric card and is independent of cash.
+        # NaN equity_value rows (e.g. weekend snapshots with no reconstruction data)
+        # produce NaN here — Plotly skips them cleanly (no false spikes).
+        df["port_pct"] = df.apply(
+            lambda r: round((r["equity_value"] - r["cost_basis"]) / r["cost_basis"] * 100, 4)
+            if (r["cost_basis"] > 0 and pd.notna(r["equity_value"])) else float("nan"),
+            axis=1,
+        )
 
         # ── SPY line: fetch ^GSPC history directly from yfinance ─────────────
         # Normalize against the intraday ^GSPC price at the exact trade time
@@ -857,8 +896,12 @@ elif "PERFORMANCE" in page:
         # ── Drawdown sub-chart ────────────────────────────────────────────────
         section("DRAWDOWN FROM PEAK")
 
-        df["port_peak"]     = df["portfolio_value"].cummax()
-        df["port_drawdown"] = (df["portfolio_value"] / df["port_peak"] - 1) * 100
+        # Use equity_value for drawdown so it reflects actual position losses,
+        # not cash buffering (cash never drawdowns, masking real position pain).
+        _dd_series = df["equity_value"].replace(0, float("nan")).ffill().fillna(0)
+        df["port_peak"]     = _dd_series.cummax()
+        df["port_drawdown"] = (_dd_series / df["port_peak"].replace(0, float("nan")) - 1) * 100
+        df["port_drawdown"] = df["port_drawdown"].fillna(0)
 
         fig_dd = go.Figure()
 
@@ -906,11 +949,40 @@ elif "PERFORMANCE" in page:
 
         # ── Rolling returns bar chart ─────────────────────────────────────────
         section("ROLLING RETURNS VS S&P 500")
-        rolling   = metrics.get("rolling", {})
-        periods   = ["1m", "3m", "6m"]
-        rlabels   = ["1 MONTH", "3 MONTHS", "6 MONTHS"]
-        port_vals = [rolling.get(p, {}).get("portfolio_pct") for p in periods]
-        spy_vals  = [rolling.get(p, {}).get("benchmark_pct") for p in periods]
+        rolling  = metrics.get("rolling", {})
+        periods  = ["1m", "3m", "6m"]
+        rlabels  = ["1 MONTH", "3 MONTHS", "6 MONTHS"]
+        spy_vals = [rolling.get(p, {}).get("benchmark_pct") for p in periods]
+
+        # Compute rolling picks-return from the full (unfiltered) reconstructed df
+        # so the 1/3/6m windows aren't clipped by the range selector.
+        _all_src = chart_snapshots if chart_snapshots else snapshots
+        _all_df  = pd.DataFrame(_all_src)
+        if not _all_df.empty:
+            _all_df["ts"] = pd.to_datetime(_all_df["ts"], format="ISO8601")
+            _all_df = _all_df.sort_values("ts").drop_duplicates(subset="ts").reset_index(drop=True)
+            _all_df["equity_value"] = _all_df.apply(_get_equity, axis=1)
+            _all_df["cost_basis"]   = _all_df.apply(_get_cost_basis, axis=1)
+            _all_df["cost_basis"]   = _all_df["cost_basis"].replace(0, float("nan")).ffill().fillna(0)
+            _all_df["picks_pct"]    = _all_df.apply(
+                lambda r: (r["equity_value"] - r["cost_basis"]) / r["cost_basis"] * 100
+                if (r["cost_basis"] > 0 and pd.notna(r["equity_value"])) else float("nan"),
+                axis=1,
+            )
+            _now = _all_df["ts"].max()
+
+            def _rolling_picks(days):
+                _cutoff = _now - pd.Timedelta(days=days)
+                _sub = _all_df[_all_df["ts"] >= _cutoff].dropna(subset=["picks_pct"])
+                if len(_sub) < 2:
+                    return None
+                _start = _sub["picks_pct"].iloc[0]
+                _end   = _sub["picks_pct"].iloc[-1]
+                return round(_end - _start, 2)
+
+            port_vals = [_rolling_picks(30), _rolling_picks(90), _rolling_picks(180)]
+        else:
+            port_vals = [None, None, None]
 
         if any(v is not None for v in port_vals):
             fig2 = go.Figure()
