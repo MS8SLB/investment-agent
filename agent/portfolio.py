@@ -677,33 +677,47 @@ def get_portfolio_history_from_transactions() -> list[dict]:
     if not txs:
         return []
 
-    # Reverse all transactions from current DB state to recover pre-trade state.
-    # Also reverse cost_basis so we can track it going forward for picks-return charts.
-    cash = float(state["cash"]) if state else 100_000.0
-    holdings: dict = {r["ticker"]: float(r["shares"]) for r in holdings_rows}
-    cost_basis_by_ticker: dict = {
-        r["ticker"]: float(r["shares"]) * float(r["avg_cost"]) for r in holdings_rows
+    # ── Current holdings: used for the picks-return chart series ─────────────
+    # equity_value on any date D = sum(shares_i × close_D for current holdings)
+    # cost_basis = constant = sum(shares_i × avg_cost_i for current holdings)
+    # This matches the STOCK PICKS RETURN metric card exactly and avoids the
+    # complexity of tracking cost_basis through a transaction replay (which
+    # breaks with non-standard actions like THESIS_ERROR_CORRECTION).
+    current_holdings = {
+        r["ticker"]: {"shares": float(r["shares"]), "avg_cost": float(r["avg_cost"])}
+        for r in holdings_rows
     }
+    total_cost_basis = round(
+        sum(v["shares"] * v["avg_cost"] for v in current_holdings.values()), 2
+    )
+
+    # ── Transaction replay state for portfolio_value (cash tracking) ──────────
+    cash = float(state["cash"]) if state else 100_000.0
+    replay_holdings: dict = {r["ticker"]: float(r["shares"]) for r in holdings_rows}
     for tx in reversed(txs):
         action = tx["action"].upper()
         ticker, total, shares = tx["ticker"], float(tx["total"]), float(tx["shares"])
         if action == "BUY":
             cash += total
-            holdings[ticker] = holdings.get(ticker, 0.0) - shares
-            cost_basis_by_ticker[ticker] = cost_basis_by_ticker.get(ticker, 0.0) - total
+            replay_holdings[ticker] = replay_holdings.get(ticker, 0.0) - shares
         elif action == "SELL":
             cash -= total
-            holdings[ticker] = holdings.get(ticker, 0.0) + shares
-    # cash / holdings / cost_basis_by_ticker now represent state *before* the first trade.
+            replay_holdings[ticker] = replay_holdings.get(ticker, 0.0) + shares
+        elif action == "THESIS_ERROR_CORRECTION":
+            # Undo the cash return so we can replay it forward correctly
+            cash -= total
+            replay_holdings[ticker] = replay_holdings.get(ticker, 0.0) + shares
 
-    # Fetch historical closes for every ticker that was ever held.
+    # Fetch historical closes for current holdings (picks chart) and all
+    # tickers ever held (portfolio_value reconstruction).
     import yfinance as yf
     tickers_ever = list(set(t["ticker"] for t in txs))
+    tickers_needed = list(set(tickers_ever) | set(current_holdings.keys()))
     start_date = txs[0]["ts"][:10]
     end_str = (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
 
     price_data: dict = {}   # ticker -> {date_str -> float}
-    for ticker in tickers_ever:
+    for ticker in tickers_needed:
         try:
             hist = yf.Ticker(ticker).history(start=start_date, end=end_str)
             if not hist.empty:
@@ -716,13 +730,12 @@ def get_portfolio_history_from_transactions() -> list[dict]:
         except Exception:
             pass
 
-    # Group transactions by date for efficient replay.
+    # Group transactions by date for cash/portfolio_value replay.
     txs_by_date: dict = {}
     for tx in txs:
         txs_by_date.setdefault(tx["ts"][:10], []).append(tx)
 
-    # Walk every business day from first trade to today, applying transactions
-    # and computing end-of-day portfolio value.
+    # Walk every business day from first trade to today.
     try:
         import pandas as pd
         trade_dates = pd.bdate_range(start=start_date, end=datetime.utcnow().date())
@@ -733,43 +746,52 @@ def get_portfolio_history_from_transactions() -> list[dict]:
     for date in trade_dates:
         date_str = date.date().isoformat()
 
-        # Apply transactions that occurred on this date.
+        # Apply transactions for cash/portfolio_value replay.
         for tx in txs_by_date.get(date_str, []):
             action = tx["action"].upper()
             ticker, total, shares = tx["ticker"], float(tx["total"]), float(tx["shares"])
             if action == "BUY":
                 cash -= total
-                holdings[ticker] = holdings.get(ticker, 0.0) + shares
-                cost_basis_by_ticker[ticker] = cost_basis_by_ticker.get(ticker, 0.0) + total
+                replay_holdings[ticker] = replay_holdings.get(ticker, 0.0) + shares
             elif action == "SELL":
-                # Remove cost proportionally to shares sold
-                current_shares = holdings.get(ticker, 0.0)
-                if current_shares > 0:
-                    avg_cb = cost_basis_by_ticker.get(ticker, 0.0) / current_shares
-                    cost_basis_by_ticker[ticker] -= avg_cb * shares
                 cash += total
-                holdings[ticker] = max(0.0, holdings.get(ticker, 0.0) - shares)
+                replay_holdings[ticker] = max(0.0, replay_holdings.get(ticker, 0.0) - shares)
+            elif action == "THESIS_ERROR_CORRECTION":
+                # Replay the cash return; shares already zeroed by prior BUY replay
+                cash += total
+                replay_holdings[ticker] = max(0.0, replay_holdings.get(ticker, 0.0) - shares)
 
-        # Value all holdings at close price on or before this date.
-        equity_value = 0.0
-        for ticker, n_shares in holdings.items():
+        def _get_close(tkr, d):
+            prices = price_data.get(tkr, {})
+            for days_back in range(6):
+                check = (d - pd.Timedelta(days=days_back)).date().isoformat()
+                if check in prices:
+                    return prices[check]
+            return None
+
+        # picks equity: current holdings only (constant shares and avg_cost basis)
+        picks_equity = 0.0
+        for ticker, info in current_holdings.items():
+            p = _get_close(ticker, date)
+            if p is not None:
+                picks_equity += info["shares"] * p
+
+        # portfolio_value: all replay holdings at close price (for snapshot saving)
+        full_equity = 0.0
+        for ticker, n_shares in replay_holdings.items():
             if n_shares <= 0:
                 continue
-            prices = price_data.get(ticker, {})
-            for days_back in range(6):   # look back up to 5 days for holidays / weekends
-                check = (date - pd.Timedelta(days=days_back)).date().isoformat()
-                if check in prices:
-                    equity_value += n_shares * prices[check]
-                    break
+            p = _get_close(ticker, date)
+            if p is not None:
+                full_equity += n_shares * p
 
-        total_cost_basis = sum(v for v in cost_basis_by_ticker.values() if v > 0)
-        pv = cash + equity_value
+        pv = cash + full_equity
         if pv > 0:
             result.append({
                 "ts": date_str + "T16:00:00",
-                "portfolio_value": pv,
-                "equity_value": round(equity_value, 2),
-                "cost_basis": round(total_cost_basis, 2),
+                "portfolio_value": round(pv, 2),
+                "equity_value": round(picks_equity, 2),
+                "cost_basis": total_cost_basis,   # constant — same every day
                 "cash": round(cash, 2),
             })
 

@@ -707,12 +707,8 @@ elif "PERFORMANCE" in page:
 
         def _get_equity(row):
             d = str(row["ts"].date())
-            if _recon_by_date.get(d, {}).get("equity_value") is not None:
-                return _recon_by_date[d]["equity_value"]
-            # Snapshot row fallback: equity = total − cash
-            if pd.notna(row.get("cash")):
-                return row["portfolio_value"] - row["cash"]
-            return row.get("invested_value") or 0.0
+            ev = _recon_by_date.get(d, {}).get("equity_value")
+            return ev if ev is not None else float("nan")
 
         def _get_cost_basis(row):
             d = str(row["ts"].date())
@@ -726,9 +722,11 @@ elif "PERFORMANCE" in page:
 
         # Stock-picks return: (equity_market_value − cost_basis) / cost_basis
         # This matches the STOCK PICKS RETURN metric card and is independent of cash.
+        # NaN equity_value rows (e.g. weekend snapshots with no reconstruction data)
+        # produce NaN here — Plotly skips them cleanly (no false spikes).
         df["port_pct"] = df.apply(
             lambda r: round((r["equity_value"] - r["cost_basis"]) / r["cost_basis"] * 100, 4)
-            if r["cost_basis"] > 0 else 0.0,
+            if (r["cost_basis"] > 0 and pd.notna(r["equity_value"])) else float("nan"),
             axis=1,
         )
 
@@ -968,13 +966,14 @@ elif "PERFORMANCE" in page:
             _all_df["cost_basis"]   = _all_df["cost_basis"].replace(0, float("nan")).ffill().fillna(0)
             _all_df["picks_pct"]    = _all_df.apply(
                 lambda r: (r["equity_value"] - r["cost_basis"]) / r["cost_basis"] * 100
-                if r["cost_basis"] > 0 else 0.0, axis=1,
+                if (r["cost_basis"] > 0 and pd.notna(r["equity_value"])) else float("nan"),
+                axis=1,
             )
             _now = _all_df["ts"].max()
 
             def _rolling_picks(days):
                 _cutoff = _now - pd.Timedelta(days=days)
-                _sub = _all_df[_all_df["ts"] >= _cutoff]
+                _sub = _all_df[_all_df["ts"] >= _cutoff].dropna(subset=["picks_pct"])
                 if len(_sub) < 2:
                     return None
                 _start = _sub["picks_pct"].iloc[0]
