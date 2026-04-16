@@ -735,6 +735,15 @@ def get_portfolio_history_from_transactions() -> list[dict]:
     for tx in txs:
         txs_by_date.setdefault(tx["ts"][:10], []).append(tx)
 
+    # First BUY date of any current holding — picks chart only makes sense
+    # from when the positions were actually purchased, not from earlier
+    # transactions (e.g. THESIS_ERROR_CORRECTION on a removed position).
+    picks_start_date = min(
+        (tx["ts"][:10] for tx in txs
+         if tx["action"].upper() == "BUY" and tx["ticker"] in current_holdings),
+        default=start_date,
+    )
+
     # Walk every business day from first trade to today.
     try:
         import pandas as pd
@@ -787,11 +796,16 @@ def get_portfolio_history_from_transactions() -> list[dict]:
 
         pv = cash + full_equity
         if pv > 0:
+            # Only expose picks equity/cost_basis from the first date any
+            # current holding was actually purchased.  Before that date the
+            # retroactive pricing would compare current avg_cost against
+            # pre-purchase historical prices, producing a misleading return.
+            in_picks_window = date_str >= picks_start_date
             result.append({
                 "ts": date_str + "T16:00:00",
                 "portfolio_value": round(pv, 2),
-                "equity_value": round(picks_equity, 2),
-                "cost_basis": total_cost_basis,   # constant — same every day
+                "equity_value": round(picks_equity, 2) if in_picks_window and picks_equity > 0 else None,
+                "cost_basis": total_cost_basis if in_picks_window else None,
                 "cash": round(cash, 2),
             })
 

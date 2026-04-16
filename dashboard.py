@@ -755,10 +755,12 @@ elif "PERFORMANCE" in page:
                         "benchmark_price": _gspc["Close"].values,
                     })
                     spy_df = spy_df.sort_values("ts")
-                    # Keep only rows on/after the first trade date
-                    spy_df = spy_df[
-                        spy_df["ts"] >= pd.Timestamp(first_trade_date)
-                    ].copy()
+                    # Align S&P start to the first date the portfolio picks
+                    # line has valid data (i.e. first BUY of a current holding),
+                    # so both lines begin at the same x-axis point on the chart.
+                    _first_picks_ts = df.loc[df["port_pct"].notna(), "ts"].min()
+                    _spy_start = _first_picks_ts if pd.notna(_first_picks_ts) else pd.Timestamp(first_trade_date)
+                    spy_df = spy_df[spy_df["ts"] >= _spy_start].copy()
                     if _RANGES[_sel] is not None:
                         spy_df = spy_df[spy_df["ts"] >= _cutoff].copy()
                     spy_df = spy_df.drop_duplicates(subset="ts").sort_values("ts").reset_index(drop=True)
