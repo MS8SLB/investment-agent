@@ -2037,6 +2037,8 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
   | moat confirmed AND MoS ≥ mos_threshold_pct AND bear_verdict = "proceed" | `buy_stock` at full recommended size |
   | moat confirmed AND MoS ≥ mos_threshold_pct AND bear_verdict = "caution" | `buy_stock` at **half** recommended size |
   | moat confirmed AND MoS < mos_threshold_pct | `add_to_watchlist` at price = IV × (1 − mos_threshold_pct/100) |
+  | moat confirmed AND MoS ≥ mos_threshold_pct AND `check_concentration_limits` hard-blocks (sector >40% or position >10%) | `add_to_watchlist` — do NOT skip or shadow. Note reason: "concentration limit — revisit when sector weight drops or existing position exits." |
+  | moat confirmed AND MoS ≥ mos_threshold_pct AND `check_concentration_limits` soft-warns (sector 30–40%) | Write justification (moat data, quality rationale, -30% stress test). If all three pass: buy. If not: `add_to_watchlist`. Never silently drop a quality business because the sector is heavy. |
 
 - Position sizing: call `get_conviction_position_size` with the report's conviction_score, current
   regime, and portfolio equity. Use the returned `recommended_dollars` for full-size buys,
