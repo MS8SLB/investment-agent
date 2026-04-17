@@ -557,7 +557,13 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_sector_exposure",
-        "description": "Return current portfolio weights broken down by GICS sector.",
+        "description": (
+            "Return current portfolio sector weights. Each sector entry includes "
+            "weight_pct_of_portfolio (sector / cash + equity — matches check_concentration_limits "
+            "denominator; use THIS for cap decisions) and weight_pct_of_equity (for reference only). "
+            "Always use weight_pct_of_portfolio when deciding whether a new buy would breach the "
+            "30% soft or 40% hard sector cap — never use weight_pct_of_equity."
+        ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
@@ -2754,7 +2760,13 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_sector_exposure",
-        "description": "Return current portfolio weights broken down by GICS sector.",
+        "description": (
+            "Return current portfolio sector weights. Each sector entry includes "
+            "weight_pct_of_portfolio (sector / cash + equity — matches check_concentration_limits "
+            "denominator; use THIS for cap decisions) and weight_pct_of_equity (for reference only). "
+            "Always use weight_pct_of_portfolio when deciding whether a new buy would breach the "
+            "30% soft or 40% hard sector cap — never use weight_pct_of_equity."
+        ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
@@ -3546,7 +3558,8 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "get_sector_exposure":
         holdings = portfolio.get_holdings()
-        return market_data.get_sector_exposure(holdings)
+        cash = portfolio.get_cash()
+        return market_data.get_sector_exposure(holdings, cash=cash)
 
     elif tool_name == "add_to_watchlist":
         return portfolio.add_to_watchlist(

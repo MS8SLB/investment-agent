@@ -1816,14 +1816,16 @@ def get_macro_environment() -> dict:
     return result
 
 
-def get_sector_exposure(holdings: list[dict]) -> dict:
+def get_sector_exposure(holdings: list[dict], cash: float = 0.0) -> dict:
     """
     Compute current sector breakdown of the portfolio by market value.
     holdings: list of {ticker, shares, avg_cost} dicts (from get_holdings()).
+    cash: current portfolio cash — included in total so weights match
+          check_concentration_limits (which also uses cash + equity as denominator).
     Returns sector weights so the agent can see concentration before new buys.
     """
     if not holdings:
-        return {"sector_breakdown": [], "total_invested": 0, "note": "No holdings."}
+        return {"sector_breakdown": [], "total_invested": 0, "total_portfolio": round(cash, 2), "note": "No holdings."}
 
     def _fetch(h: dict) -> dict:
         ticker = h["ticker"]
@@ -1847,7 +1849,8 @@ def get_sector_exposure(holdings: list[dict]) -> dict:
         for future in as_completed(futures):
             holding_data.append(future.result())
 
-    total_value = sum(h["market_value"] for h in holding_data)
+    total_invested = sum(h["market_value"] for h in holding_data)
+    total_portfolio = total_invested + cash  # matches check_concentration_limits denominator
 
     sector_map: dict[str, dict] = {}
     for h in holding_data:
@@ -1863,7 +1866,8 @@ def get_sector_exposure(holdings: list[dict]) -> dict:
                 "sector": sector,
                 "tickers": sorted(data["tickers"]),
                 "market_value": round(data["total_value"], 2),
-                "weight_pct": round(data["total_value"] / total_value * 100, 1) if total_value else 0,
+                "weight_pct_of_portfolio": round(data["total_value"] / total_portfolio * 100, 1) if total_portfolio else 0,
+                "weight_pct_of_equity": round(data["total_value"] / total_invested * 100, 1) if total_invested else 0,
             }
             for sector, data in sector_map.items()
         ],
@@ -1872,10 +1876,14 @@ def get_sector_exposure(holdings: list[dict]) -> dict:
 
     return {
         "sector_breakdown": breakdown,
-        "total_invested": round(total_value, 2),
+        "total_invested": round(total_invested, 2),
+        "total_portfolio": round(total_portfolio, 2),
+        "cash": round(cash, 2),
         "note": (
-            "Weights are % of invested value (cash excluded). "
-            "Use this before new buys to avoid over-concentrating in one sector."
+            "weight_pct_of_portfolio = sector / (equity + cash) — this is what "
+            "check_concentration_limits uses as its denominator. Use this figure "
+            "to assess whether a new buy would breach the 30% soft or 40% hard sector cap. "
+            "weight_pct_of_equity is shown for reference only — do NOT use it for cap decisions."
         ),
     }
 
