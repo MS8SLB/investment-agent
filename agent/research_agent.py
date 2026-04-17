@@ -975,10 +975,14 @@ Work through these in order:
    confidence. Report the embedded growth assumption from the reverse DCF in `full_thesis` when
    this technique is applied.
 
-   Overvaluation threshold: if the current price is significantly above fair value (IRR at
-   current price is below the discount rate, e.g. <8%), this is an outright PASS — not a
-   watchlist entry. A good business at a 30-40% premium to fair value has no margin of safety
-   to exploit. Recommend "pass" with a note: "business quality confirmed; price is the problem."
+   Overvaluation threshold: if the current price is significantly above fair value (IRR < 8%),
+   the correct action depends on moat quality:
+   - Moat confirmed AND IRR < 8%: recommend "watchlist" with target entry price = IV × 0.80
+     (20% margin of safety). Note: "business quality confirmed; price is the problem — revisit
+     on pullback." Do NOT recommend "pass" for a wonderful business just because it is overpriced.
+   - No confirmed moat OR fundamentals too weak: recommend "pass".
+   A wonderful business at the wrong price is a future opportunity. A no-moat business at any
+   price is a permanent pass.
    **Relative valuation is not intrinsic value**: "cheap vs. the market" or "cheap vs. peers" is
    not a margin of safety. A stock at 30x P/E is not attractive simply because the market trades
    at 30x — in a bear market, absolute valuations compress regardless of relative positioning.
@@ -1310,11 +1314,10 @@ Recommendation guide:
 - "buy": moat is clear and durable, price is ≥20% below your intrinsic value estimate,
   management is trustworthy, no major red flags, AND estimated IRR at current price ≥ 15%.
   Conviction score ≥ 7.
-- "watchlist": you like the business and the moat is real, but the current price does not offer
-  the required margin of safety (IRR 12-15% or margin of safety <20%), OR earnings risk is
-  imminent. Set target_entry_price to your intrinsic value × 0.80 (the price that gives 20%
-  margin of safety and ~13-15% IRR). Note whether this is "waiting for price" or "waiting for
-  earnings to pass".
+- "watchlist": moat is real but price does not offer the required margin of safety — ANY level
+  of overvaluation, including IRR well below 8%. A wonderful business at a bad price is a
+  future opportunity, not a pass. Set target_entry_price to intrinsic value × 0.80. Note:
+  "waiting for price" or "waiting for earnings to pass" as appropriate.
 - "pass": no identifiable moat, or fundamentals are too weak, or the thesis is unclear,
   or serious red flags (governance, fraud risk, balance sheet distress), or IRR < 10% even
   at a 20% discount to current price.
