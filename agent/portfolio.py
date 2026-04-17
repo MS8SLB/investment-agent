@@ -2072,11 +2072,18 @@ def check_concentration_limits(
     sector: str,
     buy_amount: float,
     max_position_pct: float = 0.10,
-    max_sector_pct: float = 0.30,
+    max_sector_pct: float = 0.40,
+    soft_sector_pct: float = 0.30,
 ) -> dict:
     """
     Check if a proposed buy would breach concentration limits.
     Call this before executing any buy order.
+
+    Sector limits operate in two tiers:
+      soft_sector_pct (default 30%): triggers a WARNING — agent must write
+        explicit justification (confirmed moat, quality rationale, -30% stress
+        test) before proceeding.
+      max_sector_pct (default 40%): hard block regardless of quality.
     """
     from agent import market_data as _market_data
 
@@ -2135,6 +2142,7 @@ def check_concentration_limits(
     post_sector_pct = (current_sector_value + buy_amount) / new_total
 
     violations = []
+    warnings = []
     if post_pos_pct > max_position_pct:
         violations.append(
             f"Position limit breach: {ticker_upper} would be {post_pos_pct:.1%} of portfolio "
@@ -2142,8 +2150,15 @@ def check_concentration_limits(
         )
     if post_sector_pct > max_sector_pct:
         violations.append(
-            f"Sector limit breach: {sector} would be {post_sector_pct:.1%} of portfolio "
-            f"(max {max_sector_pct:.0%})"
+            f"Sector hard-cap breach: {sector} would be {post_sector_pct:.1%} of portfolio "
+            f"(hard max {max_sector_pct:.0%} — no override permitted)"
+        )
+    elif post_sector_pct > soft_sector_pct:
+        warnings.append(
+            f"Sector concentration warning: {sector} would be {post_sector_pct:.1%} of portfolio "
+            f"(soft limit {soft_sector_pct:.0%}). Proceed only with written justification: "
+            f"(1) confirmed moat type and data, (2) quality rationale for overweight, "
+            f"(3) stress-test: portfolio impact if {sector} reprices -30%."
         )
 
     max_by_position = max(0.0, max_position_pct * new_total - current_pos_value)
@@ -2160,7 +2175,9 @@ def check_concentration_limits(
 
     return {
         "allowed": len(violations) == 0,
+        "requires_justification": len(warnings) > 0,
         "violations": violations,
+        "warnings": warnings,
         "current_position_pct": round(current_pos_value / total_value, 4),
         "current_sector_pct": round(current_sector_value / total_value, 4),
         "post_buy_position_pct": round(post_pos_pct, 4),

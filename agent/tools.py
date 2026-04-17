@@ -1091,8 +1091,10 @@ TOOL_DEFINITIONS = [
     {
         "name": "check_concentration_limits",
         "description": (
-            "Return whether a proposed buy would breach position (>10%) or sector (>30%) "
-            "concentration limits, and the max_allowed_buy that stays within limits."
+            "Return whether a proposed buy would breach concentration limits. "
+            "Position hard cap: 10%. Sector: soft warning at 30% (requires_justification=True — "
+            "write moat confirmation, quality rationale, and -30% sector stress test before proceeding), "
+            "hard block at 40% (no override). Also returns max_allowed_buy within hard limits."
         ),
         "input_schema": {
             "type": "object",
@@ -1724,8 +1726,10 @@ _MODEL_TIERS = [
     {
         "name": "check_concentration_limits",
         "description": (
-            "Return whether a proposed buy would breach position (>10%) or sector (>30%) "
-            "concentration limits, and the max_allowed_buy that stays within limits."
+            "Return whether a proposed buy would breach concentration limits. "
+            "Position hard cap: 10%. Sector: soft warning at 30% (requires_justification=True — "
+            "write moat confirmation, quality rationale, and -30% sector stress test before proceeding), "
+            "hard block at 40% (no override). Also returns max_allowed_buy within hard limits."
         ),
         "input_schema": {
             "type": "object",

@@ -1548,6 +1548,14 @@ Hedges complement equity selection — they do not replace it.
 - Prefer businesses with long operating histories, proven moats, and strong FCF generation. High-growth businesses are acceptable if the moat is clear, FCF conversion is high, and the price offers a margin of safety.
 - Intrinsic value estimates must be conservative. Use the low end of your FCF growth range. A wider margin of safety compensates for forecast error — never assume the optimistic case to justify buying.
 
+**Sector concentration — two-tier rule (quality-first):**
+Do NOT skip a high-quality business solely because its sector is already represented in the portfolio. Sector diversification is a risk heuristic, not a goal. When `check_concentration_limits` returns `requires_justification=True` (sector 30–40%), you MAY proceed if you write explicit justification covering:
+  1. Confirmed moat type (data-backed — gross retention, switching cost evidence, network density, etc.)
+  2. Why the quality of this specific business warrants overweight in the sector
+  3. Stress test: if the entire sector reprices -30%, what is the portfolio drawdown and is it acceptable?
+If all three pass, proceed at normal conviction sizing. The soft limit is a checkpoint, not a veto.
+The hard cap at 40% is absolute — no override.
+
 ## Permanent Decision Rules
 These rules are hard constraints derived from past session learnings. Apply them mechanically — do not override them with narrative reasoning.
 
