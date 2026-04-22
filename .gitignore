@@ -1,6 +1,7 @@
 .env
 data/*.db
 portfolio.db
+investment_agent.db
 data/*.json
 data/*.log
 __pycache__/
