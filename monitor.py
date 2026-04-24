@@ -39,7 +39,7 @@ console = Console()
 DIVIDER = "━" * 60
 
 
-def _price(ticker: str) -> float | None:
+def _price(ticker: str):
     q = market_data.get_stock_quote(ticker)
     return q.get("price")
 
