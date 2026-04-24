@@ -1860,14 +1860,13 @@ def get_sector_exposure(holdings: list[dict], cash: float = 0.0) -> dict:
         sector_map[s]["tickers"].append(h["ticker"])
         sector_map[s]["total_value"] += h["market_value"]
 
-    breakdown = sorted(
+        breakdown = sorted(
         [
             {
                 "sector": sector,
                 "tickers": sorted(data["tickers"]),
                 "market_value": round(data["total_value"], 2),
-                "weight_pct_of_portfolio": round(data["total_value"] / total_portfolio * 100, 1) if total_portfolio else 0,
-                "weight_pct_of_equity": round(data["total_value"] / total_invested * 100, 1) if total_invested else 0,
+                "weight_pct": round(data["total_value"] / total_portfolio * 100, 1) if total_portfolio else 0,
             }
             for sector, data in sector_map.items()
         ],
@@ -1880,10 +1879,8 @@ def get_sector_exposure(holdings: list[dict], cash: float = 0.0) -> dict:
         "total_portfolio": round(total_portfolio, 2),
         "cash": round(cash, 2),
         "note": (
-            "weight_pct_of_portfolio = sector / (equity + cash) — this is what "
-            "check_concentration_limits uses as its denominator. Use this figure "
-            "to assess whether a new buy would breach the 30% soft or 40% hard sector cap. "
-            "weight_pct_of_equity is shown for reference only — do NOT use it for cap decisions."
+            "weight_pct = sector_market_value / (equity + cash). "
+            "This is the correct denominator for the 30% soft / 40% hard sector caps."
         ),
     }
 

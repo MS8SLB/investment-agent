@@ -559,10 +559,9 @@ TOOL_DEFINITIONS = [
         "name": "get_sector_exposure",
         "description": (
             "Return current portfolio sector weights. Each sector entry includes "
-            "weight_pct_of_portfolio (sector / cash + equity — matches check_concentration_limits "
-            "denominator; use THIS for cap decisions) and weight_pct_of_equity (for reference only). "
-            "Always use weight_pct_of_portfolio when deciding whether a new buy would breach the "
-            "30% soft or 40% hard sector cap — never use weight_pct_of_equity."
+            "weight_pct = sector_market_value / (equity + cash total portfolio). "
+            "This is the correct denominator matching check_concentration_limits. "
+            "Use weight_pct to assess whether a new buy would breach the 30% soft or 40% hard sector cap."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
@@ -2762,10 +2761,9 @@ TOOL_DEFINITIONS = [
         "name": "get_sector_exposure",
         "description": (
             "Return current portfolio sector weights. Each sector entry includes "
-            "weight_pct_of_portfolio (sector / cash + equity — matches check_concentration_limits "
-            "denominator; use THIS for cap decisions) and weight_pct_of_equity (for reference only). "
-            "Always use weight_pct_of_portfolio when deciding whether a new buy would breach the "
-            "30% soft or 40% hard sector cap — never use weight_pct_of_equity."
+            "weight_pct = sector_market_value / (equity + cash total portfolio). "
+            "This is the correct denominator matching check_concentration_limits. "
+            "Use weight_pct to assess whether a new buy would breach the 30% soft or 40% hard sector cap."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
