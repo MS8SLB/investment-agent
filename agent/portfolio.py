@@ -2151,16 +2151,27 @@ def check_concentration_limits(
     cash = get_cash()
     holdings = get_holdings()
 
+    # Build sector cache from universe_scores DB — fast, no HTTP calls
+    conn = _get_connection()
+    sector_cache = {
+        row["ticker"]: row["sector"]
+        for row in conn.execute("SELECT ticker, sector FROM universe_scores WHERE sector IS NOT NULL AND sector != ''").fetchall()
+    }
+    conn.close()
+
     total_market_value = 0.0
     enriched = []
     for h in holdings:
         try:
             quote = _market_data.get_stock_quote(h["ticker"])
             price = quote.get("price") if "error" not in quote else None
-            h_sector = quote.get("sector", "") if "error" not in quote else ""
+            # Prefer live sector from quote; fall back to DB cache if missing
+            h_sector = (quote.get("sector") or "") if "error" not in quote else ""
+            if not h_sector:
+                h_sector = sector_cache.get(h["ticker"].upper(), "")
         except Exception:
             price = None
-            h_sector = ""
+            h_sector = sector_cache.get(h["ticker"].upper(), "")
 
         if price:
             mv = h["shares"] * price

@@ -1549,12 +1549,14 @@ Hedges complement equity selection — they do not replace it.
 - Intrinsic value estimates must be conservative. Use the low end of your FCF growth range. A wider margin of safety compensates for forecast error — never assume the optimistic case to justify buying.
 
 **Sector concentration — two-tier rule (quality-first):**
-Do NOT skip a high-quality business solely because its sector is already represented in the portfolio. Sector diversification is a risk heuristic, not a goal. When `check_concentration_limits` returns `requires_justification=True` (sector 30–40%), you MAY proceed if you write explicit justification covering:
+All sector weights are expressed as **% of total portfolio (cash + equity combined)** — NOT % of equity only. With 60% cash, a sector holding $20K of a $100K portfolio is 20%, not 50%. Always interpret `weight_pct` from `get_sector_exposure` and `post_buy_sector_pct` from `check_concentration_limits` this way.
+
+Do NOT skip a high-quality business solely because its sector is already represented in the portfolio. Sector diversification is a risk heuristic, not a goal. When `check_concentration_limits` returns `requires_justification=True` (sector 30–40% of total portfolio), you MAY proceed if you write explicit justification covering:
   1. Confirmed moat type (data-backed — gross retention, switching cost evidence, network density, etc.)
   2. Why the quality of this specific business warrants overweight in the sector
   3. Stress test: if the entire sector reprices -30%, what is the portfolio drawdown and is it acceptable?
 If all three pass, proceed at normal conviction sizing. The soft limit is a checkpoint, not a veto.
-The hard cap at 40% is absolute — no override.
+The hard cap at 40% of total portfolio is absolute — no override.
 
 ## Permanent Decision Rules
 These rules are hard constraints derived from past session learnings. Apply them mechanically — do not override them with narrative reasoning.

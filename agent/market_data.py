@@ -1863,7 +1863,7 @@ def get_sector_exposure(holdings: list[dict], cash: float = 0.0) -> dict:
         sector_map[s]["tickers"].append(h["ticker"])
         sector_map[s]["total_value"] += h["market_value"]
 
-        breakdown = sorted(
+    breakdown = sorted(
         [
             {
                 "sector": sector,
