@@ -568,7 +568,13 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "add_to_watchlist",
-        "description": "Add a stock to the watchlist with a reason and optional target entry price.",
+        "description": (
+            "Add a stock to the watchlist with a reason and optional target entry price. "
+            "Use tier='active' (default) when the stock is within ~30% of its target entry price. "
+            "Use tier='monitor' when you have a strong thesis but the stock is currently too expensive "
+            "(>30% above target) — the thesis is preserved and the stock auto-promotes to active when "
+            "its price pulls back into range. Do NOT discard stocks just because they're overvalued today."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -580,7 +586,12 @@ TOOL_DEFINITIONS = [
                 },
                 "target_entry_price": {
                     "type": "number",
-                    "description": "Optional price at or below which you'd be a buyer",
+                    "description": "Price at or below which you'd be a buyer",
+                },
+                "tier": {
+                    "type": "string",
+                    "enum": ["active", "monitor"],
+                    "description": "active = within 30% of target, reviewed every session; monitor = thesis kept but price too far, auto-promoted when price comes within range",
                 },
             },
             "required": ["ticker", "reason"],
@@ -588,12 +599,26 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_watchlist",
-        "description": "Return the current watchlist with target entry prices and notes.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "description": (
+            "Return the watchlist. Two tiers: 'active' (within 30% of target — review every session) "
+            "and 'monitor' (thesis intact but price too far — only check for tier changes). "
+            "Focus research and analysis on active-tier items only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tier": {
+                    "type": "string",
+                    "enum": ["active", "monitor"],
+                    "description": "Filter by tier. Omit to return all.",
+                },
+            },
+            "required": [],
+        },
     },
     {
         "name": "remove_from_watchlist",
-        "description": "Remove a stock from the watchlist.",
+        "description": "Permanently remove a stock from the watchlist. Only use when the thesis is fully broken — not just because the price is high (use monitor tier instead).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -605,10 +630,11 @@ TOOL_DEFINITIONS = [
     {
         "name": "prune_watchlist",
         "description": (
-            "Archive watchlist entries where the current price is more than 40% above the target "
-            "entry price into the shadow portfolio. Stocks that have run far past their entry target "
-            "are not actionable — they clutter the watchlist and get re-researched unnecessarily. "
-            "Call this once at session start immediately after get_watchlist."
+            "Refresh watchlist tiers based on current prices. "
+            "Demotes active->monitor when price >30% above target (thesis kept, stops cluttering active list). "
+            "Promotes monitor->active when price pulls back within 30% of target. "
+            "Nothing is deleted — theses are never lost. "
+            "Call once at session start after get_watchlist."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
@@ -2770,7 +2796,13 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "add_to_watchlist",
-        "description": "Add a stock to the watchlist with a reason and optional target entry price.",
+        "description": (
+            "Add a stock to the watchlist with a reason and optional target entry price. "
+            "Use tier='active' (default) when the stock is within ~30% of its target entry price. "
+            "Use tier='monitor' when you have a strong thesis but the stock is currently too expensive "
+            "(>30% above target) — the thesis is preserved and the stock auto-promotes to active when "
+            "its price pulls back into range. Do NOT discard stocks just because they're overvalued today."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2782,7 +2814,12 @@ TOOL_DEFINITIONS = [
                 },
                 "target_entry_price": {
                     "type": "number",
-                    "description": "Optional price at or below which you'd be a buyer",
+                    "description": "Price at or below which you'd be a buyer",
+                },
+                "tier": {
+                    "type": "string",
+                    "enum": ["active", "monitor"],
+                    "description": "active = within 30% of target, reviewed every session; monitor = thesis kept but price too far, auto-promoted when price comes within range",
                 },
             },
             "required": ["ticker", "reason"],
@@ -2790,12 +2827,26 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_watchlist",
-        "description": "Return the current watchlist with target entry prices and notes.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "description": (
+            "Return the watchlist. Two tiers: 'active' (within 30% of target — review every session) "
+            "and 'monitor' (thesis intact but price too far — only check for tier changes). "
+            "Focus research and analysis on active-tier items only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tier": {
+                    "type": "string",
+                    "enum": ["active", "monitor"],
+                    "description": "Filter by tier. Omit to return all.",
+                },
+            },
+            "required": [],
+        },
     },
     {
         "name": "remove_from_watchlist",
-        "description": "Remove a stock from the watchlist.",
+        "description": "Permanently remove a stock from the watchlist. Only use when the thesis is fully broken — not just because the price is high (use monitor tier instead).",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2807,10 +2858,11 @@ TOOL_DEFINITIONS = [
     {
         "name": "prune_watchlist",
         "description": (
-            "Archive watchlist entries where the current price is more than 40% above the target "
-            "entry price into the shadow portfolio. Stocks that have run far past their entry target "
-            "are not actionable — they clutter the watchlist and get re-researched unnecessarily. "
-            "Call this once at session start immediately after get_watchlist."
+            "Refresh watchlist tiers based on current prices. "
+            "Demotes active->monitor when price >30% above target (thesis kept, stops cluttering active list). "
+            "Promotes monitor->active when price pulls back within 30% of target. "
+            "Nothing is deleted — theses are never lost. "
+            "Call once at session start after get_watchlist."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
@@ -3566,10 +3618,11 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
             reason=tool_input["reason"],
             target_entry_price=tool_input.get("target_entry_price"),
             company_name=tool_input.get("company_name"),
+            tier=tool_input.get("tier", "active"),
         )
 
     elif tool_name == "get_watchlist":
-        return portfolio.get_watchlist()
+        return portfolio.get_watchlist(tier=tool_input.get("tier"))
 
     elif tool_name == "remove_from_watchlist":
         return portfolio.remove_from_watchlist(tool_input["ticker"])

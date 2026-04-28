@@ -328,6 +328,12 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         except sqlite3.OperationalError:
             pass
 
+        # Migrate existing DBs: add tier column to watchlist
+        try:
+            conn.execute("ALTER TABLE watchlist ADD COLUMN tier TEXT NOT NULL DEFAULT 'active'")
+        except sqlite3.OperationalError:
+            pass
+
         # Seed initial state only if not present
         existing = conn.execute("SELECT id FROM portfolio_state WHERE id = 1").fetchone()
         if not existing:
@@ -851,31 +857,45 @@ def add_to_watchlist(
     reason: str,
     target_entry_price: Optional[float] = None,
     company_name: Optional[str] = None,
+    tier: str = "active",
 ) -> dict:
-    """Add or update a stock on the watchlist."""
+    """Add or update a stock on the watchlist.
+
+    tier: 'active' = within buying range, reviewed every session;
+          'monitor' = thesis captured but price too far from target, auto-promoted when price comes within 30%.
+    """
     ticker = ticker.upper()
+    if tier not in ("active", "monitor"):
+        tier = "active"
     conn = _get_connection()
     with conn:
         conn.execute(
-            """INSERT INTO watchlist (ticker, company_name, reason, target_entry_price, added_at)
-               VALUES (?, ?, ?, ?, ?)
+            """INSERT INTO watchlist (ticker, company_name, reason, target_entry_price, added_at, tier)
+               VALUES (?, ?, ?, ?, ?, ?)
                ON CONFLICT(ticker) DO UPDATE SET
                    reason = excluded.reason,
                    company_name = excluded.company_name,
                    target_entry_price = excluded.target_entry_price,
-                   added_at = excluded.added_at""",
-            (ticker, company_name, reason, target_entry_price, datetime.utcnow().isoformat()),
+                   added_at = excluded.added_at,
+                   tier = excluded.tier""",
+            (ticker, company_name, reason, target_entry_price, datetime.utcnow().isoformat(), tier),
         )
     conn.close()
-    return {"success": True, "ticker": ticker}
+    return {"success": True, "ticker": ticker, "tier": tier}
 
 
-def get_watchlist() -> list[dict]:
-    """Return all current watchlist entries, newest first."""
+def get_watchlist(tier: Optional[str] = None) -> list[dict]:
+    """Return watchlist entries, newest first. Pass tier='active' or tier='monitor' to filter."""
     conn = _get_connection()
-    rows = conn.execute(
-        "SELECT ticker, company_name, reason, target_entry_price, added_at FROM watchlist ORDER BY added_at DESC"
-    ).fetchall()
+    if tier:
+        rows = conn.execute(
+            "SELECT ticker, company_name, reason, target_entry_price, added_at, tier FROM watchlist WHERE tier = ? ORDER BY added_at DESC",
+            (tier,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT ticker, company_name, reason, target_entry_price, added_at, tier FROM watchlist ORDER BY tier ASC, added_at DESC"
+        ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -892,65 +912,86 @@ def remove_from_watchlist(ticker: str) -> dict:
 
 def prune_watchlist(price_lookup: dict) -> dict:
     """
-    Archive watchlist entries where current price > 40% above target entry price.
-    Moved to shadow portfolio — still tracked but no longer cluttering the active list.
+    Refresh watchlist tiers based on current prices:
+    - active -> monitor: price > 30% above target (thesis kept, stops cluttering active list)
+    - monitor -> active: price within 30% of target (auto-promoted for full session attention)
+
+    Nothing is deleted. Stocks in monitor tier retain their thesis and automatically return
+    to active when prices pull back into range.
 
     price_lookup: dict mapping ticker -> current price (float), pre-fetched by the caller.
     """
     conn = _get_connection()
     rows = conn.execute(
-        "SELECT ticker, company_name, reason, target_entry_price, added_at "
+        "SELECT ticker, company_name, reason, target_entry_price, added_at, tier "
         "FROM watchlist WHERE target_entry_price IS NOT NULL"
     ).fetchall()
     items = [dict(r) for r in rows]
     conn.close()
 
-    archived = []
+    demoted = []
+    promoted = []
     now = datetime.utcnow().isoformat()
+
     for item in items:
         target = item["target_entry_price"]
         ticker = item["ticker"].upper()
         current = price_lookup.get(ticker)
         if not current or not target or target <= 0:
             continue
-        if current > target * 1.4:
-            pct_above = round((current / target - 1) * 100, 1)
-            shadow_reason = (
-                f"Archived from watchlist: ${current:.2f} is {pct_above}% above "
-                f"target entry ${target:.2f}. Will revisit on a meaningful pullback. "
-                f"Original note: {item['reason']}"
-            )
-            # Atomic: shadow insert + watchlist delete in a single transaction
-            archive_conn = _get_connection()
-            with archive_conn:
-                archive_conn.execute("""
-                    INSERT OR REPLACE INTO shadow_positions
-                        (ticker, considered_at, price_at_consideration, reason_passed, notes)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (ticker, now, current, shadow_reason,
-                      "Auto-archived from watchlist — price too far above entry target"))
-                archive_conn.execute("DELETE FROM watchlist WHERE ticker = ?", (ticker,))
-            archive_conn.close()
-            archived.append({
+
+        pct_above = (current / target - 1) * 100
+        current_tier = item.get("tier", "active")
+
+        if current_tier == "active" and pct_above > 30:
+            # Demote: price has run too far above target
+            upd_conn = _get_connection()
+            with upd_conn:
+                upd_conn.execute(
+                    "UPDATE watchlist SET tier = 'monitor' WHERE ticker = ?", (ticker,)
+                )
+            upd_conn.close()
+            demoted.append({
                 "ticker": ticker,
                 "current_price": current,
                 "target_price": target,
-                "pct_above_target": pct_above,
+                "pct_above_target": round(pct_above, 1),
             })
 
-    # Count remaining watchlist entries (all, not just those with targets)
+        elif current_tier == "monitor" and pct_above <= 30:
+            # Promote: price has pulled back within range
+            upd_conn = _get_connection()
+            with upd_conn:
+                upd_conn.execute(
+                    "UPDATE watchlist SET tier = 'active' WHERE ticker = ?", (ticker,)
+                )
+            upd_conn.close()
+            promoted.append({
+                "ticker": ticker,
+                "current_price": current,
+                "target_price": target,
+                "pct_above_target": round(pct_above, 1),
+            })
+
     count_conn = _get_connection()
-    remaining = count_conn.execute("SELECT COUNT(*) FROM watchlist").fetchone()[0]
+    active_count = count_conn.execute("SELECT COUNT(*) FROM watchlist WHERE tier='active'").fetchone()[0]
+    monitor_count = count_conn.execute("SELECT COUNT(*) FROM watchlist WHERE tier='monitor'").fetchone()[0]
     count_conn.close()
+
+    parts = []
+    if demoted:
+        parts.append(f"Demoted {len(demoted)} item(s) to monitor tier (price >30% above target): {', '.join(d['ticker'] for d in demoted)}")
+    if promoted:
+        parts.append(f"Promoted {len(promoted)} item(s) to active tier (price back within 30% of target): {', '.join(p['ticker'] for p in promoted)}")
+    if not parts:
+        parts.append("No tier changes — all items correctly classified.")
+
     return {
-        "archived_count": len(archived),
-        "archived": archived,
-        "remaining_watchlist_count": remaining,
-        "message": (
-            f"Pruned {len(archived)} item(s) >40% above target entry — moved to shadow portfolio."
-            if archived else
-            "No watchlist items are >40% above their target entry price."
-        ),
+        "demoted": demoted,
+        "promoted": promoted,
+        "active_count": active_count,
+        "monitor_count": monitor_count,
+        "message": " | ".join(parts),
     }
 
 

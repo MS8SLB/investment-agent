@@ -69,37 +69,42 @@ def render(console: Console) -> None:
 
     # ── Watchlist ──────────────────────────────────────────────────────────────
     watchlist = portfolio.get_watchlist()
-    actionable = [w for w in watchlist if w["target_entry_price"] is not None]
-    no_target  = [w for w in watchlist if w["target_entry_price"] is None]
+    active_list  = [w for w in watchlist if w.get("tier", "active") == "active"]
+    monitor_list = [w for w in watchlist if w.get("tier") == "monitor"]
+    no_target    = [w for w in active_list if w["target_entry_price"] is None]
+    actionable   = [w for w in active_list if w["target_entry_price"] is not None]
 
-    if actionable:
+    def _watchlist_table(items, label, dim_style=False):
+        if not items:
+            console.print(f"[bold]{label}[/bold]  [dim](none)[/dim]\n")
+            return
         tbl = Table(box=box.SIMPLE_HEAVY, show_edge=False, pad_edge=False,
                     expand=False, min_width=60)
-        tbl.add_column("Ticker", style="bold", min_width=6, no_wrap=True)
+        tbl.add_column("Ticker", style="bold dim" if dim_style else "bold", min_width=6, no_wrap=True)
         tbl.add_column("Price",  justify="right", min_width=9, no_wrap=True)
         tbl.add_column("Target", justify="right", min_width=8, no_wrap=True)
         tbl.add_column("Away",   justify="right", min_width=7, no_wrap=True)
         tbl.add_column("Status", min_width=14, no_wrap=True)
         tbl.add_column("Note", style="dim", no_wrap=True, max_width=35)
 
-        for w in actionable:
-            ticker  = w["ticker"]
-            target  = w["target_entry_price"]
-            price   = _price(ticker)
+        for w in items:
+            ticker = w["ticker"]
+            target = w["target_entry_price"]
+            price  = _price(ticker)
+            note   = (w["reason"] or "").split("—")[0].strip()[:40]
 
-            note = (w["reason"] or "").split("—")[0].strip()[:40]
-            if price is None:
-                tbl.add_row(ticker, "[dim]n/a[/dim]", f"${target:,.0f}", "—", "—", note)
+            if price is None or not target:
+                tbl.add_row(ticker, "[dim]n/a[/dim]", f"${target:,.0f}" if target else "—", "—", "—", note)
                 continue
 
-            away_pct = _pct(price, target)   # negative = below target (buy zone!)
-            color    = _color(-away_pct)     # green when price < target
+            away_pct = _pct(price, target)
+            color    = _color(-away_pct)
 
             if away_pct <= 0:
                 status = "[bold green]▶ AT TARGET[/bold green]"
             elif away_pct <= 5:
                 status = "[yellow]⚡ NEAR TARGET[/yellow]"
-            elif away_pct <= 20:
+            elif away_pct <= 30:
                 status = "[white]watching[/white]"
             else:
                 status = "[dim]above target[/dim]"
@@ -112,15 +117,14 @@ def render(console: Console) -> None:
                 status,
                 note,
             )
-
-        console.print("[bold]WATCHLIST[/bold]")
+        console.print(f"[bold]{label}[/bold]")
         console.print(tbl)
-    else:
-        console.print("[bold]WATCHLIST[/bold]  [dim](no entries with target price)[/dim]\n")
 
+    _watchlist_table(actionable, "WATCHLIST — ACTIVE")
     if no_target:
         console.print("[dim]  Awaiting target price:[/dim] " +
                       ", ".join(w["ticker"] for w in no_target) + "\n")
+    _watchlist_table(monitor_list, "WATCHLIST — MONITOR (thesis kept, price too far)", dim_style=True)
 
     # ── Holdings ───────────────────────────────────────────────────────────────
     holdings = portfolio.get_holdings()
