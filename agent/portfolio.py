@@ -8,6 +8,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
+from agent.db_backup import create_backup
+
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "portfolio.db")
 
@@ -21,6 +23,10 @@ def _get_connection() -> sqlite3.Connection:
 
 def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
     """Create tables and seed initial cash balance if not already done."""
+    # Create a backup before any initialization that might affect existing data
+    if os.path.exists(DB_PATH):
+        create_backup("pre-session")
+
     conn = _get_connection()
     with conn:
         conn.execute("""
@@ -364,6 +370,9 @@ def buy_stock(ticker: str, shares: float, price_per_share: float, notes: str = "
     Execute a paper buy order.
     Returns result dict with success/error info, including transaction_id on success.
     """
+    # Backup before transaction
+    create_backup("pre-buy")
+
     ticker = ticker.upper()
     total_cost = shares * price_per_share
     now = datetime.utcnow().isoformat()
@@ -429,6 +438,9 @@ def sell_stock(ticker: str, shares: float, price_per_share: float, notes: str = 
     Execute a paper sell order.
     Returns result dict with success/error info, including transaction_id on success.
     """
+    # Backup before transaction
+    create_backup("pre-sell")
+
     ticker = ticker.upper()
     total_proceeds = shares * price_per_share
     now = datetime.utcnow().isoformat()
