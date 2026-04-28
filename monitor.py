@@ -26,8 +26,8 @@ load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-import logging
-logging.disable(logging.WARNING)   # suppress HTTP 403 noise from market_data
+import warnings
+warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 
 from agent import market_data, portfolio
 from rich.console import Console

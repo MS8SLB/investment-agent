@@ -28,9 +28,12 @@ def _load_screener_cache() -> dict:
 
 
 def _save_screener_cache(date: str, results: list) -> None:
-    os.makedirs(os.path.dirname(_SCREENER_CACHE_FILE), exist_ok=True)
-    with open(_SCREENER_CACHE_FILE, "w") as f:
-        json.dump({"date": date, "results": results}, f)
+    try:
+        os.makedirs(os.path.dirname(_SCREENER_CACHE_FILE), exist_ok=True)
+        with open(_SCREENER_CACHE_FILE, "w") as f:
+            json.dump({"date": date, "results": results}, f)
+    except Exception:
+        pass
 
 
 _SCREENER_STALE_DAYS = 7   # Re-fetch a ticker's fundamentals after this many days

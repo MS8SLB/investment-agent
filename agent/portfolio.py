@@ -410,6 +410,7 @@ def buy_stock(ticker: str, shares: float, price_per_share: float, notes: str = "
             )
             transaction_id = cursor.lastrowid
 
+        cash_remaining = conn.execute("SELECT cash FROM portfolio_state WHERE id = 1").fetchone()["cash"]
         return {
             "success": True,
             "transaction_id": transaction_id,
@@ -417,7 +418,7 @@ def buy_stock(ticker: str, shares: float, price_per_share: float, notes: str = "
             "shares": shares,
             "price": price_per_share,
             "total_cost": total_cost,
-            "cash_remaining": cash - total_cost,
+            "cash_remaining": cash_remaining,
         }
     finally:
         conn.close()
@@ -639,7 +640,7 @@ def get_reflections(limit: int = 5) -> list[dict]:
 def get_transactions(limit: int = 50) -> list[dict]:
     conn = _get_connection()
     rows = conn.execute(
-        "SELECT * FROM transactions ORDER BY ts DESC LIMIT ?", (limit,)
+        "SELECT id, ts, action, ticker, shares, price, total, realized_pnl, notes FROM transactions ORDER BY ts DESC LIMIT ?", (limit,)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -751,6 +752,14 @@ def get_portfolio_history_from_transactions() -> list[dict]:
     except Exception:
         return []
 
+    def _get_close(tkr, d):
+        prices = price_data.get(tkr, {})
+        for days_back in range(6):
+            check = (d - pd.Timedelta(days=days_back)).date().isoformat()
+            if check in prices:
+                return prices[check]
+        return None
+
     result = []
     for date in trade_dates:
         date_str = date.date().isoformat()
@@ -769,14 +778,6 @@ def get_portfolio_history_from_transactions() -> list[dict]:
                 # Replay the cash return; shares already zeroed by prior BUY replay
                 cash += total
                 replay_holdings[ticker] = max(0.0, replay_holdings.get(ticker, 0.0) - shares)
-
-        def _get_close(tkr, d):
-            prices = price_data.get(tkr, {})
-            for days_back in range(6):
-                check = (d - pd.Timedelta(days=days_back)).date().isoformat()
-                if check in prices:
-                    return prices[check]
-            return None
 
         # picks equity: current holdings only (constant shares and avg_cost basis)
         picks_equity = 0.0
@@ -893,6 +894,7 @@ def prune_watchlist(price_lookup: dict) -> dict:
     conn.close()
 
     archived = []
+    now = datetime.utcnow().isoformat()
     for item in items:
         target = item["target_entry_price"]
         ticker = item["ticker"].upper()
@@ -906,11 +908,17 @@ def prune_watchlist(price_lookup: dict) -> dict:
                 f"target entry ${target:.2f}. Will revisit on a meaningful pullback. "
                 f"Original note: {item['reason']}"
             )
-            add_to_shadow_portfolio(
-                ticker, current, shadow_reason,
-                notes="Auto-archived from watchlist — price too far above entry target"
-            )
-            remove_from_watchlist(ticker)
+            # Atomic: shadow insert + watchlist delete in a single transaction
+            archive_conn = _get_connection()
+            with archive_conn:
+                archive_conn.execute("""
+                    INSERT OR REPLACE INTO shadow_positions
+                        (ticker, considered_at, price_at_consideration, reason_passed, notes)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (ticker, now, current, shadow_reason,
+                      "Auto-archived from watchlist — price too far above entry target"))
+                archive_conn.execute("DELETE FROM watchlist WHERE ticker = ?", (ticker,))
+            archive_conn.close()
             archived.append({
                 "ticker": ticker,
                 "current_price": current,
@@ -918,7 +926,10 @@ def prune_watchlist(price_lookup: dict) -> dict:
                 "pct_above_target": pct_above,
             })
 
-    remaining = len(items) - len(archived)
+    # Count remaining watchlist entries (all, not just those with targets)
+    count_conn = _get_connection()
+    remaining = count_conn.execute("SELECT COUNT(*) FROM watchlist").fetchone()[0]
+    count_conn.close()
     return {
         "archived_count": len(archived),
         "archived": archived,
@@ -1134,7 +1145,6 @@ def reset_portfolio(starting_cash: float) -> None:
     Full reset: delete the DB file entirely and reinitialise from scratch.
     This guarantees a clean state regardless of any in-memory or WAL caching.
     """
-    import shutil
     # Remove the DB file (and any WAL / SHM sidecar files)
     for suffix in ("", "-wal", "-shm"):
         path = DB_PATH + suffix
@@ -1271,15 +1281,15 @@ def close_prediction(ticker: str, outcome_price: float) -> None:
         pred_id = row["id"]
         price_at_decision = row["price_at_decision"] or outcome_price
         outcome_return_pct = (outcome_price / price_at_decision - 1) * 100 if price_at_decision else None
-        conn.execute(
-            """UPDATE prediction_tracking
-               SET outcome_price = ?,
-                   outcome_date = datetime('now'),
-                   outcome_return_pct = ?
-               WHERE id = ?""",
-            (outcome_price, outcome_return_pct, pred_id),
-        )
-        conn.commit()
+        with conn:
+            conn.execute(
+                """UPDATE prediction_tracking
+                   SET outcome_price = ?,
+                       outcome_date = datetime('now'),
+                       outcome_return_pct = ?
+                   WHERE id = ?""",
+                (outcome_price, outcome_return_pct, pred_id),
+            )
     conn.close()
 
 # ── Dividend tracking ─────────────────────────────────────────────────────────
@@ -1305,8 +1315,7 @@ def get_dividends(limit: int = 50) -> list:
         (limit,)
     ).fetchall()
     conn.close()
-    return [{"ticker": r[0], "amount_per_share": r[1], "shares_held": r[2],
-             "total_amount": r[3], "ex_date": r[4], "recorded_at": r[5]} for r in rows]
+    return [dict(r) for r in rows]
 
 
 def get_total_dividends_received() -> float:
@@ -1438,8 +1447,7 @@ def get_watchlist_history(ticker: str = None, limit: int = 50) -> list[dict]:
 
 def get_stale_watchlist_entries(min_age_days: int = 60) -> list:
     """Return watchlist entries that haven't been re-evaluated in min_age_days days."""
-    import datetime as _dt
-    cutoff = (datetime.utcnow() - _dt.timedelta(days=min_age_days)).isoformat()
+    cutoff = (datetime.utcnow() - timedelta(days=min_age_days)).isoformat()
     conn = _get_connection()
     rows = conn.execute(
         "SELECT ticker, company_name, reason, target_entry_price, added_at FROM watchlist WHERE added_at < ? ORDER BY added_at ASC",
@@ -1708,9 +1716,9 @@ def get_benchmark_comparison() -> dict:
     conn = _get_connection()
 
     # Purge legacy rows stored with SPY ETF prices (~$400-800; ^GSPC always >2000).
-    conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 2000")
-    conn.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL AND benchmark_price < 2000")
-    conn.commit()
+    with conn:
+        conn.execute("DELETE FROM benchmark_snapshots WHERE spy_price < 2000")
+        conn.execute("UPDATE portfolio_snapshots SET benchmark_price = NULL WHERE benchmark_price IS NOT NULL AND benchmark_price < 2000")
 
     # Starting portfolio value — oldest portfolio_snapshot on/after first trade.
     first_portfolio = conn.execute(
@@ -1952,15 +1960,15 @@ def log_prediction(ticker: str, action: str, conviction_score: int = None,
                    mos_pct: float = None) -> None:
     """Log an agent decision for later reconciliation."""
     conn = _get_connection()
-    conn.execute(
-        """INSERT INTO prediction_tracking
-           (ticker, action, conviction_score, predicted_iv, price_at_decision,
-            mos_at_decision, decision_date)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (ticker, action, conviction_score, predicted_iv, price_at_decision,
-         mos_pct, datetime.utcnow().isoformat())
-    )
-    conn.commit()
+    with conn:
+        conn.execute(
+            """INSERT INTO prediction_tracking
+               (ticker, action, conviction_score, predicted_iv, price_at_decision,
+                mos_at_decision, decision_date)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (ticker, action, conviction_score, predicted_iv, price_at_decision,
+             mos_pct, datetime.utcnow().isoformat())
+        )
     conn.close()
 
 
@@ -2137,7 +2145,8 @@ def check_concentration_limits(
         if h["sector"] and h["sector"].lower() == sector.lower()
     )
 
-    new_total = total_value + buy_amount
+    # Buying stock converts cash → equity; total portfolio value is unchanged.
+    new_total = total_value
     post_pos_pct = (current_pos_value + buy_amount) / new_total
     post_sector_pct = (current_sector_value + buy_amount) / new_total
 
@@ -2164,14 +2173,6 @@ def check_concentration_limits(
     max_by_position = max(0.0, max_position_pct * new_total - current_pos_value)
     max_by_sector = max(0.0, max_sector_pct * new_total - current_sector_value)
     max_allowed = min(max_by_position, max_by_sector, buy_amount)
-    if max_allowed < buy_amount and max_allowed > 0:
-        new_total2 = total_value + max_allowed
-        max_allowed = min(
-            max_position_pct * new_total2 - current_pos_value,
-            max_sector_pct * new_total2 - current_sector_value,
-            buy_amount,
-        )
-        max_allowed = max(0.0, max_allowed)
 
     return {
         "allowed": len(violations) == 0,
@@ -2331,19 +2332,19 @@ def save_session_audit(
     """Save structured self-audit metrics for the current session."""
     conn = _get_connection()
     now = datetime.utcnow().isoformat()
-    conn.execute(
-        """INSERT INTO session_audit
-           (session_date, tickers_screened, tickers_researched, buys_made,
-            watchlist_added, shadow_added, workflow_issues_logged,
-            re_researched_watchlist, deviated_from_matrix, duplicate_tool_calls,
-            contradicted_prior_session, audit_notes, recorded_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (now[:10], tickers_screened, tickers_researched, buys_made,
-         watchlist_added, shadow_added, workflow_issues_logged,
-         re_researched_watchlist, deviated_from_matrix, duplicate_tool_calls,
-         contradicted_prior_session, audit_notes, now),
-    )
-    conn.commit()
+    with conn:
+        conn.execute(
+            """INSERT INTO session_audit
+               (session_date, tickers_screened, tickers_researched, buys_made,
+                watchlist_added, shadow_added, workflow_issues_logged,
+                re_researched_watchlist, deviated_from_matrix, duplicate_tool_calls,
+                contradicted_prior_session, audit_notes, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (now[:10], tickers_screened, tickers_researched, buys_made,
+             watchlist_added, shadow_added, workflow_issues_logged,
+             re_researched_watchlist, deviated_from_matrix, duplicate_tool_calls,
+             contradicted_prior_session, audit_notes, now),
+        )
     conn.close()
     flags = []
     if re_researched_watchlist:

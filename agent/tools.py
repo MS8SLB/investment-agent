@@ -4,6 +4,7 @@ Each tool maps to a market data or portfolio action.
 """
 
 import json
+import logging
 from typing import Any, Optional
 
 from agent import market_data, portfolio, sec_data, external_data, ml_insights
@@ -4057,6 +4058,7 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
         )
 
     else:
+        logging.warning("handle_tool_call: unknown tool %r", tool_name)
         return {"error": f"Unknown tool: {tool_name}"}
 
     return result
@@ -4074,15 +4076,16 @@ def _get_portfolio_status() -> dict:
         quote = market_data.get_stock_quote(h["ticker"])
         current_price = quote.get("price") if "error" not in quote else None
 
+        cost_basis = h["shares"] * h["avg_cost"]
+        total_cost_basis += cost_basis
         if current_price:
             market_value = h["shares"] * current_price
-            cost_basis = h["shares"] * h["avg_cost"]
             unrealized_pnl = market_value - cost_basis
             unrealized_pct = (unrealized_pnl / cost_basis * 100) if cost_basis else 0
             total_market_value += market_value
-            total_cost_basis += cost_basis
         else:
-            market_value = None
+            market_value = cost_basis   # fallback so portfolio total is not understated
+            total_market_value += cost_basis
             unrealized_pnl = None
             unrealized_pct = None
 
