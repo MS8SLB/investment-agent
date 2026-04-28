@@ -1,5 +1,6 @@
 .env
 data/*.db
+data/backups/
 portfolio.db
 investment_agent.db
 data/*.json
