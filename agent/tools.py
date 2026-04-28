@@ -714,6 +714,26 @@ TOOL_DEFINITIONS = [
         "description": "Return shadow portfolio performance: current price vs price at consideration for all rejected stocks.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    {
+        "name": "filter_already_analyzed",
+        "description": (
+            "CRITICAL: Before screener research — filter out any candidates that are already held, "
+            "watchlisted, or in shadow portfolio. This prevents wasting research calls on NVDA, TSM, "
+            "ADBE, etc. that have already been analyzed. Call this FIRST after the screener, before "
+            "any pre-filtering or research. Returns filtered candidate list and skipped reasons."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of ticker symbols to filter (e.g. from screener results)",
+                },
+            },
+            "required": ["candidates"],
+        },
+    },
     # ── ML insights (learned from portfolio history) ──────────────────────────
     {
         "name": "get_regime_change_status",
@@ -3814,6 +3834,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
             context=tool_input.get("context", ""),
             model=_effective_model(),
         )
+
+    elif tool_name == "filter_already_analyzed":
+        return portfolio.filter_already_analyzed(tool_input.get("candidates", []))
 
     elif tool_name == "challenge_buy_theses":
         # Local import to avoid circular dependency (bear_case_agent imports tools)

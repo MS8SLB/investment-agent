@@ -1193,6 +1193,44 @@ def get_shadow_positions() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def filter_already_analyzed(candidates: list[str]) -> dict:
+    """
+    Filter out any tickers that have already been analyzed (held, watchlisted, or shadowed).
+    Returns a dict with 'filtered' (new candidates) and 'skipped' (already analyzed with reason).
+    """
+    candidates_upper = [t.upper() for t in candidates]
+
+    holdings = get_holdings()
+    held_tickers = {h["ticker"].upper() for h in holdings}
+
+    watchlist = get_watchlist()
+    watchlist_tickers = {w["ticker"].upper() for w in watchlist}
+
+    shadow = get_shadow_positions()
+    shadow_tickers = {s["ticker"].upper() for s in shadow}
+
+    filtered = []
+    skipped = {}
+
+    for ticker in candidates_upper:
+        if ticker in held_tickers:
+            skipped[ticker] = "already held"
+        elif ticker in watchlist_tickers:
+            skipped[ticker] = "already on watchlist"
+        elif ticker in shadow_tickers:
+            skipped[ticker] = "already analyzed (shadow portfolio)"
+        else:
+            filtered.append(ticker)
+
+    return {
+        "filtered": filtered,
+        "filtered_count": len(filtered),
+        "skipped": skipped,
+        "skipped_count": len(skipped),
+        "original_count": len(candidates_upper),
+    }
+
+
 def reset_portfolio(starting_cash: float) -> None:
     """
     Full reset: delete the DB file entirely and reinitialise from scratch.
