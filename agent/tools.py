@@ -3520,18 +3520,21 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "screen_stocks":
         tickers = tool_input.get("tickers", [])
         results = market_data.screen_stocks(tickers)
-        # Show top 100 — each result is ~200 chars so this stays well within context.
-        # Gives ample buffer to find 15 finalists even with a large watchlist/shadow portfolio.
-        # The full sorted list is cached in data/screener_cache.json.
+        # Auto-filter tickers already held, on watchlist, or in shadow portfolio
+        # so the agent never re-researches the same stocks.
+        all_tickers = [r["ticker"] for r in results]
+        filter_result = portfolio.filter_already_analyzed(all_tickers)
+        already_analyzed = set(filter_result["skipped"].keys())
+        filtered_results = [r for r in results if r["ticker"].upper() not in already_analyzed]
         return {
             "total_screened": len(results),
-            "showing_top": min(100, len(results)),
+            "already_analyzed_removed": len(already_analyzed),
+            "showing_top": min(100, len(filtered_results)),
             "note": (
-                "Top 100 results shown out of the full screened universe. "
-                "Walk this list mechanically: take the first 15 tickers that are "
-                "NOT held, NOT on watchlist, NOT in shadow portfolio."
+                "Results are pre-filtered: tickers already held, on the watchlist, or "
+                "in the shadow portfolio have been removed. All results are new candidates."
             ),
-            "results": results[:100],
+            "results": filtered_results[:100],
         }
 
     elif tool_name == "get_benchmark_comparison":

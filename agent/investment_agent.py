@@ -1966,13 +1966,13 @@ you have: fall back to watchlist items (from `prioritize_watchlist_ml`), review 
 and complete Steps 5-6. Restarting wastes money and does not fix transient API errors.
 
 *Finalist selection — purely mechanical, no judgment:*
+- The `screen_stocks` result is **already pre-filtered**: tickers you already hold, have on the watchlist,
+  or have in the shadow portfolio are automatically removed before results are returned. You will never
+  see NVDA, TSM, ADBE, or any other previously analyzed stock in the screener output. Do NOT call
+  `filter_already_analyzed` separately — it runs inside the screener automatically.
 - Walk down the screener result (sorted by `score` descending) and collect the **first 25 tickers**
-  that meet ALL of the following skip conditions:
-  1. NOT already held in the portfolio
-  2. NOT already on the watchlist (checked via `prioritize_watchlist_ml` result from Step 1)
-  3. NOT in the shadow portfolio already
-  These 25 tickers are your candidate list. Do not swap, reorder, or substitute based on name recognition.
-  If fewer than 25 tickers remain after skipping, take however many there are.
+  that survive the pre-filter steps below (sector/moat + valuation). Do not swap, reorder, or substitute.
+  If fewer than 25 tickers remain after pre-filtering, take however many there are.
 
 - **Pre-filter before research (step 1 — sector/moat)** — scan each ticker's screener data. Any ticker
   matching the criteria below has no durable moat by definition; send it directly to shadow portfolio
