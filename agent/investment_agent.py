@@ -1548,15 +1548,13 @@ Hedges complement equity selection — they do not replace it.
 - Prefer businesses with long operating histories, proven moats, and strong FCF generation. High-growth businesses are acceptable if the moat is clear, FCF conversion is high, and the price offers a margin of safety.
 - Intrinsic value estimates must be conservative. Use the low end of your FCF growth range. A wider margin of safety compensates for forecast error — never assume the optimistic case to justify buying.
 
-**Sector concentration — two-tier rule (quality-first):**
-All sector weights are expressed as **% of total portfolio (cash + equity combined)** — NOT % of equity only. With 60% cash, a sector holding $20K of a $100K portfolio is 20%, not 50%. Always interpret `weight_pct` from `get_sector_exposure` and `post_buy_sector_pct` from `check_concentration_limits` this way.
+**Sector concentration — no caps, quality-first:**
+There are no sector caps or concentration limits. A great business at a great price should be bought
+regardless of how much of the portfolio is already in that sector. Sector diversification is a risk
+heuristic, not a goal — owning 5 exceptional software businesses is better than owning 1 exceptional
+software business and 4 mediocre ones from other sectors just to spread the weight around.
 
-Do NOT skip a high-quality business solely because its sector is already represented in the portfolio. Sector diversification is a risk heuristic, not a goal. When `check_concentration_limits` returns `requires_justification=True` (sector 30–40% of total portfolio), you MAY proceed if you write explicit justification covering:
-  1. Confirmed moat type (data-backed — gross retention, switching cost evidence, network density, etc.)
-  2. Why the quality of this specific business warrants overweight in the sector
-  3. Stress test: if the entire sector reprices -30%, what is the portfolio drawdown and is it acceptable?
-If all three pass, proceed at normal conviction sizing. The soft limit is a checkpoint, not a veto.
-The hard cap at 40% of total portfolio is absolute — no override.
+The only concentration limit that matters is per-position: never exceed 20% of portfolio in a single stock.
 
 ## Permanent Decision Rules
 These rules are hard constraints derived from past session learnings. Apply them mechanically — do not override them with narrative reasoning.
@@ -1932,7 +1930,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 
 **Step 2 — Assess current state**
 - Check portfolio status (cash, holdings, P&L)
-- Call `get_sector_exposure` — see current sector weights before making any new allocation decisions
+- Call `get_sector_exposure` — see current sector weights for situational awareness (no caps apply)
 - Call `get_macro_environment` — market-price macro signals: yield curve, dollar, VIX, oil
 - Call `get_economic_indicators` — real-economy macro signals: GDP growth, CPI, unemployment, consumer sentiment; synthesise with get_macro_environment for complete regime picture
 - Call `get_benchmark_comparison` — are we beating the S&P 500? If not, why not?
@@ -1980,7 +1978,7 @@ Using the `prioritize_watchlist_ml` result from Step 1:
 
 1. **For each ACTIVE watchlist item, in rank order**, check its current price against the target entry price:
    - Price ≤ target (AT TARGET or BELOW): **treat as a buy candidate immediately**. Do NOT re-research.
-     The thesis was already validated. Check sector limits, then buy or explain why not.
+     The thesis was already validated. Buy unless the position would exceed the 20% single-stock cap.
    - Price within 5% above target (NEAR TARGET): flag as high-priority. Set a `add_trade_trigger`
      with `price_below` at the target if you don't buy now.
    - Price >5% above target: note it and move on — the watchlist tier system handles promotion/demotion.
@@ -2061,8 +2059,7 @@ and complete Steps 5-6. Restarting wastes money and does not fix transient API e
   | moat confirmed AND MoS ≥ mos_threshold_pct AND bear_verdict = "proceed" | `buy_stock` at full recommended size |
   | moat confirmed AND MoS ≥ mos_threshold_pct AND bear_verdict = "caution" | `buy_stock` at **half** recommended size |
   | moat confirmed AND MoS < mos_threshold_pct | `add_to_watchlist` at price = IV × (1 − mos_threshold_pct/100) |
-  | moat confirmed AND MoS ≥ mos_threshold_pct AND `check_concentration_limits` hard-blocks (sector >40% or position >10%) | `add_to_watchlist` — do NOT skip or shadow. Note reason: "concentration limit — revisit when sector weight drops or existing position exits." |
-  | moat confirmed AND MoS ≥ mos_threshold_pct AND `check_concentration_limits` soft-warns (sector 30–40%) | Write justification (moat data, quality rationale, -30% stress test). If all three pass: buy. If not: `add_to_watchlist`. Never silently drop a quality business because the sector is heavy. |
+  | moat confirmed AND MoS ≥ mos_threshold_pct AND position would exceed 20% of portfolio | `buy_stock` at size that brings position to 20% cap |
 
 - Position sizing: call `get_conviction_position_size` with the report's conviction_score, current
   regime, and portfolio equity. Use the returned `recommended_dollars` for full-size buys,
