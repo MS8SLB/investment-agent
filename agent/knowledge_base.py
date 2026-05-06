@@ -513,4 +513,253 @@ If you cannot assign meaningful probabilities with reasonable confidence:
 Flag as "bimodal outcome — speculative position sizing required" in full_thesis.
 """,
     },
+
+    # ── CoStar Group (CSGP) ───────────────────────────────────────────────────
+    {
+        "topic": "company",
+        "title": "CoStar Group: 40-year moat in commercial real estate data",
+        "tags": ["CSGP", "CoStar", "SaaS", "moat", "network effects", "data", "CRE", "commercial real estate"],
+        "content": """
+BUSINESS MODEL:
+CoStar digitises commercial real estate through 40 years of on-the-ground data collection.
+Core product: CoStar Suite (CRE analytics) - ~270k subscribers, $1B+ revenue annually.
+59 consecutive quarters of double-digit revenue growth (through crises, COVID, rate hikes).
+
+MOAT: Hybrid physical + digital approach
+1. Physical boots-on-the-ground: Thousands of field researchers visit properties, verify data, photograph.
+2. Accumulated proprietary database: 37+ years of manually-earned data cannot be replicated quickly.
+3. Network effects flywheel: More brokers use CoStar → more listings → investors must also use it.
+4. Switching costs: CoStar Suite is like "Bloomberg Terminal for CRE" — essentially required.
+5. Pricing power: Sticky product where churn comes from customers going out of business, not competition.
+6. AI-resistant: On-the-ground human verification cannot be fully automated.
+
+Competitor landscape: MSCI, Real Capital Analytics, Reonomy exist but lack breadth/depth.
+CoStar estimates it has more data on US commercial buildings than the US government.
+
+PORTFOLIO OF BUSINESSES (diversification as resilience):
+- CoStar Suite: CRE analytics & data ($1.02B revenue 2024)
+- Apartments.com: Rental listings ($1.07B revenue 2024) — key success story
+- STR: Hospitality data provider
+- LoopNet: CRE marketplace (11M monthly visitors)
+- Visual Lease & Real Estate Manager: Lease portfolio SaaS
+- Ten-X: Commercial property auction platform
+- Land.com: Land sales portal
+
+Geographic TAM: Currently penetrating only 3-4% of global addressable market (primarily North America).
+International expansion underway: Domain Holdings (Australia acquisition, $1.9B, 2025).
+Matterport acquisition ($1.6B): 3D virtual tours of office/industrial spaces — deepens moat.
+""",
+    },
+    {
+        "topic": "framework",
+        "title": "CoStar marketplace playbook: Apartments.com → Homes.com",
+        "tags": ["marketplace", "playbook", "acquisition", "content", "network effects", "CSGP", "Apartments.com", "Homes.com"],
+        "content": """
+THREE-PHASE MARKETPLACE EXECUTION (proven at Apartments.com, being replicated at Homes.com):
+
+PHASE 1: CONTENT DOMINANCE
+- Build rich, proprietary content on every property (photos, floor plans, amenities, school ratings, walkability).
+- Send field researchers to document properties before virtual tours were commonplace.
+- Goal: Win organic search traffic through superior content (Google ranks you first for "apartments in Phoenix").
+- This traffic is free and compounding — no paid marketing needed initially.
+
+PHASE 2: BRAND ADVERTISING & CATEGORY OWNERSHIP
+- National TV campaigns (e.g., Jeff Goldblum for Apartments.com).
+- Goal: Own the category mindshare so when anyone thinks "renting," they think Apartments.com first.
+
+PHASE 3: MONETIZATION VIA ENHANCED LISTINGS
+- Landlords/property managers pay for enhanced listings (better placement, more photos, rental applications).
+- Model similar to Google search ads — more you pay, more visibility you get.
+- Requires dedicated sales force with deep market relationships (boots-on-ground critical).
+- Once you have supply (landlords paying), demand (renters) naturally follows.
+
+APARTMENTS.COM SUCCESS STORY:
+- Acquisition cost: $585M (2014)
+- Current revenue: $1.2B (2024)
+- Timeline: ~10 years to fully build out
+- IRR on acquisition: ~39%
+
+HOMES.COM REPLICATION ATTEMPT:
+CoStar is applying the same playbook to residential single-family homes (vs. rentals).
+- Started: Content-first strategy (building profiles on every home in America)
+- Market dynamics: Homes.com has "Your Listing, Your Lead" pitch vs. Zillow's "We sell your lead to competitors"
+- Status (Feb 2026): 31k agent subscribers, ~$100M annualized revenue, 48% YoY lead growth
+- Problem: CoStar has invested $5B in residential marketing with still-negative operating profits
+- Challenge: Zillow has 230M+ monthly visitors and entrenched network effects (harder than Apartments market was)
+
+KEY INSIGHT:
+The fact that Apartments.com worked doesn't guarantee Homes.com will work.
+Residential has an entrenched incumbent (Zillow) with stronger network effects.
+But the playbook execution has proven disciplined and value-creating.
+""",
+    },
+    {
+        "topic": "framework",
+        "title": "Andy Florance (CoStar CEO): Capital allocation track record & disciplined approach",
+        "tags": ["capital allocation", "management", "founder-CEO", "CSGP", "Andy Florance", "buyback", "discipline"],
+        "content": """
+BACKGROUND:
+Founder/still-CEO of CoStar (40+ years). Started company at age 24 by identifying a frustration:
+commercial real estate was one of the most opaque markets in the world. Sent researchers with clipboards
+and cameras to physically visit properties and build a database. Started selling data on floppy disks.
+
+CAPITAL ALLOCATION TRACK RECORD:
+IRRs on major investments: 17-39%
+- This is EXCEPTIONAL and demonstrates disciplined capital allocation
+- Apartments.com acquisition was a major bet; proved to be 39% IRR play
+- Track record gives confidence that management deserves benefit of doubt on large bets
+
+CURRENT FINANCIAL POSITION:
+- Cash: $4B
+- Debt: $0
+- Share buyback authorized: $700M (largest in company history)
+- 2026 net investment reduction: $300M vs. prior spending (trimming Homes.com spend)
+
+DISCIPLINE SIGNALS:
+1. No debt despite aggressive investment — financial fortress
+2. Willingness to cut Homes.com spending by $300M when markets criticized it (shows responsiveness)
+3. Massive buyback program despite Homes.com losses — signal of confidence + capital return
+4. Founder-driven with decades of tenure — owner mentality
+
+ACTIVIST RESPONSE:
+Third Point hedge fund published letter (Jan 2026) criticizing the Homes.com investment.
+Demanded board overhaul, less independent directors.
+CoStar responded with $700M buyback + $300M spending cut.
+Loeb (Third Point) subsequently exited position — suggests CoStar's pragmatic moves addressed concerns.
+
+INVESTMENT INSIGHT:
+Founder-CEOs with decades of track record and fortress balance sheets earn credibility.
+Prefer to back great capital allocators taking speculative bets than mediocre operators with "safe" strategies.
+""",
+    },
+    {
+        "topic": "company",
+        "title": "CoStar CSGP: recent developments (2025-2026)",
+        "tags": ["CSGP", "CoStar", "Third Point", "Homes.com", "buyback", "Matterport", "Domain"],
+        "content": """
+RECENT DEVELOPMENTS AS OF APRIL 2026:
+
+HOMES.COM STATUS (Feb 2026 update):
+- 31,000+ agent subscribers
+- ~$100M annual run-rate revenue (up from ~$0 in 2021)
+- Lead volume to listing agents: +48% YoY
+- Lead volume to paying member agents: +187% YoY
+- Still spending $1B+ on marketing; original 2027 targets abandoned
+- 2026 net residential investment being cut by $300M vs. prior pace
+
+THIRD POINT ACTIVIST CAMPAIGN:
+- Dan Loeb (Third Point) published open letter to CoStar board (Jan 2026)
+- Demands: board overhaul, cut residential investment, return capital via buybacks
+- Corporate response: $700M share buyback (largest in company history), $300M residential spend cut
+- OUTCOME: Third Point exited its position entirely — activist campaign effectively concluded
+- Interpretation: Management made tangible concessions; Loeb accepted partial win and moved on
+
+CAPITAL RETURN:
+- $700M share buyback authorized (unprecedented scale for CoStar)
+- $4B cash, zero debt — one of the strongest balance sheets in software
+
+RECENT ACQUISITIONS:
+- Domain Holdings (Australia): ~$1.9B (2025). Australia #2 residential portal. International expansion.
+- Matterport: ~$1.6B. Creates 3D digital twins of physical spaces.
+  → Will allow CoStar subscribers to virtually tour any office/industrial building.
+  → Deepens moat and addresses CRE broker workflow.
+
+LOOPNET DETAILS:
+- #1 CRE marketplace by traffic: ~11M monthly visitors
+- Only 3.8% of top 1,000 US commercial properties are enhanced listing clients
+- Institutional strategy (Brookfield, Blackstone etc.): Andy Florance says 2-3 more years to fully build
+- When institutional clients come on: large contracts with high renewal rates
+- Note: low % of trophy properties as clients reflects that prime assets don't need help selling
+
+AI IMPACT ASSESSMENT:
+- CoStar Suite labeled as "AI loser" by market — stock down 50%+ from peak
+- Counter-argument: on-the-ground researchers cannot be replaced by AI
+- Data collection, physical verification, field photography remain AI-resistant
+- Most exposed business: Homes.com (consumer-facing, Zillow already has mindshare)
+""",
+    },
+    {
+        "topic": "failure_mode",
+        "title": "CoStar Homes.com: Bear case and why disruption might fail",
+        "tags": ["CSGP", "Homes.com", "bear case", "Zillow", "network effects", "capital allocation", "failure mode"],
+        "content": """
+BEAR CASE (Third Point perspective):
+
+1. CAPITAL DESTRUCTION:
+   - $5B invested across residential portals since 2021
+   - Generated just $60M in revenue in 2024
+   - IRR on capital deployed: effectively negative so far
+   - Original 2027 targets abandoned without replacement timeline
+
+2. NETWORK EFFECTS ARE ASYMMETRIC:
+   - Apartments.com was a more fragmented market; Zillow dominated but not invincibly
+   - Residential single-family homes: Zillow has 230M+ monthly visitors
+   - Network effects in residential are stronger than in multifamily
+   - By the time CoStar finishes building, Zillow has moved further ahead
+
+3. STRUCTURAL CHALLENGE:
+   - "Your Listing, Your Lead" pitch is compelling but not differentiated
+   - Zillow's model still works despite recent NAR commission settlement
+   - Only 27% of recent home buyers negotiated agent fees — old habits persist
+   - Even if more buyers demand fee negotiation, Zillow's buy-side model survives
+
+4. BETTER CAPITAL ALLOCATION:
+   - Return capital to shareholders via buybacks and dividends
+   - Refocus on core CRE business (CoStar Suite + LoopNet + STR)
+   - Core business has 3-4% global penetration — massive TAM upside without Homes.com bet
+
+BULL CASE COUNTERARGUMENT:
+- "This is exactly what people said about Apartments.com, and look how it turned out"
+- If CoStar can replicate that playbook, current pain is temporary
+- Management's track record (17-39% IRRs) deserves deference
+
+VALUATION INSIGHT:
+Even with 60% probability on the "pivot" scenario, fair value is ~$55.
+At ~$35, 30% discount to fair value with 17% IRR — skewed risk-reward.
+""",
+    },
+    {
+        "topic": "iv_methodology",
+        "title": "CoStar: Two-scenario valuation with probability weighting",
+        "tags": ["CSGP", "CoStar", "valuation", "DCF", "Homes.com", "IV"],
+        "content": """
+VALUATION SCENARIO FRAMEWORK (April 2026, Intrinsic Value Newsletter):
+
+SCENARIO 1: PIVOT / CORE BUSINESS (60% probability)
+Cut Homes.com promo spend ~80%, refocus on core CRE data + Apartments.com + LoopNet.
+
+Revenue model (80% promo cut):
+  2025: $3.25B → 2026: $3.59B → 2027: $3.78B → 2028: $4.01B → 2029: $4.26B → 2030: $4.55B
+
+EBIT margin path:
+  2025: -2.2% → 2026: 4.6% → 2027: 11.5% → 2028: 18.3% → 2029: 25.2% → 2030: 28.0%
+
+Exit multiple analysis (2030 EV/EBIT weighted average):
+  Range: 16x-30x EV/EBIT; probability-weighted avg ~24x
+  Weighted Avg Present EV Per Share: $47
+  Add: net cash per share (2025E): $3.10
+  → Fair Value (Scenario 1): $50
+  → 20% Margin of Safety Target Price: $40.12
+
+IRR analysis:
+  At $35 current price: 17% implied IRR → BUY
+  At $40.12 (MoS price): 13.6% implied IRR → ENTRY ZONE
+  At $50: ~9% IRR → HOLD
+
+SCENARIO 2: HOMES.COM SCALES (40% probability)
+Homes.com hits $500M-$1B revenue on largely fixed cost base → enormously value-creating.
+If this scenario plays out, current price is clearly undervalued.
+
+COMBINED PROBABILITY-WEIGHTED FAIR VALUE: ~$55 (author estimate)
+Represents ~30% upside from ~$35 current price.
+
+KEY INSIGHT:
+CoStar is worth MORE if it stops Homes.com spending immediately than if Homes.com succeeds in 5 years.
+The time-value of capital destruction makes the pivot scenario higher IV despite missing upside.
+
+POSITION SIZING:
+IV newsletter: 2% starter position, build to 5% if conviction increases.
+Entry target: ~$40 (20% MoS to $50 fair value).
+""",
+    },
 ]
