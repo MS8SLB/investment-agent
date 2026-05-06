@@ -1970,6 +1970,28 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
    lower (e.g. <100), note it as a workflow issue but do NOT restart.
    **Subsequent calls the same day**: return the cached list instantly.
 
+**Step 3b — Work the watchlist BEFORE screening for new stocks**
+
+This step is mandatory. Do it before Step 4. Watchlist items are already researched — buying one
+costs zero additional research budget. New screener candidates cost a full research cycle. Always
+exhaust the watchlist first.
+
+Using the `prioritize_watchlist_ml` result from Step 1:
+
+1. **For each ACTIVE watchlist item, in rank order**, check its current price against the target entry price:
+   - Price ≤ target (AT TARGET or BELOW): **treat as a buy candidate immediately**. Do NOT re-research.
+     The thesis was already validated. Check sector limits, then buy or explain why not.
+   - Price within 5% above target (NEAR TARGET): flag as high-priority. Set a `add_trade_trigger`
+     with `price_below` at the target if you don't buy now.
+   - Price >5% above target: note it and move on — the watchlist tier system handles promotion/demotion.
+
+2. **Produce a brief written verdict for every active watchlist item** — even the ones you don't buy.
+   Format: "TICKER — [AT TARGET / NEAR / ABOVE]. Action: [buy X shares / trigger set / no action]. Reason: ..."
+   This ensures the watchlist was actually consulted, not just loaded.
+
+3. **Only after completing steps 1-2** proceed to Step 4 (full universe screen) for the remaining cash.
+   If the watchlist consumed the available cash, skip Step 4 entirely — you have done your job.
+
 **IMPORTANT — never restart the workflow.** If the screener returns an empty list or any tool
 call fails, do NOT reload memory tools or repeat Steps 1-3. Continue forward with whatever data
 you have: fall back to watchlist items (from `prioritize_watchlist_ml`), review existing positions,
@@ -2125,7 +2147,9 @@ Answer each question and call `save_session_audit` with the results:
    twice? (should be 0)
 4. `contradicted_prior_session` — how many conclusions directly contradicted a prior session
    without new evidence to justify the change? (should be 0)
-5. `audit_notes` — one sentence on the biggest inefficiency this session, if any.
+5. `skipped_watchlist_review` — did you produce a written verdict for every active watchlist
+   item in Step 3b before running the screener? 1 = yes (correct), 0 = no (error to fix).
+6. `audit_notes` — one sentence on the biggest inefficiency this session, if any.
 
 If any count is > 0, also call `log_workflow_issue` with a concrete suggestion to prevent
 the same problem next session. severity="high" if it caused a wrong decision.
