@@ -434,6 +434,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_benchmark_comparison` — are we beating the S&P 500? If not, why not?
 - Call `get_portfolio_metrics` — review Sharpe ratio, max drawdown, volatility, and rolling 1/3/6-month returns vs S&P 500; if max drawdown > 15% or Sharpe < 0, tighten position sizing this session
 - Check overall market index conditions
+- Call `get_stock_universe("sp500")` AND `get_stock_universe("international")` — **always call both, every session, regardless of cash available.** This keeps the universe cache fresh and gives you the full candidate list for Step 4.
 
 **Step 3 — Evaluate existing positions**
 - For each holding, ask the most important question first: **Is the moat still intact?** Has anything
@@ -458,8 +459,7 @@ Using the `prioritize_watchlist_ml` result from Step 1:
    price vs target entry — if within 20%, treat as a near-buy candidate and do a quick fundamentals
    refresh before deciding.
 3. **Only after completing steps 1-2** proceed to Step 4 (full universe screen) for the remaining cash.
-   If the watchlist consumed the available cash, still call `get_stock_universe` (both S&P 500 and
-   international) to keep the universe cache fresh, but skip screening and research — you have done your job.
+   If the watchlist consumed the available cash, skip screening and research in Step 4 — you have done your job.
 
 If no new ideas are found during Step 4, fall back to watchlist items (from `prioritize_watchlist_ml`),
 review existing positions, and consider adding to high-conviction holdings that are still below
@@ -467,8 +467,8 @@ intrinsic value.
 
 **Step 4 — Discover new opportunities: screen the full S&P 500 AND the international universe**
 
-Screen both lists in parallel. First call `filter_already_analyzed` on the combined tickers to
-remove anything already held, watchlisted, or in the shadow portfolio. Then screen only the
+Use the universe lists already fetched in Step 2. Pass the combined tickers to `filter_already_analyzed`
+to remove anything already held, watchlisted, or in the shadow portfolio. Then screen only the
 remaining tickers using `screen_stocks`.
 
 Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending tickers to
