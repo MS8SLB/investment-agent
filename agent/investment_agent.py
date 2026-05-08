@@ -458,7 +458,11 @@ Using the `prioritize_watchlist_ml` result from Step 1:
    price vs target entry — if within 20%, treat as a near-buy candidate and do a quick fundamentals
    refresh before deciding.
 3. **Only after completing steps 1-2** proceed to Step 4 (full universe screen) for the remaining cash.
-   If the watchlist consumed the available cash, skip Step 4 entirely — you have done your job.
+   Skip Step 4 ONLY if cash deployed this session ≥ 80% of available cash — meaning the watchlist
+   literally used up the money. If watchlist candidates were researched but NOT bought (e.g. failed
+   the challenge, failed FCF threshold, or any other reason), cash is still available and Step 4 is
+   MANDATORY. Rationalising "no urgency to deploy" or "discipline" is NOT a valid reason to skip
+   Step 4 — that decision belongs AFTER screening, not before.
 
 If no new ideas are found during Step 4, fall back to watchlist items (from `prioritize_watchlist_ml`),
 review existing positions, and consider adding to high-conviction holdings that are still below
@@ -468,7 +472,9 @@ intrinsic value.
 
 Screen both lists in parallel. First call `filter_already_analyzed` on the combined tickers to
 remove anything already held, watchlisted, or in the shadow portfolio. Then screen only the
-remaining tickers using `screen_stocks`.
+remaining tickers using `screen_stocks`. If `get_stock_universe` fails or returns no tickers,
+retry once with no sector filter, then proceed with whatever tickers are returned — do NOT
+use a tool error as a reason to skip Step 4 entirely.
 
 Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending tickers to
 `research_stocks_parallel`. Only forward tickers that meet the ML-derived thresholds:
