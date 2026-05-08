@@ -397,22 +397,8 @@ def run_agent_session(
 
 def run_portfolio_review(model: Optional[str] = None, **kwargs) -> str:
     """Run a full autonomous portfolio review and rebalancing session."""
-
-    # Pre-fetch universes in code — guarantees they are always available regardless of LLM behaviour
-    print("  ⚙ get_stock_universe (sp500) [pre-fetch]")
-    sp500_result = handle_tool_call("get_stock_universe", {"index": "sp500"})
-    print("  ⚙ get_stock_universe (international) [pre-fetch]")
-    intl_result = handle_tool_call("get_stock_universe", {"index": "international"})
-    sp500_json = json.dumps(sp500_result, default=str)
-    intl_json = json.dumps(intl_result, default=str)
-
     prompt = f"""
 Please conduct a comprehensive portfolio review and take appropriate investment actions:
-
-**UNIVERSE DATA (pre-fetched — do NOT call get_stock_universe again this session):**
-S&P 500 universe: {sp500_json}
-International universe: {intl_json}
-
 
 **Step 1 — Load memory**
 - Call `get_triaged_alerts` to check for thesis-breaking news. Any `thesis_breaking` alert on a held
@@ -448,7 +434,6 @@ International universe: {intl_json}
 - Call `get_benchmark_comparison` — are we beating the S&P 500? If not, why not?
 - Call `get_portfolio_metrics` — review Sharpe ratio, max drawdown, volatility, and rolling 1/3/6-month returns vs S&P 500; if max drawdown > 15% or Sharpe < 0, tighten position sizing this session
 - Check overall market index conditions
-- Stock universes are already loaded above — use them directly in Step 4.
 
 **Step 3 — Evaluate existing positions**
 - For each holding, ask the most important question first: **Is the moat still intact?** Has anything
@@ -472,18 +457,21 @@ Using the `prioritize_watchlist_ml` result from Step 1:
 2. For rank-1 and rank-2 watchlist items (top ML scores): if not already bought, verify current
    price vs target entry — if within 20%, treat as a near-buy candidate and do a quick fundamentals
    refresh before deciding.
-3. **Only after completing steps 1-2** proceed to Step 4 (full universe screen) for the remaining cash.
-   If the watchlist consumed the available cash, skip screening and research in Step 4 — you have done your job.
-
-If no new ideas are found during Step 4, fall back to watchlist items (from `prioritize_watchlist_ml`),
-review existing positions, and consider adding to high-conviction holdings that are still below
-intrinsic value.
+3. **Only after completing steps 1-2** proceed to Step 4. Step 4 is **always mandatory** — even if
+   the watchlist consumed all available cash, you still screen the full universe to find new watchlist
+   candidates. The screener builds the pipeline; it does not require cash to run.
 
 **Step 4 — Discover new opportunities: screen the full S&P 500 AND the international universe**
 
-Use the S&P 500 and international universe lists from the top of this prompt. Pass the combined
-tickers to `filter_already_analyzed` to remove anything already held, watchlisted, or in the
-shadow portfolio. Then screen only the remaining tickers using `screen_stocks`.
+This step is **always mandatory**, every session, regardless of cash available. It builds the
+watchlist pipeline. Follow these steps exactly:
+
+1. Call `get_stock_universe("sp500")` — returns all ~500 S&P 500 tickers.
+2. Call `get_international_universe()` — returns ~200 major non-US tickers (ADRs, foreign-listed).
+   **Call every session** — this is the only way to surface international opportunities.
+3. Merge both lists and pass the combined tickers to `filter_already_analyzed` to remove anything
+   already held, watchlisted, or in the shadow portfolio.
+4. Call `screen_stocks` **once** with the full filtered combined list.
 
 Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending tickers to
 `research_stocks_parallel`. Only forward tickers that meet the ML-derived thresholds:
