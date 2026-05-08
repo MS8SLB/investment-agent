@@ -334,7 +334,6 @@ def run_agent_session(
 
         # prune and cache
         messages = prune_messages(messages)
-        messages_to_send = add_cache_control(messages)
 
         response = client.messages.create(
             model=model,
@@ -346,8 +345,8 @@ def run_agent_session(
                     "cache_control": {"type": "ephemeral"},
                 }
             ],
-            tools=tools,
-            messages=messages_to_send,
+            tools=add_cache_control(tools),
+            messages=messages,
         )
 
         # collect text + tool use blocks
