@@ -381,7 +381,7 @@ def run_agent_session(
         for tool_use in tool_uses:
             print(f"  ⚙ {tool_use.name}")
             result = handle_tool_call(tool_use.name, tool_use.input)
-            result_str = truncate_tool_result(json.dumps(result))
+            result_str = truncate_tool_result(tool_use.name, json.dumps(result, default=str))
             tool_results.append(
                 {
                     "type": "tool_result",
