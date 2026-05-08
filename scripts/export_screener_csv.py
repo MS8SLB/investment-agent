@@ -81,9 +81,9 @@ def main():
 
     conn.close()
 
-    # Build rows: universe first, then any researched tickers not in universe
+    # Build rows: start with all known tickers from every source so nothing is missed
     all_tickers = dict(universe)
-    for t in list(researched) + list(decisions):
+    for t in list(holdings) + list(watchlist) + list(researched) + list(decisions) + list(shadow):
         if t not in all_tickers:
             all_tickers[t] = {"ticker": t}
 
