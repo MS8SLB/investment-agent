@@ -472,6 +472,8 @@ watchlist pipeline. Follow these steps exactly:
 3. Merge both lists and pass the combined tickers to `filter_already_analyzed` to remove anything
    already held, watchlisted, or in the shadow portfolio.
 4. Call `screen_stocks` **once** with the full filtered combined list.
+5. Call `auto_pass_screener_rejects` — ML-scores every screened ticker and auto-passes
+   anything below 4.5/10 to shadow so it is never re-screened. Do this every session.
 
 Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending tickers to
 `research_stocks_parallel`. Only forward tickers that meet the ML-derived thresholds:

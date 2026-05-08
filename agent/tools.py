@@ -3458,6 +3458,26 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "auto_pass_screener_rejects",
+        "description": (
+            "ML-score every ticker in the screener cache and auto-pass anything below threshold "
+            "to the shadow portfolio. Threshold is on a 0–10 scale (default 4.5 = below average). "
+            "Skips tickers already held, watchlisted, or in shadow. "
+            "Call once per session after screen_stocks has run to prune low-quality candidates "
+            "so they are not re-screened indefinitely. Returns counts and which tickers were passed."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "threshold": {
+                    "type": "number",
+                    "description": "ML score cutoff (0–10). Tickers scoring below this are auto-passed. Default 4.5.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "run_portfolio_stress_test",
         "description": "Run scenario-based stress tests across the full portfolio: AI disruption, rate spike, recession, sector concentration shock.",
         "input_schema": {
@@ -3909,6 +3929,9 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "recalibrate_universe_scores":
         from agent.ml_insights import recalibrate_universe_scores
         return recalibrate_universe_scores()
+    elif tool_name == "auto_pass_screener_rejects":
+        from agent.ml_insights import auto_pass_screener_rejects
+        return auto_pass_screener_rejects(threshold=tool_input.get("threshold", 4.5))
 
     elif tool_name == "run_portfolio_stress_test":
         from agent.ml_insights import run_portfolio_stress_test

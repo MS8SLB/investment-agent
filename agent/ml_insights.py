@@ -2024,3 +2024,85 @@ def get_decision_thresholds() -> dict:
             "actionable_guidance": factor_guidance,
         },
     }
+
+
+def auto_pass_screener_rejects(threshold: float = 4.5) -> dict:
+    """
+    ML-score every ticker in the screener cache and auto-pass anything below
+    threshold (0–10 scale) to the shadow portfolio.
+
+    Threshold defaults to 4.5 (below average). With few trades the blended
+    weights lean on regime priors; as trade history grows they become
+    data-driven, so the pass bar tightens automatically.
+
+    Skips tickers already held, watchlisted, or in shadow.
+    Returns a summary of what was passed and what was kept.
+    """
+    import json, os
+
+    cache_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "screener_cache.json"
+    )
+    try:
+        with open(cache_file) as f:
+            cache = json.load(f)
+    except FileNotFoundError:
+        return {"error": "screener_cache.json not found — run screen_stocks first"}
+
+    results = cache.get("results", [])
+    if not results:
+        return {"error": "screener cache is empty"}
+
+    # Get ML blended weights
+    fw = get_ml_factor_weights()
+    weights = fw.get("blended_weights", fw.get("regime_weights", {}))
+    n_trades = fw.get("n_closed_trades", 0)
+
+    # Current portfolio state — skip already-decided tickers
+    held      = {h["ticker"].upper() for h in portfolio.get_holdings()}
+    watchlist = {w["ticker"].upper() for w in portfolio.get_watchlist()}
+    shadow    = {s["ticker"].upper() for s in portfolio.get_shadow_positions()}
+    skip_set  = held | watchlist | shadow
+
+    passed_now = []
+    kept = []
+
+    for row in results:
+        ticker = row.get("ticker", "").upper()
+        if not ticker or ticker in skip_set:
+            continue
+
+        ml_score = _score_features(row, weights)
+
+        if ml_score < threshold:
+            portfolio.add_to_shadow_portfolio(
+                ticker=ticker,
+                price=row.get("price") or 0.0,
+                reason=(
+                    f"Auto-passed: ML score {ml_score:.1f}/10 < threshold {threshold} "
+                    f"(weights: {n_trades} trades, regime {fw.get('regime','?')})"
+                ),
+            )
+            passed_now.append({"ticker": ticker, "ml_score": round(ml_score, 2),
+                                "screener_score": row.get("score")})
+        else:
+            kept.append({"ticker": ticker, "ml_score": round(ml_score, 2),
+                         "screener_score": row.get("score")})
+
+    kept.sort(key=lambda x: x["ml_score"], reverse=True)
+    passed_now.sort(key=lambda x: x["ml_score"])
+
+    return {
+        "threshold": threshold,
+        "regime": fw.get("regime"),
+        "n_trades_for_weights": n_trades,
+        "auto_passed_count": len(passed_now),
+        "kept_count": len(kept),
+        "auto_passed": passed_now,
+        "kept_top20": kept[:20],
+        "note": (
+            f"ML-scored {len(passed_now) + len(kept)} screened tickers. "
+            f"{len(passed_now)} scored below {threshold}/10 and were auto-passed to shadow. "
+            f"{len(kept)} remain as candidates."
+        ),
+    }
