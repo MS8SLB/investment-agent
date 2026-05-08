@@ -458,7 +458,8 @@ Using the `prioritize_watchlist_ml` result from Step 1:
    price vs target entry — if within 20%, treat as a near-buy candidate and do a quick fundamentals
    refresh before deciding.
 3. **Only after completing steps 1-2** proceed to Step 4 (full universe screen) for the remaining cash.
-   If the watchlist consumed the available cash, skip Step 4 entirely — you have done your job.
+   If the watchlist consumed the available cash, still call `get_stock_universe` (both S&P 500 and
+   international) to keep the universe cache fresh, but skip screening and research — you have done your job.
 
 If no new ideas are found during Step 4, fall back to watchlist items (from `prioritize_watchlist_ml`),
 review existing positions, and consider adding to high-conviction holdings that are still below
