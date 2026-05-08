@@ -397,8 +397,22 @@ def run_agent_session(
 
 def run_portfolio_review(model: Optional[str] = None, **kwargs) -> str:
     """Run a full autonomous portfolio review and rebalancing session."""
+
+    # Pre-fetch universes in code — guarantees they are always available regardless of LLM behaviour
+    print("  ⚙ get_stock_universe (sp500) [pre-fetch]")
+    sp500_result = handle_tool_call("get_stock_universe", {"index": "sp500"})
+    print("  ⚙ get_stock_universe (international) [pre-fetch]")
+    intl_result = handle_tool_call("get_stock_universe", {"index": "international"})
+    sp500_json = json.dumps(sp500_result, default=str)
+    intl_json = json.dumps(intl_result, default=str)
+
     prompt = f"""
 Please conduct a comprehensive portfolio review and take appropriate investment actions:
+
+**UNIVERSE DATA (pre-fetched — do NOT call get_stock_universe again this session):**
+S&P 500 universe: {sp500_json}
+International universe: {intl_json}
+
 
 **Step 1 — Load memory**
 - Call `get_triaged_alerts` to check for thesis-breaking news. Any `thesis_breaking` alert on a held
@@ -434,7 +448,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_benchmark_comparison` — are we beating the S&P 500? If not, why not?
 - Call `get_portfolio_metrics` — review Sharpe ratio, max drawdown, volatility, and rolling 1/3/6-month returns vs S&P 500; if max drawdown > 15% or Sharpe < 0, tighten position sizing this session
 - Check overall market index conditions
-- Call `get_stock_universe("sp500")` AND `get_stock_universe("international")` — **always call both, every session, regardless of cash available.** This keeps the universe cache fresh and gives you the full candidate list for Step 4.
+- Stock universes are already loaded above — use them directly in Step 4.
 
 **Step 3 — Evaluate existing positions**
 - For each holding, ask the most important question first: **Is the moat still intact?** Has anything
@@ -467,9 +481,9 @@ intrinsic value.
 
 **Step 4 — Discover new opportunities: screen the full S&P 500 AND the international universe**
 
-Use the universe lists already fetched in Step 2. Pass the combined tickers to `filter_already_analyzed`
-to remove anything already held, watchlisted, or in the shadow portfolio. Then screen only the
-remaining tickers using `screen_stocks`.
+Use the S&P 500 and international universe lists from the top of this prompt. Pass the combined
+tickers to `filter_already_analyzed` to remove anything already held, watchlisted, or in the
+shadow portfolio. Then screen only the remaining tickers using `screen_stocks`.
 
 Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending tickers to
 `research_stocks_parallel`. Only forward tickers that meet the ML-derived thresholds:
