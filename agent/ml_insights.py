@@ -2077,8 +2077,8 @@ def auto_pass_screener_rejects(threshold: float = 4.5) -> dict:
         if ml_score < threshold:
             portfolio.add_to_shadow_portfolio(
                 ticker=ticker,
-                price=row.get("price") or 0.0,
-                reason=(
+                price_at_consideration=row.get("price") or 0.0,
+                reason_passed=(
                     f"Auto-passed: ML score {ml_score:.1f}/10 < threshold {threshold} "
                     f"(weights: {n_trades} trades, regime {fw.get('regime','?')})"
                 ),
