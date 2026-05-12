@@ -2353,11 +2353,13 @@ def screen_stocks(tickers: list) -> list:
                     or info.get("regularMarketPrice")
                     or info.get("previousClose")
                 )
+                ticker_substituted = None  # Track if we substituted a foreign ticker for a US equivalent
                 if not price:
                     # Foreign-suffix ticker (e.g. NESN.SW, 0700.HK) with no data —
                     # try yf.Search to find a US-listed ADR/OTC equivalent.
                     if "." in ticker:
                         try:
+                            original_ticker = ticker
                             base = ticker.split(".")[0]
                             _us_exchanges = {"NYQ", "NMS", "NGM", "PCX", "ASE", "OTC", "PNK"}
                             for _q in (yf.Search(base, max_results=5).quotes or []):
@@ -2367,6 +2369,7 @@ def screen_stocks(tickers: list) -> list:
                                     _alt_price = (_alt.get("currentPrice") or _alt.get("regularMarketPrice") or _alt.get("previousClose"))
                                     if _alt_price:
                                         info = _alt
+                                        ticker_substituted = f"Substituted {original_ticker} → {_sym} (US-listed ADR)"
                                         ticker = _sym
                                         name           = info.get("longName") or info.get("shortName", _sym)
                                         sector         = info.get("sector", "")
@@ -2454,7 +2457,7 @@ def screen_stocks(tickers: list) -> list:
                 if week52_change > 0.15:
                     score += 1
 
-            return {
+            result = {
                 "ticker": ticker,
                 "name": name,
                 "sector": sector,
@@ -2474,6 +2477,9 @@ def screen_stocks(tickers: list) -> list:
                 "recommendation": recommendation,
                 "score": score,
             }
+            if ticker_substituted:
+                result["ticker_substituted"] = ticker_substituted
+            return result
         except Exception:
             return None
 

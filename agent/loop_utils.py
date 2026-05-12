@@ -45,7 +45,7 @@ def add_cache_control(tools: list) -> list:
     return result
 
 
-def prune_messages(messages: list, max_turns: int = 10) -> list:
+def prune_messages(messages: list, max_turns: int = 20) -> list:
     """
     Keep messages[0] (initial user prompt) + the last max_turns*2 messages.
     Prevents the context window from growing unboundedly across tool calls.
