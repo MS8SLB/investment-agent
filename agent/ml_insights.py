@@ -111,11 +111,19 @@ _REGIME_BASE_POSITION = {
 # Internal helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
+_REGIME_CACHE: dict = {"result": None, "ts": 0.0}
+_REGIME_TTL = 1800  # 30 minutes — safe to reuse within a session
+
 def _detect_regime() -> tuple[str, str, dict]:
     """
     Classify the current macro regime using live market data.
     Returns (regime_name, rationale_string, raw_macro_dict).
+    Cached for _REGIME_TTL seconds to avoid redundant API calls within a session.
     """
+    import time as _t
+    now = _t.time()
+    if _REGIME_CACHE["result"] is not None and now - _REGIME_CACHE["ts"] < _REGIME_TTL:
+        return _REGIME_CACHE["result"]
     try:
         macro = market_data.get_macro_environment()
     except Exception:
@@ -173,7 +181,11 @@ def _detect_regime() -> tuple[str, str, dict]:
         regime = "NORMAL"
 
     rationale = f"{regime}: " + (", ".join(rationale_parts) if rationale_parts else "baseline indicators")
-    return regime, rationale, macro
+    result = (regime, rationale, macro)
+    import time as _t
+    _REGIME_CACHE["result"] = result
+    _REGIME_CACHE["ts"] = _t.time()
+    return result
 
 
 def _to_feature_vec(row: dict) -> Optional[np.ndarray]:
@@ -482,9 +494,11 @@ def prioritize_watchlist_ml() -> dict:
     if not watchlist:
         return {"message": "Watchlist is empty.", "ranked_items": []}
 
-    # Get learned weights
+    # Get learned weights — pass full fw_result so _score_features can normalize
     fw_result = get_ml_factor_weights()
-    weights   = fw_result["blended_weights"]
+    weights   = {**fw_result["blended_weights"],
+                 "feature_mean": fw_result.get("feature_mean", {}),
+                 "feature_std":  fw_result.get("feature_std", {})}
     regime    = fw_result["regime"]
 
     # Pre-filter: get current prices cheaply to skip items trading far above target entry.
@@ -765,7 +779,7 @@ def get_position_size_recommendation(ticker: str, features: dict) -> dict:
             f"Reduced by {size_reduction:.0f}pp for {risk_score} risk factor(s)"
             + (f", adjusted {ml_adjustment:+.0f}pp by ML drawdown model" if ml_adjustment != 0 else "")
             + f". Final recommendation: {recommended_pct:.1f}% of portfolio. "
-            "Always subject to 20% maximum position cap and available cash."
+            "Always subject to 15% maximum position cap and available cash."
         ),
     }
 
@@ -2070,9 +2084,11 @@ def auto_pass_screener_rejects(threshold: float = 4.5) -> dict:
     if not results:
         return {"error": "screener cache is empty"}
 
-    # Get ML blended weights
+    # Get ML blended weights — include normalization stats so _score_features normalizes correctly
     fw = get_ml_factor_weights()
-    weights = fw.get("blended_weights", fw.get("regime_weights", {}))
+    weights = {**fw.get("blended_weights", fw.get("regime_weights", {})),
+               "feature_mean": fw.get("feature_mean", {}),
+               "feature_std":  fw.get("feature_std", {})}
     n_trades = fw.get("n_closed_trades", 0)
 
     # Current portfolio state — skip already-decided tickers
@@ -2093,7 +2109,7 @@ def auto_pass_screener_rejects(threshold: float = 4.5) -> dict:
 
         if ml_score < threshold:
             price = row.get("price")
-            if price:  # Skip tickers with missing price data
+            if price:  # Skip tickers with missing price data — can't record a valid shadow entry
                 portfolio.add_to_shadow_portfolio(
                     ticker=ticker,
                     price_at_consideration=float(price),
@@ -2102,8 +2118,8 @@ def auto_pass_screener_rejects(threshold: float = 4.5) -> dict:
                         f"(weights: {n_trades} trades, regime {fw.get('regime','?')})"
                     ),
                 )
-            passed_now.append({"ticker": ticker, "ml_score": round(ml_score, 2),
-                                "screener_score": row.get("score")})
+                passed_now.append({"ticker": ticker, "ml_score": round(ml_score, 2),
+                                    "screener_score": row.get("score")})
         else:
             kept.append({"ticker": ticker, "ml_score": round(ml_score, 2),
                          "screener_score": row.get("score")})

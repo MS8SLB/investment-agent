@@ -1751,7 +1751,10 @@ def get_macro_environment() -> dict:
 
     # Treasury yields
     y10, y10c = _fetch("^TNX")   # 10-year yield (in percent, e.g. 4.5 = 4.5%)
-    y2, y2c = _fetch("^IRX")     # 13-week T-bill as short-end proxy
+    y2, y2c = _fetch("^IRX")     # 13-week T-bill (fallback; 2-year preferred)
+    y2_note = _fetch("2YY=F")    # 2-year Treasury note (more standard for yield curve)
+    if y2_note[0]:
+        y2, y2c = y2_note
     result["rates"] = {
         "ten_yr_treasury_yield_pct": y10,
         "two_yr_treasury_yield_pct": y2,
