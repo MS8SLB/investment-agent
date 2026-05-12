@@ -1243,6 +1243,10 @@ Apply this rubric to ensure your moat scores are consistent across sessions:
 6. **Price context** — `get_price_history` (1y): is the current price near a historic low
    relative to your intrinsic value estimate? Understand the setup.
 7. **Earnings risk** — `get_earnings_calendar`: next date, consensus, beat/miss history
+8. **Upcoming catalysts** — Call `get_upcoming_catalysts(ticker)` to surface: earnings dates, product launches,
+   regulatory decisions, M&A announcements, index changes. Catalysts can trigger 10-30% moves. Cross-reference
+   with investor relations calendar and SEC Edgar 8-K filings for material events.
+
 8. **News** — `get_stock_news` + `get_rss_news`: thesis-breaking or moat-confirming events
 9. **Analyst sentiment** — `get_analyst_upgrades`: cluster of downgrades = warning signal
 10. **Insider signal** — `get_insider_activity`: CEO/CFO buying their own stock is a strong
@@ -1258,6 +1262,10 @@ Apply this rubric to ensure your moat scores are consistent across sessions:
     "multi-insider persistent net selling under fundamental uncertainty — raises hurdle rate."
     When the thesis is clear and value is evident, routine insider selling can be ignored.
 11. **Material events** — `get_material_events` (90 days): CFO exits, impairments, restatements
+12. **Revenue/customer concentration** — Call `get_revenue_concentration(ticker)` to flag concentration risk.
+    If the analysis returns "high" concentration risk, check 10-K Item 1A for exact customer concentration %.
+    Red flag: >25% of revenue from a single customer. This erodes the moat — customer departure is an existential risk.
+
 12. **Peer comparison** — `get_competitor_analysis`: compare FCF yield, ROIC, margins vs peers;
     validate whether any valuation premium or discount is justified by moat quality
 13. **Smart money** — `get_superinvestor_positions`: do Buffett, Ackman, or other value-oriented
@@ -1316,6 +1324,17 @@ Apply this rubric to ensure your moat scores are consistent across sessions:
     This does NOT tell you whether the stock IS being shorted — it tells you WHETHER IT IS VULNERABLE TO
     being shorted. If multiple patterns score HIGH, treat it as a hard sell signal regardless of valuation.
     To check actual short reports (Hindenburg Research, Muddy Waters), search their archives or FactSet.
+
+## Structured Thesis Assumption Tracking
+
+Once you've completed your research and are ready to log the decision, call `structure_thesis_assumptions(ticker, thesis_text)`
+to parse your thesis statement and extract key assumptions (growth rate, margin expansion, moat durability, etc.).
+This creates a structured record so that in future sessions, you can verify each assumption against actual results:
+- Did the company actually achieve the 20% revenue growth we assumed?
+- Did the moat hold as expected?
+- Did management execute the capital allocation thesis?
+
+This enables per-assumption learning rather than whole-thesis "right/wrong" binary assessment.
 
 ## Output Format
 After completing your research, output ONLY a JSON object with this exact structure (no markdown, no extra text):

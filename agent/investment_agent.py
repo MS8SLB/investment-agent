@@ -328,6 +328,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_ml_factor_weights` — continuous ML-derived factor weights that go beyond binary thresholds; use blended_weights and actionable_guidance when scoring screener candidates in Step 4
 - Call `prioritize_watchlist_ml` — replaces plain get_watchlist; returns watchlist ranked by ML score with current fundamentals already fetched; start with rank-1 items when doing deep research
 - Call `get_shadow_performance` — review stocks you previously passed on; note which passes were validated (stock fell) and which were mistakes (stock rose); apply lessons to this session's screening
+- Call `connect_shadow_to_ml_training()` — this aggregates ALL shadow outcomes and generates per-factor learning signals. If validated_decisions > missed_opportunities for a factor, that factor is predictive and should be weighted higher in ML training. Use this to inform the next factor retraining cycle.
 - Call `get_behaviour_summary` — load your own behaviour patterns from past sessions. Before
   doing anything else, read the averages and flags. If re_researched_watchlist > 0 in recent
   sessions, you have been wasting research budget — actively avoid repeating this. If

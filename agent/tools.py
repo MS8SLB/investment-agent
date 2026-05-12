@@ -1676,6 +1676,78 @@ TOOL_DEFINITIONS = [
             "required": ["ticker"],
         },
     },
+    # ── NEW: catalysts, concentration, and thesis tracking ────────────────────
+    {
+        "name": "get_revenue_concentration",
+        "description": (
+            "Estimate customer/revenue concentration risk using industry heuristics and "
+            "revenue stability analysis. If >25% of revenue is from one customer, moat is at risk. "
+            "For exact percentages, read 10-K Item 1A (Risk Factors) for 'major customers' disclosures."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_upcoming_catalysts",
+        "description": (
+            "Surface upcoming catalysts: earnings dates, ex-dividend, product launches, regulatory decisions, "
+            "M&A announcements. Catalysts can trigger 10-30% moves. Check investor relations calendar "
+            "and SEC Edgar 8-Ks for material events not visible via this tool."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "structure_thesis_assumptions",
+        "description": (
+            "Parse a thesis statement and extract key assumptions (growth rate, margin expansion, moat durability, "
+            "management quality, catalysts). Enables per-assumption verification in future sessions. "
+            "Call when logging predictions to create a structured record."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+                "thesis_text": {
+                    "type": "string",
+                    "description": "Full thesis statement to parse for assumptions",
+                },
+            },
+            "required": ["ticker", "thesis_text"],
+        },
+    },
+    {
+        "name": "connect_shadow_to_ml_training",
+        "description": (
+            "Aggregate shadow portfolio outcomes (stocks we passed on or watchlisted) and compute learning signals. "
+            "Bridges closed trades (ML training) with pass/watchlist decisions (factor testing). "
+            "Returns recommended per-factor weight adjustments for next ML retraining cycle."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
     # ── restored: discover_universe_parallel
 
     {
@@ -2517,6 +2589,18 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_short_seller_thesis_risks":
         from agent.advanced_signals import get_short_seller_thesis_risks
         return get_short_seller_thesis_risks(tool_input["ticker"])
+    elif tool_name == "get_revenue_concentration":
+        from agent.catalysts_and_concentration import get_revenue_concentration
+        return get_revenue_concentration(tool_input["ticker"])
+    elif tool_name == "get_upcoming_catalysts":
+        from agent.catalysts_and_concentration import get_upcoming_catalysts
+        return get_upcoming_catalysts(tool_input["ticker"])
+    elif tool_name == "structure_thesis_assumptions":
+        from agent.thesis_tracking import structure_thesis_assumptions
+        return structure_thesis_assumptions(tool_input["ticker"], tool_input["thesis_text"])
+    elif tool_name == "connect_shadow_to_ml_training":
+        from agent.thesis_tracking import connect_shadow_to_ml_training
+        return connect_shadow_to_ml_training()
     elif tool_name == "check_concentration_limits":
         return portfolio.check_concentration_limits(
             ticker=tool_input["ticker"],
