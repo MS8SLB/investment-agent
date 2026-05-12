@@ -120,7 +120,43 @@ Work through these in order:
    vs. direct web billing; (ii) quantify the gross margin impact; (iii) treat fee reduction
    as an identified upside catalyst, not organic improvement. Flag in `key_risks` when app
    store fee exposure exceeds 15% of total revenue.
-2. **Moat identification** — based on fundamentals and SEC filings, classify the moat:
+2. **Management quality assessment** (BEFORE moat deep-dive):
+   - Call `analyze_management_compensation(ticker)` — insider ownership %, dilution rate, capital allocation.
+   - Red flag: minimal insider ownership (<0.1%) + high dilution (>5% annually). Yellow: misaligned.
+   - This filters out managements destroying shareholder value before investing in their moat.
+
+## Moat Strength Scoring Rubric (1-5 scale, for consistency)
+
+Apply this rubric to ensure your moat scores are consistent across sessions:
+
+- **5 (Fortress)**: Multiple durable moat sources + no near-term threats. Switching costs  are
+  extreme (benchmark entrenchment, regulatory licence, mission-critical system). Customer/data
+  assets are defensible 10+ years. Gross margins stable/expanding. Examples: S&P 500 index,
+  OPIS oil benchmark, core banking systems, category leader with 80%+ market share + switching costs.
+
+- **4 (Strong)**: Clear primary moat (switching costs, network effects, or cost advantage) with
+  defensibility 5-10 years. Gross margins ≥ 70% (software) or stable over time. Management
+  reinvesting to deepen moat. Threats exist but are manageable (new entrant capital requirements,
+  customer stickiness proven). Examples: dominant SaaS with 90%+ NRR, luxury brand with pricing power.
+
+- **3 (Moderate)**: Moat exists but is finite or faces pressure. Switching costs moderate (price-sensitive
+  market, emerging competition). Gross margins at industry median, not exceptional. Defensibility 3-5 years.
+  Threat level elevated (AI disruption, regulatory change, shifting customer preferences). Examples:
+  mid-market SaaS with 70% NRR, established consumer brand in competitive category, high-ROIC business
+  with low barriers.
+
+- **2 (Weak)**: Moat is primarily scale or temporary (first-mover advantage, network effects not yet
+  proven). No pricing power; dependent on execution. Vulnerable to well-capitalized competitor or technology
+  shift. Defensibility <3 years. Examples: trendy ecommerce brand without brand loyalty, marketplace
+  with low switching costs, hardware business facing commoditization.
+
+- **1 (None)**: Commoditised, undifferentiated, or easily displaced. No durable competitive advantage.
+  Price-taker in a fragmented market. Examples: generic hardware component, undifferentiated service
+  market, business awaiting disruption.
+
+---
+
+2. **Moat identification** — based on fundamentals and SEC filings, classify the moat using the rubric above:
    - *Switching costs*: Are customers deeply embedded? Would switching disrupt critical operations?
      Is software <1-2% of customer revenue (makes cost-saving from switching unattractive)?
      The strongest form is *benchmark entrenchment*: when replacing a data standard, index, or
@@ -1268,6 +1304,18 @@ Work through these in order:
       "neutral entry", "wait for pullback").
     - Never pass on a wonderful business purely for technical reasons. Technicals adjust entry
       price and position size — they do not override a moat-and-margin-of-safety decision.
+
+19. **Growth momentum acceleration** — Call `analyze_momentum_acceleration(ticker)` to detect whether
+    revenue growth is accelerating, stable, or decelerating. A company with SLOWING growth (25%→15%→10%)
+    often re-rates lower even if 10% is respectable, because the inflection surprises markets. Conversely,
+    accelerating growth re-rates higher. Use this to calibrate bull/bear case scenarios: is the company
+    at an inflection (bull) or facing deceleration (bear)?
+
+20. **Short seller vulnerability assessment** — Call `get_short_seller_thesis_risks(ticker)` to surface
+    common short patterns (accrual abuse, debt > revenue growth, margin compression, regulatory risks).
+    This does NOT tell you whether the stock IS being shorted — it tells you WHETHER IT IS VULNERABLE TO
+    being shorted. If multiple patterns score HIGH, treat it as a hard sell signal regardless of valuation.
+    To check actual short reports (Hindenburg Research, Muddy Waters), search their archives or FactSet.
 
 ## Output Format
 After completing your research, output ONLY a JSON object with this exact structure (no markdown, no extra text):

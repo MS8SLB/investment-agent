@@ -1620,6 +1620,62 @@ TOOL_DEFINITIONS = [
             "required": ["ticker"],
         },
     },
+    # ── NEW: management quality & momentum & short thesis signals ─────────────
+    {
+        "name": "analyze_management_compensation",
+        "description": (
+            "Check CEO/insider ownership %, annual dilution rate, and dividend/buyback discipline. "
+            "Green: good alignment; Yellow: concerns. For full DEF 14A compensation details (options "
+            "vs restricted stock grants, golden parachutes), read the SEC proxy statement."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "analyze_momentum_acceleration",
+        "description": (
+            "Detect second-derivative momentum shifts: is revenue growth accelerating, stable, or "
+            "decelerating? Growth deceleration (25% → 15% → 10%) often triggers multiple compression "
+            "even when absolute growth remains solid. Returns trend direction and valuation implication."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_short_seller_thesis_risks",
+        "description": (
+            "Surface common short-seller narrative patterns and check applicability: accounting tricks, "
+            "debt > revenue growth, margin compression, executive departures, regulatory risks. "
+            "Helps identify genuine thesis vulnerabilities vs market noise. Does not fetch actual "
+            "short reports; for those, search Hindenburg Research or Muddy Waters directly."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
     # ── restored: discover_universe_parallel
 
     {
@@ -2452,6 +2508,15 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "get_historical_valuation_range":
         from agent.earnings_quality import get_historical_valuation_range
         return get_historical_valuation_range(tool_input["ticker"])
+    elif tool_name == "analyze_management_compensation":
+        from agent.advanced_signals import analyze_management_compensation
+        return analyze_management_compensation(tool_input["ticker"])
+    elif tool_name == "analyze_momentum_acceleration":
+        from agent.advanced_signals import analyze_momentum_acceleration
+        return analyze_momentum_acceleration(tool_input["ticker"])
+    elif tool_name == "get_short_seller_thesis_risks":
+        from agent.advanced_signals import get_short_seller_thesis_risks
+        return get_short_seller_thesis_risks(tool_input["ticker"])
     elif tool_name == "check_concentration_limits":
         return portfolio.check_concentration_limits(
             ticker=tool_input["ticker"],
