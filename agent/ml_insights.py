@@ -224,6 +224,21 @@ def _score_features(features: dict, weights: dict) -> float:
     vec = _to_feature_vec(features)
     if vec is None:
         return 0.0
+
+    # If feature_mean and feature_std are provided (from get_ml_factor_weights),
+    # normalize the raw features before applying weights (correct train/serve alignment)
+    mu = weights.get("feature_mean")
+    std = weights.get("feature_std")
+    if mu is not None and std is not None:
+        vec_norm = np.zeros_like(vec, dtype=float)
+        for i, f in enumerate(_FEATURES):
+            std_val = std.get(f, 1.0)
+            if std_val > 0:
+                vec_norm[i] = (vec[i] - mu.get(f, 0.0)) / std_val
+            else:
+                vec_norm[i] = 0.0
+        vec = vec_norm
+
     raw_score = sum(vec[i] * weights.get(f, 0) for i, f in enumerate(_FEATURES))
     # Clamp to a 0-10 scale using a soft sigmoid-like mapping
     return round(min(10.0, max(0.0, raw_score * 5 + 5)), 2)
@@ -394,6 +409,8 @@ def get_ml_factor_weights() -> dict:
         "feature_correlations": corr,
         "cross_val_r2":         cv_r2,
         "actionable_guidance":  guidance,
+        "feature_mean": {_FEATURES[i]: round(float(mu[i]), 4) for i in range(len(_FEATURES))},
+        "feature_std": {_FEATURES[i]: round(float(std[i]), 4) for i in range(len(_FEATURES))},
         "note": (
             f"Blended weights = {blend_pct}% data-driven + {100-blend_pct}% regime prior ({regime}). "
             "Use blended_weights when manually scoring screener candidates. "
