@@ -319,8 +319,12 @@ def run_agent_session(
     model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-7")
 
     messages = []
+    # If initial_content is provided (e.g. user-flagged tickers), prepend it to the main prompt
     if initial_content:
+        # initial_content is a list of content blocks; wrap in a "user" message
         messages.append({"role": "user", "content": initial_content})
+        # Then append the full workflow prompt so the agent receives both the user flags AND the structured steps
+        messages.append({"role": "user", "content": initial_prompt})
     else:
         messages.append({"role": "user", "content": initial_prompt})
 
