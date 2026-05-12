@@ -7,6 +7,7 @@ import datetime
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import anthropic
@@ -14,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from agent.tools import TOOL_DEFINITIONS, handle_tool_call
+from agent.tools import TOOL_DEFINITIONS, handle_tool_call, clear_tool_cache
 from agent import portfolio
 from agent.loop_utils import prune_messages, truncate_tool_result, add_cache_control
 
@@ -188,6 +189,7 @@ def run_agent_session(
 ) -> str:
     """Core agentic loop shared by all entry points."""
 
+    clear_tool_cache()
     client = anthropic.Anthropic()
     model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 
@@ -214,7 +216,14 @@ def run_agent_session(
         # prune and cache
         messages = prune_messages(messages)
 
-        response = client.messages.create(
+        # Stream the response so text is visible token-by-token in the terminal.
+        # We accumulate tool_use blocks fully (they're not streamed as text) and
+        # reconstruct the same assistant_content / tool_uses lists as before.
+        assistant_content = []
+        tool_uses = []
+        stop_reason = None
+
+        with client.messages.stream(
             model=model,
             max_tokens=16000,
             system=[
@@ -226,48 +235,68 @@ def run_agent_session(
             ],
             tools=add_cache_control(tools),
             messages=messages,
-        )
+        ) as stream:
+            current_text = ""
+            for event in stream:
+                event_type = type(event).__name__
+                if event_type == "RawContentBlockStartEvent":
+                    block = event.content_block
+                    if getattr(block, "type", None) == "text":
+                        current_text = ""
+                        print()  # newline before each text block
+                elif event_type == "RawContentBlockDeltaEvent":
+                    delta = event.delta
+                    delta_type = getattr(delta, "type", None)
+                    if delta_type == "text_delta":
+                        print(delta.text, end="", flush=True)
+                        current_text += delta.text
+                elif event_type == "RawContentBlockStopEvent":
+                    pass  # text accumulation done for this block
 
-        # collect text + tool use blocks
-        assistant_content = []
-        tool_uses = []
+            # After streaming completes, get the final message for full block data
+            final = stream.get_final_message()
+            stop_reason = final.stop_reason
 
-        for block in response.content:
-            if block.type == "text":
-                print(f"\n  {block.text}")
-                assistant_content.append({"type": "text", "text": block.text})
-            elif block.type == "tool_use":
-                tool_uses.append(block)
-                assistant_content.append(
-                    {
+            for block in final.content:
+                if block.type == "text":
+                    assistant_content.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    tool_uses.append(block)
+                    assistant_content.append({
                         "type": "tool_use",
                         "id": block.id,
                         "name": block.name,
                         "input": block.input,
-                    }
-                )
+                    })
 
         messages.append({"role": "assistant", "content": assistant_content})
 
-        if response.stop_reason == "end_turn":
+        if stop_reason == "end_turn":
             break
 
         if not tool_uses:
             break
 
-        # execute tools and collect results
-        tool_results = []
-        for tool_use in tool_uses:
+        # execute tools — parallel when multiple tools are called in one turn
+        tool_results = [None] * len(tool_uses)
+
+        def _run_tool(idx: int, tool_use) -> None:
             print(f"  ⚙ {tool_use.name}")
             result = handle_tool_call(tool_use.name, tool_use.input)
             result_str = truncate_tool_result(tool_use.name, json.dumps(result, default=str))
-            tool_results.append(
-                {
-                    "type": "tool_result",
-                    "tool_use_id": tool_use.id,
-                    "content": result_str,
-                }
-            )
+            tool_results[idx] = {
+                "type": "tool_result",
+                "tool_use_id": tool_use.id,
+                "content": result_str,
+            }
+
+        if len(tool_uses) == 1:
+            _run_tool(0, tool_uses[0])
+        else:
+            with ThreadPoolExecutor(max_workers=min(len(tool_uses), 8)) as pool:
+                futures = {pool.submit(_run_tool, i, tu): i for i, tu in enumerate(tool_uses)}
+                for f in as_completed(futures):
+                    f.result()  # propagate exceptions
 
         messages.append({"role": "user", "content": tool_results})
 
@@ -299,6 +328,7 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Call `get_ml_factor_weights` — continuous ML-derived factor weights that go beyond binary thresholds; use blended_weights and actionable_guidance when scoring screener candidates in Step 4
 - Call `prioritize_watchlist_ml` — replaces plain get_watchlist; returns watchlist ranked by ML score with current fundamentals already fetched; start with rank-1 items when doing deep research
 - Call `get_shadow_performance` — review stocks you previously passed on; note which passes were validated (stock fell) and which were mistakes (stock rose); apply lessons to this session's screening
+- Call `connect_shadow_to_ml_training()` — this aggregates ALL shadow outcomes and generates per-factor learning signals. If validated_decisions > missed_opportunities for a factor, that factor is predictive and should be weighted higher in ML training. Use this to inform the next factor retraining cycle.
 - Call `get_behaviour_summary` — load your own behaviour patterns from past sessions. Before
   doing anything else, read the averages and flags. If re_researched_watchlist > 0 in recent
   sessions, you have been wasting research budget — actively avoid repeating this. If
@@ -315,6 +345,17 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Check overall market index conditions
 
 **Step 3 — Evaluate existing positions**
+
+Quality-of-earnings check (CRITICAL — prevents holding deteriorating quality businesses):
+- For each holding, call `score_earnings_quality(ticker)` — check the Sloan accrual ratio
+  (red flag if >0.05). High accruals = earnings quality concern; upcoming disappointment likely.
+- Call `score_piotroski_fscore(ticker)` — 9-point financial health check. Score <5 is weak;
+  if score declined from last check, investigate cause. Declining F-Score predicts underperformance.
+- Call `get_historical_valuation_range(ticker)` — is the stock now at the 90th+ percentile of
+  its 5-year valuation? If yes, it's expensively priced; raises the bar for holding (thesis must
+  be stronger, moat more durable).
+
+Thesis integrity check:
 - For each holding, ask the most important question first: **Is the moat still intact?** Has anything
   changed that erodes switching costs, network effects, or competitive barriers? If yes, that is a sell signal.
   Price decline alone is NOT a moat impairment — it may be a buying opportunity.
@@ -323,6 +364,9 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Check upcoming earnings (`get_earnings_calendar`) to flag positions with imminent earnings risk
 - Call `get_material_events(ticker, days=90)` for each holding — catch any 8-K filings (exec departures,
   impairments, auditor changes) that may have slipped past news feeds
+- For each holding, **generate a fresh bear case**: What would a short-seller argue? What 3-4 key risks
+  have you underestimated? What would break the thesis? Use `detect_financial_anomalies` to surface
+  statistical red flags. If the moat or fundamentals have deteriorated, the bear case wins → sell.
 
 **Step 3b — Work the watchlist BEFORE screening for new stocks**
 
@@ -389,6 +433,9 @@ it is not ready — watchlist it instead.
 - Execute buy/sell/watchlist decisions based on research findings
   - Before any buy: call `get_decision_thresholds` to confirm current regime-adjusted thresholds
   - Before any buy: call `get_conviction_position_size` to confirm correct Kelly-adjusted size
+  - **Before any buy: call `check_portfolio_correlation(ticker)` — ensure new position isn't highly correlated
+    with existing holdings.** If avg correlation > 0.6 or any pairwise > 0.7, size down or reject. This prevents
+    building a hidden large concentration in a single theme (e.g., all high-multiple compounders that sell off together).
   - Only buy if the stock clears ALL decision matrix thresholds (hard veto on any below-threshold criterion)
   - Buy in one tranche unless size > 8% of portfolio, in which case split into 2–3 tranches over 2–3 weeks
 - Set appropriate stop-losses and trade triggers for new positions

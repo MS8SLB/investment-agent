@@ -91,6 +91,13 @@ Work through these in order:
    was inflated overnight. Always compute goodwill-adjusted ROIC (remove goodwill and acquired
    intangibles from invested capital) alongside reported ROIC. If goodwill-adjusted ROIC remains
    >20%, underlying quality is intact. Report both in JSON output where applicable.
+
+1.5. **Earnings Quality (CRITICAL)** — Call `score_earnings_quality(ticker)` and `score_piotroski_fscore(ticker)`.
+   - If Sloan accrual ratio > 0.05: red flag. High accruals predict earnings restatements and
+     disappointments within 2 years. Avoid or demand deep discount to IV.
+   - If Piotroski F-Score < 5: weak financial health. If score <5 AND declining from last year: business
+     is deteriorating — strong caution. F-Score ≥8 is ideal; 5-7 is acceptable only if moat is strong.
+   These signals have >85% predictive power historically; do not ignore.
    **Gross margin software/platform quality test**: genuine software and platform businesses carry
    70-90% gross margins. A company labelled "social media", "SaaS", or "marketplace" with gross
    margins below 60% is carrying structural costs (content delivery, hardware, physical fulfilment,
@@ -113,7 +120,43 @@ Work through these in order:
    vs. direct web billing; (ii) quantify the gross margin impact; (iii) treat fee reduction
    as an identified upside catalyst, not organic improvement. Flag in `key_risks` when app
    store fee exposure exceeds 15% of total revenue.
-2. **Moat identification** — based on fundamentals and SEC filings, classify the moat:
+2. **Management quality assessment** (BEFORE moat deep-dive):
+   - Call `analyze_management_compensation(ticker)` — insider ownership %, dilution rate, capital allocation.
+   - Red flag: minimal insider ownership (<0.1%) + high dilution (>5% annually). Yellow: misaligned.
+   - This filters out managements destroying shareholder value before investing in their moat.
+
+## Moat Strength Scoring Rubric (1-5 scale, for consistency)
+
+Apply this rubric to ensure your moat scores are consistent across sessions:
+
+- **5 (Fortress)**: Multiple durable moat sources + no near-term threats. Switching costs  are
+  extreme (benchmark entrenchment, regulatory licence, mission-critical system). Customer/data
+  assets are defensible 10+ years. Gross margins stable/expanding. Examples: S&P 500 index,
+  OPIS oil benchmark, core banking systems, category leader with 80%+ market share + switching costs.
+
+- **4 (Strong)**: Clear primary moat (switching costs, network effects, or cost advantage) with
+  defensibility 5-10 years. Gross margins ≥ 70% (software) or stable over time. Management
+  reinvesting to deepen moat. Threats exist but are manageable (new entrant capital requirements,
+  customer stickiness proven). Examples: dominant SaaS with 90%+ NRR, luxury brand with pricing power.
+
+- **3 (Moderate)**: Moat exists but is finite or faces pressure. Switching costs moderate (price-sensitive
+  market, emerging competition). Gross margins at industry median, not exceptional. Defensibility 3-5 years.
+  Threat level elevated (AI disruption, regulatory change, shifting customer preferences). Examples:
+  mid-market SaaS with 70% NRR, established consumer brand in competitive category, high-ROIC business
+  with low barriers.
+
+- **2 (Weak)**: Moat is primarily scale or temporary (first-mover advantage, network effects not yet
+  proven). No pricing power; dependent on execution. Vulnerable to well-capitalized competitor or technology
+  shift. Defensibility <3 years. Examples: trendy ecommerce brand without brand loyalty, marketplace
+  with low switching costs, hardware business facing commoditization.
+
+- **1 (None)**: Commoditised, undifferentiated, or easily displaced. No durable competitive advantage.
+  Price-taker in a fragmented market. Examples: generic hardware component, undifferentiated service
+  market, business awaiting disruption.
+
+---
+
+2. **Moat identification** — based on fundamentals and SEC filings, classify the moat using the rubric above:
    - *Switching costs*: Are customers deeply embedded? Would switching disrupt critical operations?
      Is software <1-2% of customer revenue (makes cost-saving from switching unattractive)?
      The strongest form is *benchmark entrenchment*: when replacing a data standard, index, or
@@ -1001,6 +1044,15 @@ Work through these in order:
    - The target entry price (after margin of safety) should deliver ~13-15% IRR
 
    - Calculate margin of safety: (intrinsic value - current price) / intrinsic value × 100
+
+   **Historical valuation context** (CRITICAL): Call `get_historical_valuation_range(ticker)` to see
+   where current P/FCF and EV/EBITDA percentiles stand vs 5-year history. If the stock is at the 90th+
+   percentile (most expensive), it needs a STRONGER moat and WIDER margin of safety — you're being asked
+   to pay a peak price for the moat to prove itself over the next 5 years. A 20% margin of safety is
+   insufficient when valuation is historically expensive. Conversely, if at the 10th percentile (cheapest
+   in 5 years), a normal 20% MoS may be adequate if the moat is intact. Never assume "if the DCF says
+   fair, it's a buy" — combine DCF with historical valuation context for robust decisions.
+
    **"Free option" optionality framing**: when a company has nascent business units that (a)
    require no material incremental capital beyond what is already budgeted, (b) are not priced
    into the current market multiple, and (c) represent asymmetric payoffs (meaningful upside if
@@ -1191,6 +1243,10 @@ Work through these in order:
 6. **Price context** — `get_price_history` (1y): is the current price near a historic low
    relative to your intrinsic value estimate? Understand the setup.
 7. **Earnings risk** — `get_earnings_calendar`: next date, consensus, beat/miss history
+8. **Upcoming catalysts** — Call `get_upcoming_catalysts(ticker)` to surface: earnings dates, product launches,
+   regulatory decisions, M&A announcements, index changes. Catalysts can trigger 10-30% moves. Cross-reference
+   with investor relations calendar and SEC Edgar 8-K filings for material events.
+
 8. **News** — `get_stock_news` + `get_rss_news`: thesis-breaking or moat-confirming events
 9. **Analyst sentiment** — `get_analyst_upgrades`: cluster of downgrades = warning signal
 10. **Insider signal** — `get_insider_activity`: CEO/CFO buying their own stock is a strong
@@ -1206,6 +1262,10 @@ Work through these in order:
     "multi-insider persistent net selling under fundamental uncertainty — raises hurdle rate."
     When the thesis is clear and value is evident, routine insider selling can be ignored.
 11. **Material events** — `get_material_events` (90 days): CFO exits, impairments, restatements
+12. **Revenue/customer concentration** — Call `get_revenue_concentration(ticker)` to flag concentration risk.
+    If the analysis returns "high" concentration risk, check 10-K Item 1A for exact customer concentration %.
+    Red flag: >25% of revenue from a single customer. This erodes the moat — customer departure is an existential risk.
+
 12. **Peer comparison** — `get_competitor_analysis`: compare FCF yield, ROIC, margins vs peers;
     validate whether any valuation premium or discount is justified by moat quality
 13. **Smart money** — `get_superinvestor_positions`: do Buffett, Ackman, or other value-oriented
@@ -1252,6 +1312,29 @@ Work through these in order:
       "neutral entry", "wait for pullback").
     - Never pass on a wonderful business purely for technical reasons. Technicals adjust entry
       price and position size — they do not override a moat-and-margin-of-safety decision.
+
+19. **Growth momentum acceleration** — Call `analyze_momentum_acceleration(ticker)` to detect whether
+    revenue growth is accelerating, stable, or decelerating. A company with SLOWING growth (25%→15%→10%)
+    often re-rates lower even if 10% is respectable, because the inflection surprises markets. Conversely,
+    accelerating growth re-rates higher. Use this to calibrate bull/bear case scenarios: is the company
+    at an inflection (bull) or facing deceleration (bear)?
+
+20. **Short seller vulnerability assessment** — Call `get_short_seller_thesis_risks(ticker)` to surface
+    common short patterns (accrual abuse, debt > revenue growth, margin compression, regulatory risks).
+    This does NOT tell you whether the stock IS being shorted — it tells you WHETHER IT IS VULNERABLE TO
+    being shorted. If multiple patterns score HIGH, treat it as a hard sell signal regardless of valuation.
+    To check actual short reports (Hindenburg Research, Muddy Waters), search their archives or FactSet.
+
+## Structured Thesis Assumption Tracking
+
+Once you've completed your research and are ready to log the decision, call `structure_thesis_assumptions(ticker, thesis_text)`
+to parse your thesis statement and extract key assumptions (growth rate, margin expansion, moat durability, etc.).
+This creates a structured record so that in future sessions, you can verify each assumption against actual results:
+- Did the company actually achieve the 20% revenue growth we assumed?
+- Did the moat hold as expected?
+- Did management execute the capital allocation thesis?
+
+This enables per-assumption learning rather than whole-thesis "right/wrong" binary assessment.
 
 ## Output Format
 After completing your research, output ONLY a JSON object with this exact structure (no markdown, no extra text):
@@ -1384,6 +1467,14 @@ Complete all research steps from your checklist, then output the JSON report."""
     messages = [{"role": "user", "content": user_prompt}]
     final_text = ""
 
+    # Extended thinking is supported on Sonnet 4.5+ and Opus 4+.
+    # We enable it only on the final synthesis call (after all tools have run)
+    # so that the expensive reasoning budget is spent on valuation and moat
+    # assessment — not on deciding which tools to call next.
+    _THINKING_MODELS = {"claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7"}
+    _use_thinking = any(m in model for m in _THINKING_MODELS)
+    _THINKING_BUDGET = int(os.environ.get("RESEARCH_THINKING_BUDGET", "8000"))
+
     _RETRY_WAITS = [0, 15, 30, 60]
 
     for iteration in range(max_iterations):
@@ -1391,6 +1482,22 @@ Complete all research steps from your checklist, then output the JSON report."""
             time.sleep(2)
 
         messages = prune_messages(messages, max_turns=8)
+
+        # On the final synthesis turn (end_turn with no tools pending), enable
+        # extended thinking so the DCF / moat assessment gets deep reasoning.
+        # We detect "final turn" by checking whether the last assistant message
+        # (if any) contained only text (no tool_use) — meaning we're now in the
+        # post-research write-up phase. We approximate this by checking whether
+        # the previous response had tool_calls (set in scope below).
+        _is_synthesis_turn = iteration > 0 and not locals().get("_had_tool_calls", True)
+
+        extra_kwargs: dict = {}
+        if _use_thinking and _is_synthesis_turn:
+            extra_kwargs["thinking"] = {"type": "enabled", "budget_tokens": _THINKING_BUDGET}
+            # temperature must be omitted (or 1) when thinking is enabled
+        else:
+            extra_kwargs["temperature"] = 0
+
         response = None
         for attempt, wait in enumerate(_RETRY_WAITS):
             try:
@@ -1398,8 +1505,7 @@ Complete all research steps from your checklist, then output the JSON report."""
                     time.sleep(wait)
                 response = client.messages.create(
                     model=model,
-                    max_tokens=8192,
-                    temperature=0,
+                    max_tokens=16000 if _is_synthesis_turn and _use_thinking else 8192,
                     system=[
                         {
                             "type": "text",
@@ -1409,6 +1515,7 @@ Complete all research steps from your checklist, then output the JSON report."""
                     ],
                     tools=add_cache_control(RESEARCH_TOOL_DEFINITIONS),
                     messages=messages,
+                    **extra_kwargs,
                 )
                 break
             except anthropic.RateLimitError:
@@ -1431,6 +1538,9 @@ Complete all research steps from your checklist, then output the JSON report."""
                 text_parts.append(block.text)
             elif block.type == "tool_use":
                 tool_calls.append(block)
+            # thinking blocks are intentionally ignored for text output
+
+        _had_tool_calls = bool(tool_calls)
 
         if text_parts:
             final_text = "\n".join(text_parts)
@@ -1438,28 +1548,41 @@ Complete all research steps from your checklist, then output the JSON report."""
         if response.stop_reason == "end_turn" or not tool_calls:
             break
 
-        # Serialize assistant turn
+        # Serialize assistant turn — include thinking blocks so the API
+        # receives a valid conversation history when thinking is on.
         serialized = []
         for block in response.content:
             t = getattr(block, "type", None)
-            if t == "text":
+            if t == "thinking":
+                serialized.append({"type": "thinking", "thinking": block.thinking})
+            elif t == "text":
                 serialized.append({"type": "text", "text": block.text})
             elif t == "tool_use":
                 serialized.append({"type": "tool_use", "id": block.id, "name": block.name, "input": block.input})
         messages.append({"role": "assistant", "content": serialized})
 
-        # Execute tools
-        tool_results = []
-        for tc in tool_calls:
+        # Execute tools in parallel when multiple are called in one turn
+        tool_results = [None] * len(tool_calls)
+
+        def _exec_tool(idx: int, tc) -> None:
             try:
                 result = handle_tool_call(tc.name, tc.input)
             except Exception as exc:
                 result = {"error": f"Tool '{tc.name}' raised an unexpected exception: {exc}"}
-            tool_results.append({
+            tool_results[idx] = {
                 "type": "tool_result",
                 "tool_use_id": tc.id,
                 "content": truncate_tool_result(tc.name, json.dumps(result, default=str), max_chars=3500),
-            })
+            }
+
+        if len(tool_calls) == 1:
+            _exec_tool(0, tool_calls[0])
+        else:
+            with ThreadPoolExecutor(max_workers=min(len(tool_calls), 6)) as pool:
+                futs = {pool.submit(_exec_tool, i, tc): i for i, tc in enumerate(tool_calls)}
+                for f in as_completed(futs):
+                    f.result()
+
         messages.append({"role": "user", "content": tool_results})
 
     # Parse the JSON report from the final text
