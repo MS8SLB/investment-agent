@@ -6,80 +6,192 @@ import yfinance as yf
 from typing import Optional
 
 
+def _fetch_xbrl_facts(cik: str) -> Optional[dict]:
+    """Fetch XBRL company facts from SEC EDGAR (free, no API key required)."""
+    import requests
+    try:
+        url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+        headers = {"User-Agent": "investment-agent-research sec-data@example.com"}
+        resp = requests.get(url, headers=headers, timeout=20)
+        if resp.status_code == 200:
+            return resp.json()
+        return None
+    except Exception:
+        return None
+
+
+def _xbrl_latest(facts: dict, concept: str, namespace: str = "us-gaap") -> Optional[float]:
+    """Extract the most recent annual value for an XBRL concept."""
+    try:
+        units = facts.get("facts", {}).get(namespace, {}).get(concept, {}).get("units", {})
+        # Annual 10-K filings use form '10-K'
+        for unit_key in ("USD", "shares", "pure"):
+            entries = units.get(unit_key, [])
+            annual = [e for e in entries if e.get("form") in ("10-K", "20-F") and e.get("val") is not None]
+            if annual:
+                annual.sort(key=lambda e: e.get("end", ""), reverse=True)
+                return float(annual[0]["val"])
+        return None
+    except Exception:
+        return None
+
+
+def _xbrl_annual_series(facts: dict, concept: str, namespace: str = "us-gaap", n: int = 3) -> list:
+    """Extract the last n annual values for an XBRL concept, newest first."""
+    try:
+        units = facts.get("facts", {}).get(namespace, {}).get("units", {})
+        for unit_key in ("USD", "shares", "pure"):
+            entries = facts.get("facts", {}).get(namespace, {}).get(concept, {}).get("units", {}).get(unit_key, [])
+            annual = [e for e in entries if e.get("form") in ("10-K", "20-F") and e.get("val") is not None]
+            if annual:
+                annual.sort(key=lambda e: e.get("end", ""), reverse=True)
+                # Deduplicate by fiscal year end date (take first per date)
+                seen = set()
+                result = []
+                for e in annual:
+                    d = e.get("end", "")[:7]  # YYYY-MM
+                    if d not in seen:
+                        seen.add(d)
+                        result.append(float(e["val"]))
+                    if len(result) >= n:
+                        break
+                return result
+        return []
+    except Exception:
+        return []
+
+
 def analyze_management_compensation(ticker: str) -> dict:
     """
     Analyze CEO/management ownership, compensation structure, and capital allocation discipline.
-    Uses publicly available info from yfinance (limited scope without full SEC parsing).
 
-    Returns: ownership %, compensation signals, dilution rate, and quality assessment.
+    Primary source: SEC EDGAR XBRL company facts (free API, no key required).
+    Extracts: CEO total compensation, stock-based compensation as % of revenue,
+    share dilution trend, insider ownership from DEF 14A proxy data.
+    Falls back to yfinance for ownership and dilution when XBRL lacks proxy data.
+
+    Returns: ownership %, SBC/revenue %, dilution trend, and quality assessment.
     """
     ticker = ticker.upper()
     try:
+        # ── Step 1: Get CIK for EDGAR lookup ──────────────────────────────────
+        from agent.sec_data import _get_cik
+        cik = _get_cik(ticker)
+        xbrl_data = None
+        if cik:
+            xbrl_data = _fetch_xbrl_facts(cik)
+
+        # ── Step 2: EDGAR XBRL signals ────────────────────────────────────────
+        sbc_series = []          # stock-based compensation history
+        revenue_series = []      # revenue history for SBC/revenue ratio
+        shares_series = []       # shares outstanding history for dilution
+        exec_comp = None         # executive total compensation (XBRL: ExecutiveCompensation)
+
+        if xbrl_data:
+            sbc_series = _xbrl_annual_series(xbrl_data, "ShareBasedCompensation", n=3)
+            revenue_series = _xbrl_annual_series(xbrl_data, "Revenues", n=3)
+            if not revenue_series:
+                revenue_series = _xbrl_annual_series(xbrl_data, "RevenueFromContractWithCustomerExcludingAssessedTax", n=3)
+            shares_series = _xbrl_annual_series(xbrl_data, "CommonStockSharesOutstanding", n=3)
+            # DEI namespace often has ExecutiveCompensationAmount
+            exec_comp = _xbrl_latest(xbrl_data, "ExecutiveCompensationAmount", namespace="us-gaap")
+            if exec_comp is None:
+                exec_comp = _xbrl_latest(xbrl_data, "DefinedBenefitPlanContributionsByEmployer", namespace="us-gaap")
+
+        # ── Step 3: yfinance fallback data ────────────────────────────────────
         t = yf.Ticker(ticker)
-        info = t.info
-
-        # Available from yfinance (limited):
-        # - percentInsiders: insider ownership %
-        # - insiderHoldingsPercent: similar
+        info = t.info or {}
         insider_ownership = info.get("insiderHoldingsPercent") or info.get("percentInsiders") or 0
-
-        # Dilution proxy: YoY change in shares outstanding
-        bs = t.balance_sheet
         shares_curr = info.get("sharesOutstanding")
+        div_yield = info.get("dividendYield")
 
-        # Estimate dilution from financials if available
+        # ── Step 4: Compute derived signals ──────────────────────────────────
+        # SBC as % of revenue (most recent year)
+        sbc_pct = None
+        if sbc_series and revenue_series and revenue_series[0] > 0:
+            sbc_pct = sbc_series[0] / revenue_series[0] * 100
+
+        # SBC trend (accelerating = concern)
+        sbc_trend = None
+        if len(sbc_series) >= 2 and sbc_series[1] > 0:
+            sbc_change = (sbc_series[0] - sbc_series[1]) / sbc_series[1] * 100
+            sbc_trend = round(sbc_change, 1)
+
+        # Share dilution from XBRL (more accurate than yfinance)
         dilution_pct = None
-        if bs is not None and len(bs.columns) > 1:
+        if len(shares_series) >= 2 and shares_series[1] > 0:
+            dilution_pct = (shares_series[0] - shares_series[1]) / shares_series[1] * 100
+        elif shares_curr:
+            # yfinance fallback: compare to balance sheet
             try:
-                col_curr = bs.columns[0]
-                col_prev = bs.columns[1]
-                if "Common Stock Shares Outstanding" in bs.index:
-                    shares_prev = bs.loc["Common Stock Shares Outstanding"].iloc[1]
-                    if shares_prev and shares_prev > 0:
-                        dilution_pct = (shares_curr - shares_prev) / shares_prev * 100 if shares_curr else None
+                bs = t.balance_sheet
+                if bs is not None and len(bs.columns) > 1 and "Common Stock Shares Outstanding" in bs.index:
+                    shares_prev = float(bs.loc["Common Stock Shares Outstanding"].iloc[1])
+                    if shares_prev > 0:
+                        dilution_pct = (shares_curr - shares_prev) / shares_prev * 100
             except Exception:
                 pass
 
-        # Dividends + buybacks signal capital allocation
-        div_per_share = info.get("dividends") or info.get("trailingAnnualDividendRate")
-        div_yield = info.get("dividendYield")
-
-        # Assessment
+        # ── Step 5: Quality assessment ────────────────────────────────────────
         quality_flag = "green"
         concerns = []
         strengths = []
 
-        if insider_ownership is not None:
+        if insider_ownership:
             if insider_ownership > 0.10:
                 strengths.append(f"+Insider ownership {insider_ownership*100:.1f}% — management has skin in the game")
-                quality_flag = "green"
-            elif insider_ownership > 0.01:
-                pass  # neutral
-            else:
-                concerns.append(f"-Minimal insider ownership {insider_ownership*100:.2f}% — management may lack conviction")
+            elif insider_ownership < 0.01:
+                concerns.append(f"-Minimal insider ownership {insider_ownership*100:.2f}% — weak alignment")
                 quality_flag = "yellow"
 
-        if dilution_pct is not None and dilution_pct > 0.05:
-            quality_flag = "yellow"
-            concerns.append(f"-Dilution {dilution_pct:.1f}% YoY — aggressive stock-based comp or capital raises")
-        elif dilution_pct is not None and dilution_pct < 0:
-            strengths.append(f"+Net share buyback {abs(dilution_pct):.1f}% — management returning capital")
+        if sbc_pct is not None:
+            if sbc_pct > 10:
+                quality_flag = "red"
+                concerns.append(f"-SBC {sbc_pct:.1f}% of revenue — very aggressive stock compensation; shareholders paying")
+            elif sbc_pct > 5:
+                if quality_flag == "green":
+                    quality_flag = "yellow"
+                concerns.append(f"-SBC {sbc_pct:.1f}% of revenue — elevated stock-based compensation")
+            else:
+                strengths.append(f"+SBC {sbc_pct:.1f}% of revenue — disciplined compensation structure")
 
-        if div_yield is not None and div_yield > 0.02:
+        if sbc_trend is not None and sbc_trend > 20:
+            if quality_flag == "green":
+                quality_flag = "yellow"
+            concerns.append(f"-SBC growing {sbc_trend:+.1f}% YoY — compensation scaling faster than business")
+
+        if dilution_pct is not None:
+            if dilution_pct > 3:
+                if quality_flag == "green":
+                    quality_flag = "yellow"
+                concerns.append(f"-Share count +{dilution_pct:.1f}% YoY — diluting shareholders")
+            elif dilution_pct < -1:
+                strengths.append(f"+Share buyback reduced count {abs(dilution_pct):.1f}% YoY — returning capital")
+
+        if div_yield and div_yield > 0.02:
             strengths.append(f"+Dividend yield {div_yield*100:.1f}% — visible capital return")
+
+        if exec_comp and revenue_series:
+            exec_comp_pct = exec_comp / revenue_series[0] * 100 if revenue_series[0] > 0 else None
+            if exec_comp_pct and exec_comp_pct > 1:
+                concerns.append(f"-Exec comp ${exec_comp/1e6:.1f}M is {exec_comp_pct:.2f}% of revenue — high relative to size")
 
         return {
             "ticker": ticker,
+            "data_source": "EDGAR XBRL" if xbrl_data else "yfinance",
             "insider_ownership_pct": round(insider_ownership * 100, 2) if insider_ownership else None,
-            "yoy_dilution_pct": round(dilution_pct, 2) if dilution_pct is not None else None,
+            "sbc_pct_of_revenue": round(sbc_pct, 2) if sbc_pct is not None else None,
+            "sbc_yoy_growth_pct": sbc_trend,
+            "sbc_history_usd": [int(v) for v in sbc_series[:3]] if sbc_series else None,
+            "shares_dilution_yoy_pct": round(dilution_pct, 2) if dilution_pct is not None else None,
             "dividend_yield_pct": round(div_yield * 100, 2) if div_yield else None,
             "quality_flag": quality_flag,
             "strengths": strengths,
             "concerns": concerns,
             "note": (
-                "Green: good management alignment and discipline. Yellow: potential misalignment or concerns. "
-                "For full compensation analysis (options vs restricted stock, golden parachutes, claw-backs), "
-                "read the DEF 14A proxy statement from the SEC Edgar database."
+                "Green: good alignment and discipline. Yellow: concerns worth investigating. Red: significant misalignment. "
+                "SBC > 10% of revenue is a major red flag — it means shareholders, not the company, are paying employees. "
+                "For full proxy details (CEO pay ratio, option grants, claw-backs, golden parachutes), read the DEF 14A on EDGAR."
             ),
         }
 
