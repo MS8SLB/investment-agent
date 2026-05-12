@@ -39,6 +39,9 @@ def _save_call_sentiment(ticker: str, result: Any) -> None:
     """
     Extract and persist earnings call sentiment from the transcript result dict.
     Called automatically after analyze_earnings_call to build tone trend history.
+
+    Uses a structured Claude Haiku call for NLP-quality sentiment rather than
+    naive keyword counting.  Falls back to keyword heuristics if the API call fails.
     """
     from datetime import datetime
     from agent.portfolio import save_earnings_sentiment
@@ -51,47 +54,86 @@ def _save_call_sentiment(ticker: str, result: Any) -> None:
     if isinstance(result, dict):
         quarter = result.get("quarter") or result.get("period") or result.get("date")
     if not quarter:
-        # Approximate from current date: Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
         now = datetime.utcnow()
         q_num = (now.month - 1) // 3 + 1
         quarter = f"Q{q_num}-{now.year}"
 
-    # Stringify entire result for keyword analysis
-    text = str(result).lower()
-    words = text.split()
-    total_words = max(len(words), 1)
+    transcript_text = str(result)
 
-    positive_keywords = ["beat", "raised guidance", "strong", "exceeded", "ahead",
-                         "accelerating", "growth", "record", "confident", "raised"]
-    negative_keywords = ["miss", "missed", "lowered guidance", "headwinds", "slowdown",
-                         "challenging", "below", "disappointing", "cut", "reduced"]
-    hedging_keywords = ["uncertain", "monitoring", "cautious", "we'll see", "depends", "volatile"]
+    # ── Structured Claude sentiment analysis ──────────────────────────────────
+    sentiment_score: float = 0.0
+    tone_direction: str = "neutral"
+    key_signals: list = []
+    guidance_revision: str = "unchanged"
 
-    pos_count = sum(text.count(kw) for kw in positive_keywords)
-    neg_count = sum(text.count(kw) for kw in negative_keywords)
+    try:
+        import anthropic as _anthropic
+        _client = _anthropic.Anthropic()
+        _prompt = f"""Analyse this earnings call transcript/summary for {ticker} and return a JSON object with exactly these fields:
+{{
+  "sentiment_score": <float -1.0 to 1.0, where -1=very negative, 0=neutral, 1=very positive>,
+  "tone_direction": <"positive" | "neutral" | "negative">,
+  "guidance_revision": <"raised" | "lowered" | "maintained" | "withdrawn" | "none_given">,
+  "key_signals": [<up to 8 short strings describing the most important signals, prefix + for positive, - for negative, ~ for uncertain>]
+}}
 
-    raw_score = (pos_count - neg_count) / max(total_words / 100, 1)
-    sentiment_score = max(-1.0, min(1.0, raw_score))
+Transcript:
+{transcript_text[:4000]}
 
-    if sentiment_score > 0.1:
-        tone_direction = "positive"
-    elif sentiment_score < -0.1:
-        tone_direction = "negative"
-    else:
-        tone_direction = "neutral"
+Return ONLY the JSON object, no other text."""
 
-    # Collect top signals (keywords actually found)
-    key_signals = []
-    for kw in positive_keywords:
-        if kw in text and text.count(kw) >= 2:
-            key_signals.append(f"+{kw}")
-    for kw in negative_keywords:
-        if kw in text and text.count(kw) >= 2:
-            key_signals.append(f"-{kw}")
-    for kw in hedging_keywords:
-        if kw in text:
-            key_signals.append(f"~{kw}")
-    key_signals = key_signals[:10]
+        _resp = _client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=256,
+            messages=[{"role": "user", "content": _prompt}],
+        )
+        _raw = _resp.content[0].text.strip() if _resp.content else ""
+        # Strip markdown code fences if present
+        if _raw.startswith("```"):
+            _raw = _raw.split("```")[1]
+            if _raw.startswith("json"):
+                _raw = _raw[4:]
+        _parsed = json.loads(_raw)
+        sentiment_score = float(_parsed.get("sentiment_score", 0.0))
+        sentiment_score = max(-1.0, min(1.0, sentiment_score))
+        tone_direction = _parsed.get("tone_direction", "neutral")
+        guidance_revision = _parsed.get("guidance_revision", "unchanged")
+        key_signals = [str(s) for s in _parsed.get("key_signals", [])][:10]
+
+    except Exception:
+        # ── Keyword fallback ──────────────────────────────────────────────────
+        text = transcript_text.lower()
+        words = text.split()
+        total_words = max(len(words), 1)
+
+        positive_keywords = ["beat", "raised guidance", "strong", "exceeded", "ahead",
+                             "accelerating", "growth", "record", "confident", "raised"]
+        negative_keywords = ["miss", "missed", "lowered guidance", "headwinds", "slowdown",
+                             "challenging", "below", "disappointing", "cut", "reduced"]
+        hedging_keywords = ["uncertain", "monitoring", "cautious", "we'll see", "depends", "volatile"]
+
+        pos_count = sum(text.count(kw) for kw in positive_keywords)
+        neg_count = sum(text.count(kw) for kw in negative_keywords)
+        raw_score = (pos_count - neg_count) / max(total_words / 100, 1)
+        sentiment_score = max(-1.0, min(1.0, raw_score))
+
+        if sentiment_score > 0.1:
+            tone_direction = "positive"
+        elif sentiment_score < -0.1:
+            tone_direction = "negative"
+        else:
+            tone_direction = "neutral"
+
+        for kw in positive_keywords:
+            if kw in text and text.count(kw) >= 2:
+                key_signals.append(f"+{kw}")
+        for kw in negative_keywords:
+            if kw in text and text.count(kw) >= 2:
+                key_signals.append(f"-{kw}")
+        for kw in hedging_keywords:
+            if kw in text:
+                key_signals.append(f"~{kw}")
+        key_signals = key_signals[:10]
 
     save_earnings_sentiment(
         ticker=ticker.upper(),
@@ -99,7 +141,7 @@ def _save_call_sentiment(ticker: str, result: Any) -> None:
         sentiment_score=round(sentiment_score, 4),
         tone_direction=tone_direction,
         key_signals=key_signals,
-        raw_summary=str(result)[:500],
+        raw_summary=transcript_text[:500],
     )
 
 # ── Model tier context ─────────────────────────────────────────────────────────
@@ -1864,10 +1906,60 @@ TOOL_DEFINITIONS = [
 ]
 
 
+# ── In-session tool result cache ──────────────────────────────────────────────
+# Keyed by (tool_name, sorted-json-of-input). Cleared at process start.
+# Prevents duplicate FMP/yfinance calls when the coordinator and a subagent
+# both request the same ticker data within the same session.
+
+_TOOL_CACHE: dict = {}
+
+# Tools whose results must NOT be cached (stateful writes or time-sensitive reads)
+_NO_CACHE_TOOLS: frozenset = frozenset({
+    "buy_stock",
+    "sell_stock",
+    "add_to_watchlist",
+    "remove_from_watchlist",
+    "set_stop_loss",
+    "set_trade_trigger",
+    "cancel_trade_trigger",
+    "save_investment_memory",
+    "save_session_reflection",
+    "save_master_lessons",
+    "save_session_audit",
+    "log_prediction",
+    "get_portfolio_status",   # live cash/holdings must always be fresh
+    "get_market_summary",     # prices change constantly
+    "get_stock_quote",        # same reason
+    "get_triaged_alerts",     # news feed — always fresh
+    "check_news_alerts",
+})
+
+
+def _cache_key(tool_name: str, tool_input: dict) -> str:
+    return tool_name + "|" + json.dumps(tool_input, sort_keys=True, default=str)
+
+
+def clear_tool_cache() -> None:
+    """Call at the start of a new agent session to flush stale cached data."""
+    _TOOL_CACHE.clear()
+
+
 # ── Tool handlers ──────────────────────────────────────────────────────────────
 
 def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
-    """Dispatch a tool call and return the result as a JSON-serializable value."""
+    """Dispatch a tool call with in-session caching for read-only tools."""
+    if tool_name not in _NO_CACHE_TOOLS:
+        key = _cache_key(tool_name, tool_input)
+        if key in _TOOL_CACHE:
+            return _TOOL_CACHE[key]
+        result = _dispatch_tool(tool_name, tool_input)
+        _TOOL_CACHE[key] = result
+        return result
+    return _dispatch_tool(tool_name, tool_input)
+
+
+def _dispatch_tool(tool_name: str, tool_input: dict) -> Any:
+    """Raw tool dispatch — called only by handle_tool_call."""
 
     if tool_name == "get_portfolio_status":
         return _get_portfolio_status()

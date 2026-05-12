@@ -1384,6 +1384,14 @@ Complete all research steps from your checklist, then output the JSON report."""
     messages = [{"role": "user", "content": user_prompt}]
     final_text = ""
 
+    # Extended thinking is supported on Sonnet 4.5+ and Opus 4+.
+    # We enable it only on the final synthesis call (after all tools have run)
+    # so that the expensive reasoning budget is spent on valuation and moat
+    # assessment — not on deciding which tools to call next.
+    _THINKING_MODELS = {"claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7"}
+    _use_thinking = any(m in model for m in _THINKING_MODELS)
+    _THINKING_BUDGET = int(os.environ.get("RESEARCH_THINKING_BUDGET", "8000"))
+
     _RETRY_WAITS = [0, 15, 30, 60]
 
     for iteration in range(max_iterations):
@@ -1391,6 +1399,22 @@ Complete all research steps from your checklist, then output the JSON report."""
             time.sleep(2)
 
         messages = prune_messages(messages, max_turns=8)
+
+        # On the final synthesis turn (end_turn with no tools pending), enable
+        # extended thinking so the DCF / moat assessment gets deep reasoning.
+        # We detect "final turn" by checking whether the last assistant message
+        # (if any) contained only text (no tool_use) — meaning we're now in the
+        # post-research write-up phase. We approximate this by checking whether
+        # the previous response had tool_calls (set in scope below).
+        _is_synthesis_turn = iteration > 0 and not locals().get("_had_tool_calls", True)
+
+        extra_kwargs: dict = {}
+        if _use_thinking and _is_synthesis_turn:
+            extra_kwargs["thinking"] = {"type": "enabled", "budget_tokens": _THINKING_BUDGET}
+            # temperature must be omitted (or 1) when thinking is enabled
+        else:
+            extra_kwargs["temperature"] = 0
+
         response = None
         for attempt, wait in enumerate(_RETRY_WAITS):
             try:
@@ -1398,8 +1422,7 @@ Complete all research steps from your checklist, then output the JSON report."""
                     time.sleep(wait)
                 response = client.messages.create(
                     model=model,
-                    max_tokens=8192,
-                    temperature=0,
+                    max_tokens=16000 if _is_synthesis_turn and _use_thinking else 8192,
                     system=[
                         {
                             "type": "text",
@@ -1409,6 +1432,7 @@ Complete all research steps from your checklist, then output the JSON report."""
                     ],
                     tools=add_cache_control(RESEARCH_TOOL_DEFINITIONS),
                     messages=messages,
+                    **extra_kwargs,
                 )
                 break
             except anthropic.RateLimitError:
@@ -1431,6 +1455,9 @@ Complete all research steps from your checklist, then output the JSON report."""
                 text_parts.append(block.text)
             elif block.type == "tool_use":
                 tool_calls.append(block)
+            # thinking blocks are intentionally ignored for text output
+
+        _had_tool_calls = bool(tool_calls)
 
         if text_parts:
             final_text = "\n".join(text_parts)
@@ -1438,28 +1465,41 @@ Complete all research steps from your checklist, then output the JSON report."""
         if response.stop_reason == "end_turn" or not tool_calls:
             break
 
-        # Serialize assistant turn
+        # Serialize assistant turn — include thinking blocks so the API
+        # receives a valid conversation history when thinking is on.
         serialized = []
         for block in response.content:
             t = getattr(block, "type", None)
-            if t == "text":
+            if t == "thinking":
+                serialized.append({"type": "thinking", "thinking": block.thinking})
+            elif t == "text":
                 serialized.append({"type": "text", "text": block.text})
             elif t == "tool_use":
                 serialized.append({"type": "tool_use", "id": block.id, "name": block.name, "input": block.input})
         messages.append({"role": "assistant", "content": serialized})
 
-        # Execute tools
-        tool_results = []
-        for tc in tool_calls:
+        # Execute tools in parallel when multiple are called in one turn
+        tool_results = [None] * len(tool_calls)
+
+        def _exec_tool(idx: int, tc) -> None:
             try:
                 result = handle_tool_call(tc.name, tc.input)
             except Exception as exc:
                 result = {"error": f"Tool '{tc.name}' raised an unexpected exception: {exc}"}
-            tool_results.append({
+            tool_results[idx] = {
                 "type": "tool_result",
                 "tool_use_id": tc.id,
                 "content": truncate_tool_result(tc.name, json.dumps(result, default=str), max_chars=3500),
-            })
+            }
+
+        if len(tool_calls) == 1:
+            _exec_tool(0, tool_calls[0])
+        else:
+            with ThreadPoolExecutor(max_workers=min(len(tool_calls), 6)) as pool:
+                futs = {pool.submit(_exec_tool, i, tc): i for i, tc in enumerate(tool_calls)}
+                for f in as_completed(futs):
+                    f.result()
+
         messages.append({"role": "user", "content": tool_results})
 
     # Parse the JSON report from the final text

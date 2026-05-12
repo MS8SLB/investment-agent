@@ -7,6 +7,7 @@ import datetime
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import anthropic
@@ -14,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from agent.tools import TOOL_DEFINITIONS, handle_tool_call
+from agent.tools import TOOL_DEFINITIONS, handle_tool_call, clear_tool_cache
 from agent import portfolio
 from agent.loop_utils import prune_messages, truncate_tool_result, add_cache_control
 
@@ -188,6 +189,7 @@ def run_agent_session(
 ) -> str:
     """Core agentic loop shared by all entry points."""
 
+    clear_tool_cache()
     client = anthropic.Anthropic()
     model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 
@@ -214,7 +216,14 @@ def run_agent_session(
         # prune and cache
         messages = prune_messages(messages)
 
-        response = client.messages.create(
+        # Stream the response so text is visible token-by-token in the terminal.
+        # We accumulate tool_use blocks fully (they're not streamed as text) and
+        # reconstruct the same assistant_content / tool_uses lists as before.
+        assistant_content = []
+        tool_uses = []
+        stop_reason = None
+
+        with client.messages.stream(
             model=model,
             max_tokens=16000,
             system=[
@@ -226,48 +235,68 @@ def run_agent_session(
             ],
             tools=add_cache_control(tools),
             messages=messages,
-        )
+        ) as stream:
+            current_text = ""
+            for event in stream:
+                event_type = type(event).__name__
+                if event_type == "RawContentBlockStartEvent":
+                    block = event.content_block
+                    if getattr(block, "type", None) == "text":
+                        current_text = ""
+                        print()  # newline before each text block
+                elif event_type == "RawContentBlockDeltaEvent":
+                    delta = event.delta
+                    delta_type = getattr(delta, "type", None)
+                    if delta_type == "text_delta":
+                        print(delta.text, end="", flush=True)
+                        current_text += delta.text
+                elif event_type == "RawContentBlockStopEvent":
+                    pass  # text accumulation done for this block
 
-        # collect text + tool use blocks
-        assistant_content = []
-        tool_uses = []
+            # After streaming completes, get the final message for full block data
+            final = stream.get_final_message()
+            stop_reason = final.stop_reason
 
-        for block in response.content:
-            if block.type == "text":
-                print(f"\n  {block.text}")
-                assistant_content.append({"type": "text", "text": block.text})
-            elif block.type == "tool_use":
-                tool_uses.append(block)
-                assistant_content.append(
-                    {
+            for block in final.content:
+                if block.type == "text":
+                    assistant_content.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    tool_uses.append(block)
+                    assistant_content.append({
                         "type": "tool_use",
                         "id": block.id,
                         "name": block.name,
                         "input": block.input,
-                    }
-                )
+                    })
 
         messages.append({"role": "assistant", "content": assistant_content})
 
-        if response.stop_reason == "end_turn":
+        if stop_reason == "end_turn":
             break
 
         if not tool_uses:
             break
 
-        # execute tools and collect results
-        tool_results = []
-        for tool_use in tool_uses:
+        # execute tools — parallel when multiple tools are called in one turn
+        tool_results = [None] * len(tool_uses)
+
+        def _run_tool(idx: int, tool_use) -> None:
             print(f"  ⚙ {tool_use.name}")
             result = handle_tool_call(tool_use.name, tool_use.input)
             result_str = truncate_tool_result(tool_use.name, json.dumps(result, default=str))
-            tool_results.append(
-                {
-                    "type": "tool_result",
-                    "tool_use_id": tool_use.id,
-                    "content": result_str,
-                }
-            )
+            tool_results[idx] = {
+                "type": "tool_result",
+                "tool_use_id": tool_use.id,
+                "content": result_str,
+            }
+
+        if len(tool_uses) == 1:
+            _run_tool(0, tool_uses[0])
+        else:
+            with ThreadPoolExecutor(max_workers=min(len(tool_uses), 8)) as pool:
+                futures = {pool.submit(_run_tool, i, tu): i for i, tu in enumerate(tool_uses)}
+                for f in as_completed(futures):
+                    f.result()  # propagate exceptions
 
         messages.append({"role": "user", "content": tool_results})
 
