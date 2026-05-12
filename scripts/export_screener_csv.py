@@ -108,6 +108,10 @@ def main():
     # Sort: scored rows highest-to-lowest, unscored at bottom
     rows.sort(key=lambda r: (0 if r["score"] != "" else 1, -(r["score"] if r["score"] != "" else 0)))
 
+    if not rows:
+        print("Error: no tickers found in universe or database")
+        return
+
     os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
     with open(OUTPUT, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())

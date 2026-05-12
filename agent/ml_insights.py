@@ -2075,14 +2075,16 @@ def auto_pass_screener_rejects(threshold: float = 4.5) -> dict:
         ml_score = _score_features(row, weights)
 
         if ml_score < threshold:
-            portfolio.add_to_shadow_portfolio(
-                ticker=ticker,
-                price_at_consideration=row.get("price") or 0.0,
-                reason_passed=(
-                    f"Auto-passed: ML score {ml_score:.1f}/10 < threshold {threshold} "
-                    f"(weights: {n_trades} trades, regime {fw.get('regime','?')})"
-                ),
-            )
+            price = row.get("price")
+            if price:  # Skip tickers with missing price data
+                portfolio.add_to_shadow_portfolio(
+                    ticker=ticker,
+                    price_at_consideration=float(price),
+                    reason_passed=(
+                        f"Auto-passed: ML score {ml_score:.1f}/10 < threshold {threshold} "
+                        f"(weights: {n_trades} trades, regime {fw.get('regime','?')})"
+                    ),
+                )
             passed_now.append({"ticker": ticker, "ml_score": round(ml_score, 2),
                                 "screener_score": row.get("score")})
         else:
