@@ -344,6 +344,17 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Check overall market index conditions
 
 **Step 3 — Evaluate existing positions**
+
+Quality-of-earnings check (CRITICAL — prevents holding deteriorating quality businesses):
+- For each holding, call `score_earnings_quality(ticker)` — check the Sloan accrual ratio
+  (red flag if >0.05). High accruals = earnings quality concern; upcoming disappointment likely.
+- Call `score_piotroski_fscore(ticker)` — 9-point financial health check. Score <5 is weak;
+  if score declined from last check, investigate cause. Declining F-Score predicts underperformance.
+- Call `get_historical_valuation_range(ticker)` — is the stock now at the 90th+ percentile of
+  its 5-year valuation? If yes, it's expensively priced; raises the bar for holding (thesis must
+  be stronger, moat more durable).
+
+Thesis integrity check:
 - For each holding, ask the most important question first: **Is the moat still intact?** Has anything
   changed that erodes switching costs, network effects, or competitive barriers? If yes, that is a sell signal.
   Price decline alone is NOT a moat impairment — it may be a buying opportunity.
@@ -352,6 +363,9 @@ Please conduct a comprehensive portfolio review and take appropriate investment 
 - Check upcoming earnings (`get_earnings_calendar`) to flag positions with imminent earnings risk
 - Call `get_material_events(ticker, days=90)` for each holding — catch any 8-K filings (exec departures,
   impairments, auditor changes) that may have slipped past news feeds
+- For each holding, **generate a fresh bear case**: What would a short-seller argue? What 3-4 key risks
+  have you underestimated? What would break the thesis? Use `detect_financial_anomalies` to surface
+  statistical red flags. If the moat or fundamentals have deteriorated, the bear case wins → sell.
 
 **Step 3b — Work the watchlist BEFORE screening for new stocks**
 
@@ -418,6 +432,9 @@ it is not ready — watchlist it instead.
 - Execute buy/sell/watchlist decisions based on research findings
   - Before any buy: call `get_decision_thresholds` to confirm current regime-adjusted thresholds
   - Before any buy: call `get_conviction_position_size` to confirm correct Kelly-adjusted size
+  - **Before any buy: call `check_portfolio_correlation(ticker)` — ensure new position isn't highly correlated
+    with existing holdings.** If avg correlation > 0.6 or any pairwise > 0.7, size down or reject. This prevents
+    building a hidden large concentration in a single theme (e.g., all high-multiple compounders that sell off together).
   - Only buy if the stock clears ALL decision matrix thresholds (hard veto on any below-threshold criterion)
   - Buy in one tranche unless size > 8% of portfolio, in which case split into 2–3 tranches over 2–3 weeks
 - Set appropriate stop-losses and trade triggers for new positions

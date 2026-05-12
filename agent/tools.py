@@ -1566,6 +1566,60 @@ TOOL_DEFINITIONS = [
             "required": ["ticker"],
         },
     },
+    # ── NEW: earnings quality & financial strength scoring ──────────────────
+    {
+        "name": "score_earnings_quality",
+        "description": (
+            "Assess earnings quality using Sloan accrual ratio (high accruals predict earnings "
+            "disappointment) and FCF conversion efficiency. Returns red/yellow/green flag."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "score_piotroski_fscore",
+        "description": (
+            "Score financial strength using Piotroski's 9-point framework: profitability (ROA, "
+            "CFO, accruals), leverage (debt trend), efficiency (asset/revenue/margin trends). "
+            "8-9: strong (historically outperform); 5-7: moderate; 0-4: weak (historically underperform)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_historical_valuation_range",
+        "description": (
+            "Get current P/FCF and EV/EBITDA valuation multiples vs their 5-year historical "
+            "range. Returns percentile (0-100) where 100 = most expensive, 50 = median, 0 = cheapest. "
+            "Use to avoid buying at peak valuations; combine with DCF for robust decisions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Stock ticker symbol",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
     # ── restored: discover_universe_parallel
 
     {
@@ -2389,6 +2443,15 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> Any:
 
     elif tool_name == "calculate_intrinsic_value":
         return market_data.calculate_intrinsic_value(tool_input["ticker"])
+    elif tool_name == "score_earnings_quality":
+        from agent.earnings_quality import score_earnings_quality
+        return score_earnings_quality(tool_input["ticker"])
+    elif tool_name == "score_piotroski_fscore":
+        from agent.earnings_quality import score_piotroski_fscore
+        return score_piotroski_fscore(tool_input["ticker"])
+    elif tool_name == "get_historical_valuation_range":
+        from agent.earnings_quality import get_historical_valuation_range
+        return get_historical_valuation_range(tool_input["ticker"])
     elif tool_name == "check_concentration_limits":
         return portfolio.check_concentration_limits(
             ticker=tool_input["ticker"],

@@ -91,6 +91,13 @@ Work through these in order:
    was inflated overnight. Always compute goodwill-adjusted ROIC (remove goodwill and acquired
    intangibles from invested capital) alongside reported ROIC. If goodwill-adjusted ROIC remains
    >20%, underlying quality is intact. Report both in JSON output where applicable.
+
+1.5. **Earnings Quality (CRITICAL)** — Call `score_earnings_quality(ticker)` and `score_piotroski_fscore(ticker)`.
+   - If Sloan accrual ratio > 0.05: red flag. High accruals predict earnings restatements and
+     disappointments within 2 years. Avoid or demand deep discount to IV.
+   - If Piotroski F-Score < 5: weak financial health. If score <5 AND declining from last year: business
+     is deteriorating — strong caution. F-Score ≥8 is ideal; 5-7 is acceptable only if moat is strong.
+   These signals have >85% predictive power historically; do not ignore.
    **Gross margin software/platform quality test**: genuine software and platform businesses carry
    70-90% gross margins. A company labelled "social media", "SaaS", or "marketplace" with gross
    margins below 60% is carrying structural costs (content delivery, hardware, physical fulfilment,
@@ -1001,6 +1008,15 @@ Work through these in order:
    - The target entry price (after margin of safety) should deliver ~13-15% IRR
 
    - Calculate margin of safety: (intrinsic value - current price) / intrinsic value × 100
+
+   **Historical valuation context** (CRITICAL): Call `get_historical_valuation_range(ticker)` to see
+   where current P/FCF and EV/EBITDA percentiles stand vs 5-year history. If the stock is at the 90th+
+   percentile (most expensive), it needs a STRONGER moat and WIDER margin of safety — you're being asked
+   to pay a peak price for the moat to prove itself over the next 5 years. A 20% margin of safety is
+   insufficient when valuation is historically expensive. Conversely, if at the 10th percentile (cheapest
+   in 5 years), a normal 20% MoS may be adequate if the moat is intact. Never assume "if the DCF says
+   fair, it's a buy" — combine DCF with historical valuation context for robust decisions.
+
    **"Free option" optionality framing**: when a company has nascent business units that (a)
    require no material incremental capital beyond what is already budgeted, (b) are not priced
    into the current market multiple, and (c) represent asymmetric payoffs (meaningful upside if
