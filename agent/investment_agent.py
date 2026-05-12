@@ -316,7 +316,7 @@ def run_agent_session(
     """Core agentic loop shared by all entry points."""
 
     client = anthropic.Anthropic()
-    model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-7")
+    model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 
     messages = []
     # If initial_content is provided (e.g. user-flagged tickers), prepend it to the main prompt
