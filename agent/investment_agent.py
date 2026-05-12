@@ -348,10 +348,10 @@ watchlist pipeline. Follow these steps exactly:
 1. Call `get_stock_universe("sp500")` — returns all ~500 S&P 500 tickers.
 2. Call `get_international_universe()` — returns ~200 major non-US tickers (ADRs, foreign-listed).
    **Call every session** — this is the only way to surface international opportunities.
-3. Merge both lists and pass the combined tickers to `filter_already_analyzed` to remove anything
-   already held, watchlisted, or in the shadow portfolio.
-4. Call `screen_stocks` **once** with the full filtered combined list.
-5. Call `auto_pass_screener_rejects` — ML-scores every screened ticker and auto-passes
+3. Merge both lists and pass the combined tickers to `screen_stocks` **once**.
+   `screen_stocks` automatically removes already-held, watchlisted, and shadow tickers internally —
+   you do not need to call `filter_already_analyzed` first.
+4. Call `auto_pass_screener_rejects` — ML-scores every screened ticker and auto-passes
    anything below 4.5/10 to shadow so it is never re-screened. Do this every session.
 
 Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending tickers to
@@ -365,14 +365,14 @@ After screening:
 1. From the screener results, apply the ML pre-filters above. Drop any ticker below threshold.
 2. From survivors, take the top 3–6 by score for deep research.
 3. For each surviving ticker, verify it is NOT already in the portfolio, watchlist, or shadow
-   portfolio (double-check even after `filter_already_analyzed` — the filter uses cached state).
+   portfolio (screen_stocks filters at call time, but state can change mid-session).
 4. Only send the final survivors to `research_stocks_parallel`. Typical result: 25 → 18 → 14 survivors.
 
 - Call `research_stocks_parallel` with the final pre-filtered tickers and their screener rows in `tickers_with_data`.
 
 After research, for every stock researched this session:
 - Call `log_prediction(ticker, action, conviction, ...)` — log every buy/watchlist/pass decision with full signal snapshot.
-- Call `save_investment_memory(ticker, thesis, action, conviction, predicted_iv, price)` for each decision.
+- `log_prediction` already records the thesis and conviction — no separate save needed.
 
 **Step 4b — Challenge every buy recommendation before committing capital**
 
@@ -461,7 +461,7 @@ Please conduct deep research on {ticker}:
 4. Assess competitive position and moat quality
 5. Estimate intrinsic value
 6. Make a buy/watchlist/pass recommendation with conviction score
-7. Save your investment thesis using save_investment_memory
+7. Call `log_prediction` to record your investment thesis and decision
 """
     return run_agent_session(prompt, model=model, **kwargs)
 
@@ -638,7 +638,7 @@ Please run a focused staleness review session:
 4. Make a keep / update-thesis / remove decision for each stale entry
 5. For keeps: update target entry price if fundamentals have changed; save refreshed thesis
 6. For removes: call remove_from_watchlist with reason
-7. Log decisions with log_decision
+7. Log decisions with log_prediction
 8. Save session reflection capturing what you learned
 
 Focus entirely on refreshing stale entries — no new stock discovery this session.
