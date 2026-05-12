@@ -171,129 +171,6 @@ If two or more boxes are checked, the moat is at risk — treat as a watchlist i
 
 ---
 
-## Tools Reference
-
-Below is a concise reference of the tools available to you, grouped by function.
-Read this section carefully — using the right tool at the right time is as important as
-the investment decisions themselves.
-
-### Portfolio & State
-- `get_portfolio` — current holdings, cash, and unrealised P&L
-- `get_sector_exposure` — current portfolio sector weights and concentration (informational only — no hard caps)
-- `get_portfolio_metrics` — Sharpe ratio, max drawdown, volatility, rolling returns vs S&P 500
-- `get_benchmark_comparison` — how you are tracking vs the S&P 500 benchmark
-
-### Research
-- `get_stock_fundamentals(ticker)` — P/E, P/B, EV/EBITDA, revenue/earnings growth, ROE,
-  FCF yield, gross/operating margins, net debt/EBITDA, payout ratio. Use for every stock
-  before forming a view.
-- `get_earnings_call_summary(ticker)` — management commentary, guidance, and analyst Q&A
-  from the most recent earnings call. Reveals tone, confidence, and strategic shifts.
-- `get_sec_filings(ticker)` — recent SEC filings (10-K, 10-Q, 8-K). Use to verify reported
-  numbers, check risk factors, and catch red flags management glosses over on earnings calls.
-- `get_insider_activity(ticker)` — recent insider buys/sells. Cluster buying by multiple
-  insiders is a positive signal; heavy selling (outside of routine plans) is a warning.
-- `get_competitor_analysis(ticker)` — revenue growth, margins, and valuation multiples for
-  the top 3–5 direct competitors. Use to assess relative moat strength and pricing power.
-- `get_superinvestor_positions(ticker)` — current positions held by Buffett, Munger (estate),
-  Ackman, Einhorn, Tepper, and other tracked super-investors. Strong overlap = worth deeper
-  look; not a buy signal on its own.
-- `get_material_events(ticker, days)` — recent 8-K filings: executive changes, impairments,
-  auditor changes, material contracts. Use on all holdings every session and on any stock
-  before buying.
-- `get_stock_news(ticker)` — recent headlines. Use to detect thesis-breaking events or
-  temporary noise. Do not trade on headlines alone.
-- `get_analyst_ratings(ticker)` — consensus rating and price targets. Treat as a sentiment
-  indicator; do not anchor to consensus targets.
-- `get_options_flow(ticker)` — recent unusual options activity. Large put buying = institutional
-  hedging or bearish positioning; large call buying = bullish speculation. Use as a secondary
-  confirmation signal, not a primary driver.
-- `get_sentiment_analysis(ticker)` — aggregated sentiment from news and social sources.
-  Extreme negative sentiment on a quality business is often a buying opportunity.
-- `estimate_intrinsic_value(ticker)` — DCF and reverse-DCF. Use alongside your own judgement.
-  The model's assumptions matter more than the output — check growth rate and WACC inputs.
-- `research_stocks_parallel(tickers_with_data, context)` — **multi-agent deep research**.
-  Launches one specialized research subagent per ticker, all running concurrently. Each
-  subagent runs the full research checklist (15 tools: fundamentals, earnings call, SEC
-  filings, insider activity, competitor analysis, superinvestor positions, material events,
-  sentiment) and returns a structured JSON report with recommendation (buy/watchlist/pass),
-  conviction score 1-10, key positives, key risks, and thesis text. Reports arrive sorted by
-  conviction score. Use this on your 3-6 screener finalists instead of researching them
-  sequentially — it's faster and each subagent focuses entirely on one stock.
-
-### Screening
-- `screen_stocks(tickers, top_n)` — fast parallel screen on up to 100 tickers. Scores each
-  on revenue growth, margins, ROE, PEG ratio, FCF yield, and debt. Returns ranked candidates
-  with `peg_ratio`, `fcf_yield_pct`, and `relative_momentum_pct`. From an intrinsic value
-  perspective, prioritise: high FCF yield (real cash generation), high ROE/ROIC
-  (capital-efficient business), strong gross margins (pricing power), and low debt (balance
-  sheet resilience). PEG is a useful secondary check. Momentum (`relative_momentum_pct`) is
-  NOT a quality signal — it is market opinion, not business value. Use it only as a timing
-  input: a stock with a positive margin of safety is worth buying whether momentum is positive
-  or negative. Avoid chasing stocks that have already re-rated; instead, look for quality
-  businesses that are temporarily out of favour.
-- `research_stocks_parallel(tickers_with_data, context)` — **multi-agent deep research**. Launches one specialized research subagent per ticker, all running concurrently. Each subagent runs the full research checklist (15 tools: fundamentals, earnings call, SEC filings, insider activity, competitor analysis, superinvestor positions, material events, sentiment) and returns a structured JSON report with recommendation (buy/watchlist/pass), conviction score 1-10, key positives, key risks, and thesis text. Reports arrive sorted by conviction score. Use this on your 3-6 screener finalists instead of researching them sequentially — it's faster and each subagent focuses entirely on one stock.
-
-### Watchlist Management
-- `add_to_watchlist(ticker, reason, target_entry_price)` — add a stock with a thesis and
-  target entry price.
-- `get_watchlist` — returns the full watchlist with tiers: **active** (within 30% of target,
-  review every session) and **monitor** (>30% above target, check monthly). Items that have
-  risen >40% above target are automatically archived to the shadow portfolio.
-- `remove_from_watchlist(ticker)` — remove permanently. Only use when thesis is fully broken.
-- `prune_watchlist` — refresh tiers and archive items that have risen >40% above target into
-  the shadow portfolio. Call once per session after get_watchlist.
-- `check_watchlist_triggers` — return items bucketed by distance from target: TRIGGERED
-  (≤0%), APPROACHING (0–10%), WATCH (10–20%). Prioritise these over new screen candidates.
-- `get_watchlist_earnings` — upcoming earnings dates for all watchlist items, bucketed as
-  THIS_WEEK / NEXT_WEEK / THIS_MONTH. Use to time entries around earnings.
-- `get_watchlist_history` — lifecycle events: when items were triggered, approaching, bought,
-  or removed. Helps identify patterns in your watchlist discipline.
-- `prioritize_watchlist_ml()` — Scores every watchlist item using the learned factor weights,
-  fetches their current fundamentals, and returns a ranked list with strengths, risk flags,
-  and proximity to target entry price. Items near their target entry price are promoted within
-  their score tier. Call this instead of (or alongside) `get_watchlist()` — it saves you from
-  researching low-conviction watchlist items first.
-
-### Macro & Market
-- `get_macro_environment` — yield curve, dollar index, VIX, oil price, and regime assessment
-- `get_economic_indicators` — GDP, CPI, unemployment, consumer sentiment, ISM manufacturing
-- `get_market_conditions(index)` — P/E, 52-week range, trend for major indices
-
-### Trade Execution
-- `buy_stock(ticker, amount)` — execute a paper buy. Always check portfolio cash first.
-- `sell_stock(ticker, amount_or_all)` — execute a paper sell. Pass "all" to close position.
-- `set_stop_loss(ticker, price)` — set a stop-loss. Triggers automatically if price breached.
-- `set_trade_trigger(ticker, condition, action, notes)` — set a conditional trigger for a
-  future session (e.g. "research AAPL if price drops below $150").
-
-### Memory & Reflection
-- `save_investment_memory(ticker, thesis, action, conviction, predicted_iv, price_at_decision)` — **Call this after every buy, watchlist, or pass decision this session.** Records your thesis and conviction at decision time so future sessions can verify whether the thesis held.
-- `get_investment_memory` — retrieve all saved theses and past decisions
-- `save_session_reflection(lessons, what_worked, what_to_improve, tickers_researched)` — **Call this at the end of every session.** Saves lessons learned, what worked, and what to improve for future sessions.
-- `get_session_reflections` — retrieve all past session reflections
-- `save_master_lessons(lessons, sessions_covered)` — distil all individual reflections into a single master document. Call when there are ≥5 full reflections and no master exists, or when `sessions_covered` is stale.
-- `get_behaviour_summary` — returns aggregated stats on your own decision patterns: average conviction, MoS achieved vs required, deviation from the decision matrix, re-research rate, workflow adherence. Read this at session start to identify systematic biases and correct them.
-
-### Performance & Learning
-- `get_trade_outcomes` — raw signal snapshots for all past trades (used as ML training data)
-- `get_signal_performance` — binary threshold win-rate analysis: which factor thresholds (PEG < 1.5, FCF yield > 4%, etc.) have historically separated your winners from losers. Update your hard filters based on this analysis each session.
-- `get_ml_factor_weights` — continuous ML-derived factor weights and feature importances. Goes beyond binary thresholds to show which factors matter most in YOUR portfolio history. Use `blended_weights` and `actionable_guidance` when scoring screener candidates.
-- `prioritize_watchlist_ml()` — Scores every watchlist item using the learned factor weights, fetches their current fundamentals, and returns a ranked list with strengths, risk flags, and proximity to target entry price. Items near their target entry price are promoted within their score tier. Call this instead of (or alongside) `get_watchlist()` — it saves you from researching low-conviction watchlist items first.
-- `get_shadow_performance` — price performance of stocks you passed on. Validates or challenges your past reasoning.
-- `get_triaged_alerts` — recent news alerts pre-classified as thesis_breaking / watch / noise for all held and watched stocks.
-
-### Decision Support
-- `get_decision_thresholds` — regime-adjusted buy thresholds (MoS, FCF yield, ROIC, moat score).
-  Always call this before making a buy decision — it tells you the current hurdle rates.
-- `get_conviction_position_size` — Kelly-criterion position sizes adjusted for current regime.
-  Always call this before executing a buy — it tells you the right size.
-- `log_decision(ticker, action, conviction, predicted_iv, price, moat_score, mos_pct, fcf_yield, notes)` — log a buy/watchlist/pass decision with full signal snapshot. **Call this for every stock you make a decision on this session** — before or after the buy/sell/watchlist call. This is the raw data that trains the ML models.
-- `challenge_buy_theses(reports)` — pass all research reports; the tool stress-tests each recommendation with bear cases, identifies shared risks, and flags which buys are weakest. Use before committing capital.
-- `get_behaviour_summary` — see your own patterns: MoS achieved vs required, deviation from matrix, re-research rate. Read at session start to correct systematic biases.
-
----
-
 ## Sector Caps
 
 **There are no sector caps.** Do not apply concentration limits based on sector. If the best
@@ -301,10 +178,6 @@ businesses at the best prices all happen to be in the same sector, buy them. Con
 quality. Diversification by sector is not a virtue — it is a concession to uncertainty.
 
 ---
-"""
-
-PORTFOLIO_REVIEW_PROMPT = f"""
-I'll conduct a comprehensive portfolio review systematically. Let me start by loading all memory and context in parallel.
 """
 
 def run_agent_session(
@@ -319,14 +192,16 @@ def run_agent_session(
     model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 
     messages = []
+    # Cache the main workflow prompt — it's static and the same every session,
+    # so marking it ephemeral lets the API reuse the KV cache across calls.
+    cached_prompt = [{"type": "text", "text": initial_prompt, "cache_control": {"type": "ephemeral"}}]
     # If initial_content is provided (e.g. user-flagged tickers), prepend it to the main prompt
     if initial_content:
         # initial_content is a list of content blocks; wrap in a "user" message
         messages.append({"role": "user", "content": initial_content})
-        # Then append the full workflow prompt so the agent receives both the user flags AND the structured steps
-        messages.append({"role": "user", "content": initial_prompt})
+        messages.append({"role": "user", "content": cached_prompt})
     else:
-        messages.append({"role": "user", "content": initial_prompt})
+        messages.append({"role": "user", "content": cached_prompt})
 
     tools = TOOL_DEFINITIONS
 
@@ -631,11 +506,6 @@ Please validate all existing investment theses:
 5. Update investment memory with refreshed theses
 6. Save session reflection
 """
-    return run_agent_session(prompt, model=model, **kwargs)
-
-
-def run_custom_prompt(prompt: str, model: Optional[str] = None, **kwargs) -> str:
-    """Run a custom prompt."""
     return run_agent_session(prompt, model=model, **kwargs)
 
 
