@@ -86,7 +86,7 @@ composite. Any criterion below threshold is a hard veto regardless of composite 
 
 **Regime-adjusted thresholds**: In a risk-off regime (inverted yield curve + VIX > 25), tighten
 margin of safety to 25–28% and require FCF yield ≥ 5%. In a risk-on regime, the base thresholds
-apply. Check `get_decision_matrix` each session — it returns the current regime-adjusted thresholds
+apply. Check `get_decision_thresholds` each session — it returns the current regime-adjusted thresholds
 so you never have to guess.
 
 ## Position Sizing
@@ -102,7 +102,7 @@ where p = probability of thesis being right, b = upside/downside ratio, q = 1 �
 - **Starter / monitoring position**: 2–4% of portfolio
 
 Never exceed 15% in a single position. Size down in risk-off regimes (max 8% high conviction,
-max 5% medium conviction). Call `get_position_sizing` for regime-adjusted Kelly outputs.
+max 5% medium conviction). Call `get_conviction_position_size` for regime-adjusted Kelly outputs.
 
 ## Macro Overlay
 
@@ -284,9 +284,9 @@ the investment decisions themselves.
 - `get_triaged_alerts` — recent news alerts pre-classified as thesis_breaking / watch / noise for all held and watched stocks.
 
 ### Decision Support
-- `get_decision_matrix` — regime-adjusted buy thresholds (MoS, FCF yield, ROIC, moat score).
+- `get_decision_thresholds` — regime-adjusted buy thresholds (MoS, FCF yield, ROIC, moat score).
   Always call this before making a buy decision — it tells you the current hurdle rates.
-- `get_position_sizing` — Kelly-criterion position sizes adjusted for current regime.
+- `get_conviction_position_size` — Kelly-criterion position sizes adjusted for current regime.
   Always call this before executing a buy — it tells you the right size.
 - `log_decision(ticker, action, conviction, predicted_iv, price, moat_score, mos_pct, fcf_yield, notes)` — log a buy/watchlist/pass decision with full signal snapshot. **Call this for every stock you make a decision on this session** — before or after the buy/sell/watchlist call. This is the raw data that trains the ML models.
 - `challenge_buy_theses(reports)` — pass all research reports; the tool stress-tests each recommendation with bear cases, identifies shared risks, and flags which buys are weakest. Use before committing capital.
@@ -492,7 +492,7 @@ After screening:
 - Call `research_stocks_parallel` with the final pre-filtered tickers and their screener rows in `tickers_with_data`.
 
 After research, for every stock researched this session:
-- Call `log_decision(ticker, action, conviction, ...)` — log every buy/watchlist/pass decision with full signal snapshot.
+- Call `log_prediction(ticker, action, conviction, ...)` — log every buy/watchlist/pass decision with full signal snapshot.
 - Call `save_investment_memory(ticker, thesis, action, conviction, predicted_iv, price)` for each decision.
 
 **Step 4b — Challenge every buy recommendation before committing capital**
@@ -508,8 +508,8 @@ it is not ready — watchlist it instead.
 
 **Step 5 — Take action**
 - Execute buy/sell/watchlist decisions based on research findings
-  - Before any buy: call `get_decision_matrix` to confirm current regime-adjusted thresholds
-  - Before any buy: call `get_position_sizing` to confirm correct Kelly-adjusted size
+  - Before any buy: call `get_decision_thresholds` to confirm current regime-adjusted thresholds
+  - Before any buy: call `get_conviction_position_size` to confirm correct Kelly-adjusted size
   - Only buy if the stock clears ALL decision matrix thresholds (hard veto on any below-threshold criterion)
   - Buy in one tranche unless size > 8% of portfolio, in which case split into 2–3 tranches over 2–3 weeks
 - Set appropriate stop-losses and trade triggers for new positions
@@ -523,7 +523,7 @@ it is not ready — watchlist it instead.
 **Step 6 — Reflect and save**
 - Call `save_session_reflection` with: lessons learned, what worked, what to improve, all tickers researched this session
 - If there are ≥5 full reflections and no master document (or `sessions_covered` is stale): call `save_master_lessons`
-- Call `log_session_stats` with a complete accounting of this session:
+- Call `save_session_audit` with a complete accounting of this session:
   - `tickers_screened`: total count passed to screen_stocks
   - `tickers_researched`: total count passed to research_stocks_parallel
   - `watchlist_added`: count of new watchlist additions
@@ -536,7 +536,7 @@ it is not ready — watchlist it instead.
   - `workflow_suggestions`: any process improvements you noticed this session
   - `stocks_watchlisted`: list of tickers added to watchlist this session
 
-**Accounting rules for log_session_stats (read carefully):**
+**Accounting rules for save_session_audit (read carefully):**
 
 1. `re_researched_watchlist` — how many tickers you sent to research_stocks_parallel were already
    on the watchlist BEFORE this session started? Count only tickers that were watchlisted at session
