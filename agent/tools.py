@@ -811,52 +811,41 @@ TOOL_DEFINITIONS = [
     {
         "name": "run_backtest",
         "description": (
-            "Run a strategy backtest in one of three modes to validate whether the "
+            "Run a strategy backtest in one of five modes to validate whether the "
             "screening and trading approach is actually working.\n\n"
             "Modes:\n\n"
-            "  'trade_history' — Replays ALL closed trades (no 20-trade limit). "
-            "Computes win rate, avg return, Sharpe ratio, max drawdown, and "
-            "S&P 500 alpha per trade. Segments results by market regime at entry "
-            "(VIX level: low_volatility / normal / elevated / high_fear). "
-            "Shows best and worst trades. Call this in Step 1 periodically (every "
-            "5+ closed trades) to validate that the strategy is generating alpha.\n\n"
-            "  'signal_cohorts' — Breaks all closed trades into signal cohorts: "
-            "PEG < 1.5 vs ≥ 1.5, FCF yield > 3% vs ≤ 3%, positive vs negative "
-            "momentum, score ≥ 8 vs < 8, and bull entry (VIX < 20) vs bear entry. "
-            "Shows win rate and avg return for each cohort so you can see which "
-            "signals are actually predictive in YOUR portfolio's specific history. "
-            "Use this to update signal weights in get_ml_factor_weights.\n\n"
-            "  'momentum' — Simulates buying the top-momentum tercile of a "
-            "provided ticker list at a point holding_days ago, and measures "
-            "actual forward return vs. S&P 500 buy-and-hold. Uses price data "
-            "only — no look-ahead on fundamentals. Pass your current screener "
-            "candidates as tickers to validate the momentum signal. "
-            "Requires tickers list.\n\n"
-            "  'fundamental_history' — Simulates the screener running at every "
-            "quarter-end since start_year (default 2015) using real historical "
-            "fundamentals from FMP. For each quarter where a stock scores ≥ "
-            "score_threshold, records a simulated buy and measures 1q/2q/4q "
-            "forward returns vs S&P 500. Answers: would this screening approach "
-            "have generated alpha over 10 years? Requires FMP_API_KEY. Uses up "
-            "to max_tickers (default 20) from universe_scores or a passed list. "
-            "Run this once after building a universe to validate the strategy.\n\n"
-            "Call 'trade_history' and 'signal_cohorts' in Step 1 once you have "
-            "≥5 closed trades. Call 'momentum' in Step 4 after screening to "
-            "validate momentum as a factor before weighting it in decisions. "
-            "Call 'fundamental_history' once to validate the strategy historically."
+            "  'trade_history' — Replays ALL closed trades. Computes win rate, avg return, "
+            "Sharpe, max drawdown, and S&P 500 alpha. Segments by market regime at entry.\n\n"
+            "  'signal_cohorts' — Breaks closed trades into signal cohorts (PEG, FCF yield, "
+            "momentum, score, VIX regime). Shows win rate per cohort.\n\n"
+            "  'momentum' — Simulates top-momentum tercile forward returns vs S&P 500. "
+            "Uses price data only. Requires tickers list.\n\n"
+            "  'fundamental_history' — Simulates screener at every quarter-end since "
+            "start_year using FMP historical fundamentals. Requires FMP_API_KEY.\n\n"
+            "  'signal_calibration' — Calibrates Piotroski F-Score (0-9) and Sloan accrual "
+            "ratio signals using yfinance data only (free, no FMP needed). Computes signals "
+            "from the most recent annual statements and measures forward price returns over "
+            "holding_days. Segments by: Piotroski Strong (8-9) / Moderate (5-7) / Weak (0-4) "
+            "and Sloan Clean (<0.05) / Caution (0.05-0.10) / Red Flag (>0.10). "
+            "Use this to validate whether these quality signals have predictive power in the "
+            "current universe and adjust their weights in the ML factor model accordingly. "
+            "No FMP key required — runs entirely on free data.\n\n"
+            "Call 'signal_calibration' quarterly to check if Piotroski and Sloan signals "
+            "are discriminating. If strong F-Score outperforms weak by >5pp, increase their "
+            "weights in screening. If not, decrease them."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "mode": {
                     "type": "string",
-                    "enum": ["trade_history", "signal_cohorts", "momentum", "fundamental_history"],
+                    "enum": ["trade_history", "signal_cohorts", "momentum", "fundamental_history", "signal_calibration"],
                     "description": "Which backtest to run.",
                 },
                 "tickers": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Required for mode='momentum'. Optional for 'fundamental_history' (defaults to universe_scores).",
+                    "description": "Required for mode='momentum'. Optional for 'fundamental_history' and 'signal_calibration' (defaults to universe_scores).",
                 },
                 "holding_days": {
                     "type": "integer",
@@ -1748,6 +1737,29 @@ TOOL_DEFINITIONS = [
             "required": [],
         },
     },
+    {
+        "name": "mark_thesis_assumption_verified",
+        "description": (
+            "Record the outcome of a thesis assumption check during a verification session. "
+            "Pass the assumption id (from get_pending_thesis_verifications) and a result string: "
+            "'CONFIRMED', 'REFUTED', or 'INCONCLUSIVE: <reason>'. "
+            "This builds a prediction accuracy record over time."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "assumption_id": {
+                    "type": "integer",
+                    "description": "Assumption ID from the pending verifications list",
+                },
+                "result": {
+                    "type": "string",
+                    "description": "Verification outcome: 'CONFIRMED', 'REFUTED', or 'INCONCLUSIVE: <reason>'",
+                },
+            },
+            "required": ["assumption_id", "result"],
+        },
+    },
     # ── restored: discover_universe_parallel
 
     {
@@ -2109,6 +2121,7 @@ _NO_CACHE_TOOLS: frozenset = frozenset({
     "save_master_lessons",
     "save_session_audit",
     "log_prediction",
+    "mark_thesis_assumption_verified",
     "get_portfolio_status",   # live cash/holdings must always be fresh
     "get_market_summary",     # prices change constantly
     "get_stock_quote",        # same reason
@@ -2601,6 +2614,12 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> Any:
     elif tool_name == "connect_shadow_to_ml_training":
         from agent.thesis_tracking import connect_shadow_to_ml_training
         return connect_shadow_to_ml_training()
+    elif tool_name == "mark_thesis_assumption_verified":
+        portfolio.mark_assumption_verified(
+            assumption_id=tool_input["assumption_id"],
+            result=tool_input["result"],
+        )
+        return {"success": True, "assumption_id": tool_input["assumption_id"], "result": tool_input["result"]}
     elif tool_name == "check_concentration_limits":
         return portfolio.check_concentration_limits(
             ticker=tool_input["ticker"],

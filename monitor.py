@@ -8,17 +8,20 @@ Prints a live snapshot of:
   - Shadow portfolio: how passed stocks have moved since the pass decision
 
 Usage:
-    python monitor.py          # one-shot snapshot
-    python monitor.py --watch  # refresh every 60s (Ctrl-C to stop)
-    python monitor.py --watch --interval 300  # refresh every 5 min
+    python monitor.py                 # one-shot snapshot
+    python monitor.py --watch         # refresh every 60s (Ctrl-C to stop)
+    python monitor.py --watch --interval 300   # refresh every 5 min
+    python monitor.py --alert         # lightweight alert check (8-Ks + price triggers)
+    python monitor.py --alert --since 2025-01-01  # alerts since a specific date
 """
 
 import argparse
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -32,6 +35,7 @@ warnings.filterwarnings("ignore", category=Warning, module="urllib3")
 from agent import market_data, portfolio
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
 from rich import box
 
 console = Console()
@@ -220,15 +224,166 @@ def render(console: Console) -> None:
         console.print(stbl)
 
 
+def check_alerts(since: Optional[str] = None) -> int:
+    """
+    Lightweight alert check — no agent session, just data checks.
+
+    Checks:
+    1. New 8-K filings for held positions since `since` date (or last 7 days)
+    2. Watchlist items at or below target entry price (buy triggers)
+    3. Holdings with a price move > 10% since last close
+
+    Returns: number of actionable alerts found.
+    """
+    from agent import sec_data
+
+    if since is None:
+        since_dt = datetime.now() - timedelta(days=7)
+        since = since_dt.strftime("%Y-%m-%d")
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    console.print(f"\n[bold]{DIVIDER}[/bold]")
+    console.print(f"[bold]ALERT CHECK  {now_str}  (since {since})[/bold]")
+    console.print(f"[bold]{DIVIDER}[/bold]\n")
+
+    alert_count = 0
+
+    # ── 1. 8-K material event alerts for holdings ──────────────────────────────
+    holdings = portfolio.get_holdings()
+    if holdings:
+        console.print("[bold]8-K MATERIAL EVENTS (held positions)[/bold]")
+        any_events = False
+        for h in holdings:
+            ticker = h["ticker"]
+            try:
+                since_days = max(1, (datetime.now() - datetime.strptime(since, "%Y-%m-%d")).days)
+                events = sec_data.get_material_events(ticker, days=since_days)
+                if isinstance(events, dict) and events.get("error"):
+                    continue
+                filings = []
+                if isinstance(events, dict):
+                    filings = events.get("events", events.get("filings", []))
+                elif isinstance(events, list):
+                    filings = events
+                if filings:
+                    any_events = True
+                    alert_count += len(filings)
+                    for f in filings[:3]:
+                        item = f.get("item", f.get("items", ""))
+                        desc = f.get("description", f.get("form", "8-K"))
+                        date = f.get("date", f.get("filed", ""))[:10]
+                        severity = "[bold red]⚠[/bold red]" if any(
+                            k in str(item) for k in ("5.02", "4.01", "4.02", "1.03", "2.06")
+                        ) else "[yellow]•[/yellow]"
+                        console.print(f"  {severity} [bold]{ticker}[/bold]  {date}  Item {item}: {desc[:80]}")
+            except Exception:
+                continue
+        if not any_events:
+            console.print(f"  [dim]No material 8-K filings found since {since}[/dim]")
+        console.print()
+
+    # ── 2. Watchlist price triggers ───────────────────────────────────────────
+    watchlist = portfolio.get_watchlist()
+    actionable = [w for w in watchlist if w.get("target_entry_price") and w.get("tier", "active") == "active"]
+
+    if actionable:
+        triggered = []
+        approaching = []
+        for w in actionable:
+            ticker = w["ticker"]
+            target = w["target_entry_price"]
+            try:
+                q = market_data.get_stock_quote(ticker)
+                price = q.get("price")
+                if price is None:
+                    continue
+                away_pct = (price - target) / target * 100
+                if away_pct <= 0:
+                    triggered.append((ticker, price, target, away_pct, w.get("reason", "")[:50]))
+                    alert_count += 1
+                elif away_pct <= 5:
+                    approaching.append((ticker, price, target, away_pct, w.get("reason", "")[:50]))
+            except Exception:
+                continue
+
+        console.print("[bold]WATCHLIST TRIGGERS[/bold]")
+        if triggered:
+            for ticker, price, target, away, reason in triggered:
+                console.print(
+                    f"  [bold green]▶ AT TARGET[/bold green]  [bold]{ticker}[/bold]  "
+                    f"${price:.2f} ≤ ${target:.2f}  ({away:+.1f}%)  {reason}"
+                )
+        if approaching:
+            for ticker, price, target, away, reason in approaching:
+                console.print(
+                    f"  [yellow]⚡ NEAR TARGET[/yellow]  [bold]{ticker}[/bold]  "
+                    f"${price:.2f} vs ${target:.2f}  ({away:+.1f}%)  {reason}"
+                )
+        if not triggered and not approaching:
+            console.print("  [dim]No watchlist items at or near target[/dim]")
+        console.print()
+
+    # ── 3. Large moves in held positions ──────────────────────────────────────
+    if holdings:
+        console.print("[bold]HOLDINGS — LARGE MOVES (>10% from cost)[/bold]")
+        movers = []
+        for h in holdings:
+            ticker = h["ticker"]
+            avg_cost = h["avg_cost"]
+            try:
+                q = market_data.get_stock_quote(ticker)
+                price = q.get("price")
+                if price is None:
+                    continue
+                move = (price - avg_cost) / avg_cost * 100
+                if abs(move) >= 10:
+                    movers.append((ticker, price, avg_cost, move))
+            except Exception:
+                continue
+
+        if movers:
+            for ticker, price, cost, move in sorted(movers, key=lambda x: abs(x[3]), reverse=True):
+                col = "green" if move > 0 else "red"
+                icon = "↑" if move > 0 else "↓"
+                console.print(
+                    f"  [{col}]{icon}[/{col}] [bold]{ticker}[/bold]  "
+                    f"${price:.2f}  cost ${cost:.2f}  [{col}]{move:+.1f}%[/{col}]"
+                )
+                if abs(move) >= 20:
+                    alert_count += 1
+        else:
+            console.print("  [dim]No positions with moves ≥10% from cost[/dim]")
+        console.print()
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    if alert_count > 0:
+        console.print(Panel(
+            f"[bold yellow]{alert_count} actionable alert(s) found.[/bold yellow] "
+            "Run a full agent session to investigate.",
+            title="ACTION REQUIRED", border_style="yellow"
+        ))
+    else:
+        console.print("[dim]No actionable alerts. All clear.[/dim]")
+
+    return alert_count
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Investment watchlist monitor")
     parser.add_argument("--watch", action="store_true",
                         help="Refresh on a loop instead of one-shot")
     parser.add_argument("--interval", type=int, default=60,
                         help="Refresh interval in seconds (default: 60)")
+    parser.add_argument("--alert", action="store_true",
+                        help="Lightweight alert check: 8-K filings + price triggers (no full render)")
+    parser.add_argument("--since", type=str, default=None,
+                        help="Check 8-K filings since this date (YYYY-MM-DD). Default: last 7 days.")
     args = parser.parse_args()
 
-    if args.watch:
+    if args.alert:
+        n = check_alerts(since=args.since)
+        sys.exit(1 if n > 0 else 0)  # non-zero exit when alerts exist (useful for cron jobs)
+    elif args.watch:
         try:
             while True:
                 console.clear()

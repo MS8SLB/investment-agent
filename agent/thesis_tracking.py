@@ -81,6 +81,14 @@ def structure_thesis_assumptions(ticker: str, thesis_text: str) -> dict:
                     })
                     break  # Only one assumption per pattern to avoid duplication
 
+    # Persist structured assumptions to DB for future verification sessions
+    if assumptions["structured_assumptions"]:
+        try:
+            portfolio.save_thesis_assumptions(ticker, assumptions["structured_assumptions"])
+            assumptions["saved_to_db"] = len(assumptions["structured_assumptions"])
+        except Exception as e:
+            assumptions["save_error"] = str(e)
+
     return assumptions
 
 

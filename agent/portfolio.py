@@ -294,6 +294,20 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         """)
 
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS thesis_assumptions (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker          TEXT NOT NULL,
+                assumption_type TEXT NOT NULL,
+                statement       TEXT NOT NULL,
+                keyword         TEXT,
+                verified        INTEGER NOT NULL DEFAULT 0,
+                verification_result TEXT,
+                logged_at       TEXT NOT NULL,
+                verified_at     TEXT
+            )
+        """)
+
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS session_audit (
                 id                          INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_date                TEXT NOT NULL,
@@ -337,6 +351,24 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         # Migrate: add last_reviewed_at column to track when watchlist items were last evaluated
         try:
             conn.execute("ALTER TABLE watchlist ADD COLUMN last_reviewed_at TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migrate: ensure thesis_assumptions table exists (added after initial schema)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS thesis_assumptions (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker          TEXT NOT NULL,
+                    assumption_type TEXT NOT NULL,
+                    statement       TEXT NOT NULL,
+                    keyword         TEXT,
+                    verified        INTEGER NOT NULL DEFAULT 0,
+                    verification_result TEXT,
+                    logged_at       TEXT NOT NULL,
+                    verified_at     TEXT
+                )
+            """)
         except sqlite3.OperationalError:
             pass
 
@@ -2723,3 +2755,79 @@ def get_master_lessons() -> Optional[dict]:
         return {"content": row["content"], "sessions_covered": row["sessions_covered"],
                 "updated_at": row["updated_at"]}
     return None
+
+
+# ── Thesis assumption tracking ────────────────────────────────────────────────
+
+def save_thesis_assumptions(ticker: str, assumptions: list[dict]) -> int:
+    """
+    Persist structured thesis assumptions extracted from a thesis statement.
+    Each assumption has type, statement, and keyword fields.
+    Returns the number of assumptions saved.
+    """
+    if not assumptions:
+        return 0
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    count = 0
+    with conn:
+        for a in assumptions:
+            conn.execute(
+                """INSERT INTO thesis_assumptions
+                   (ticker, assumption_type, statement, keyword, logged_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (
+                    ticker.upper(),
+                    a.get("type", "general"),
+                    a.get("extracted_statement", "")[:500],
+                    a.get("keyword_triggered_by", ""),
+                    now,
+                ),
+            )
+            count += 1
+    conn.close()
+    return count
+
+
+def get_pending_thesis_verifications(min_age_days: int = 90) -> list[dict]:
+    """
+    Return unverified thesis assumptions that are at least min_age_days old.
+    Groups by ticker with the full list of assumptions per ticker.
+    """
+    conn = _get_connection()
+    cutoff = (datetime.utcnow() - timedelta(days=min_age_days)).isoformat()
+    rows = conn.execute(
+        """SELECT id, ticker, assumption_type, statement, keyword, logged_at
+           FROM thesis_assumptions
+           WHERE verified = 0 AND logged_at <= ?
+           ORDER BY ticker, logged_at ASC""",
+        (cutoff,),
+    ).fetchall()
+    conn.close()
+
+    # Group by ticker
+    by_ticker: dict[str, dict] = {}
+    for r in rows:
+        t = r["ticker"]
+        if t not in by_ticker:
+            by_ticker[t] = {"ticker": t, "assumptions": [], "oldest_logged_at": r["logged_at"]}
+        by_ticker[t]["assumptions"].append({
+            "id": r["id"],
+            "type": r["assumption_type"],
+            "statement": r["statement"],
+            "keyword": r["keyword"],
+            "logged_at": r["logged_at"],
+        })
+    return list(by_ticker.values())
+
+
+def mark_assumption_verified(assumption_id: int, result: str) -> None:
+    """Record the outcome of a thesis assumption check."""
+    conn = _get_connection()
+    now = datetime.utcnow().isoformat()
+    with conn:
+        conn.execute(
+            "UPDATE thesis_assumptions SET verified=1, verification_result=?, verified_at=? WHERE id=?",
+            (result, now, assumption_id),
+        )
+    conn.close()

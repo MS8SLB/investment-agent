@@ -874,6 +874,308 @@ def _fundamental_history_backtest(
     }
 
 
+# ── Mode 5: Signal calibration backtest (Piotroski + Sloan) ──────────────────
+
+def _signal_calibration_backtest(
+    tickers: Optional[list[str]] = None,
+    holding_days: int = 252,
+    max_tickers: int = 30,
+) -> dict:
+    """
+    Calibrate Piotroski F-Score and Sloan accrual ratio signals using historical
+    yfinance data only (free, no FMP required).
+
+    For each ticker in the universe:
+    - Compute annual Piotroski F-Score from historical financial statements
+    - Compute Sloan accrual ratio for same period
+    - Measure forward price return over `holding_days` after signal date
+    - Segment by signal bucket and measure alpha vs S&P 500
+
+    Signal buckets:
+      Piotroski: Strong (8-9), Moderate (5-7), Weak (0-4)
+      Sloan:     Clean (<0.05), Caution (0.05-0.10), Red flag (>0.10)
+
+    Returns: per-bucket win rates, avg returns, and alpha vs SPY.
+    """
+    today = datetime.now().date()
+    today_str = today.strftime("%Y-%m-%d")
+
+    # Default universe: tickers from DB + passed tickers
+    db = _conn()
+    db_tickers = [r[0] for r in db.execute(
+        "SELECT DISTINCT ticker FROM universe_scores ORDER BY quality_score DESC LIMIT 60"
+    ).fetchall()]
+    db.close()
+
+    universe = list(dict.fromkeys((tickers or []) + db_tickers))[:max_tickers]
+    if not universe:
+        return {
+            "mode": "signal_calibration",
+            "error": "No tickers. Pass tickers= or run the screener first to populate universe_scores.",
+        }
+
+    price_cache: dict = {}
+    results = []
+    errors = []
+
+    for ticker in universe:
+        try:
+            t = yf.Ticker(ticker)
+            fin = t.financials
+            bs = t.balance_sheet
+            cf = t.cashflow
+
+            if fin is None or fin.empty or len(fin.columns) < 2:
+                errors.append({"ticker": ticker, "reason": "insufficient financials"})
+                continue
+            if bs is None or bs.empty:
+                errors.append({"ticker": ticker, "reason": "no balance sheet"})
+                continue
+            if cf is None or cf.empty:
+                errors.append({"ticker": ticker, "reason": "no cashflow"})
+                continue
+
+            # Use the most recent annual period as the signal date
+            signal_date = fin.columns[0]
+            signal_date_str = signal_date.strftime("%Y-%m-%d") if hasattr(signal_date, "strftime") else str(signal_date)[:10]
+
+            def _get(df, *keys):
+                for k in keys:
+                    if k in df.index:
+                        vals = df.loc[k]
+                        return float(vals.iloc[0]) if not vals.empty else None
+                return None
+
+            def _get_prev(df, *keys):
+                for k in keys:
+                    if k in df.index:
+                        vals = df.loc[k]
+                        return float(vals.iloc[1]) if len(vals) > 1 else None
+                return None
+
+            # Financial statement extracts
+            net_income = _get(fin, "Net Income")
+            total_assets_curr = _get(bs, "Total Assets")
+            total_assets_prev = _get_prev(bs, "Total Assets")
+            op_cf = _get(cf, "Operating Cash Flow", "Cash Flow From Continuing Operating Activities")
+            total_debt_curr = _get(bs, "Total Debt", "Long Term Debt")
+            total_debt_prev = _get_prev(bs, "Total Debt", "Long Term Debt")
+            current_assets = _get(bs, "Current Assets", "Total Current Assets")
+            current_liabs = _get(bs, "Current Liabilities", "Total Current Liabilities")
+            current_assets_prev = _get_prev(bs, "Current Assets", "Total Current Assets")
+            current_liabs_prev = _get_prev(bs, "Current Liabilities", "Total Current Liabilities")
+            gross_profit = _get(fin, "Gross Profit")
+            gross_profit_prev = _get_prev(fin, "Gross Profit")
+            revenue = _get(fin, "Total Revenue")
+            revenue_prev = _get_prev(fin, "Total Revenue")
+            shares = _get(bs, "Ordinary Shares Number", "Common Stock Shares Outstanding")
+            shares_prev = _get_prev(bs, "Ordinary Shares Number", "Common Stock Shares Outstanding")
+            investing_cf = _get(cf, "Investing Cash Flow", "Cash Flow From Continuing Investing Activities")
+
+            if not total_assets_curr or total_assets_curr == 0:
+                errors.append({"ticker": ticker, "reason": "zero total assets"})
+                continue
+
+            avg_assets = (total_assets_curr + (total_assets_prev or total_assets_curr)) / 2
+
+            # ── Piotroski F-Score (9 binary signals) ──────────────────────────
+            f_score = 0
+
+            # Profitability (4 signals)
+            roa = net_income / avg_assets if net_income and avg_assets else None
+            if roa and roa > 0:
+                f_score += 1  # ROA positive
+
+            if op_cf and op_cf > 0:
+                f_score += 1  # CFO positive
+
+            if roa and net_income and total_assets_prev:
+                roa_prev = net_income / total_assets_prev
+                # Use current vs prior: delta ROA (simplified — same NI, different assets)
+                if roa > roa_prev * 0.95:
+                    f_score += 1  # ROA improving
+
+            # Accruals: CFO > Net Income (quality signal)
+            if op_cf and net_income and op_cf > net_income:
+                f_score += 1
+
+            # Leverage (2 signals)
+            if total_debt_curr is not None and total_debt_prev is not None and total_assets_curr:
+                lev_curr = total_debt_curr / total_assets_curr
+                lev_prev = total_debt_prev / (total_assets_prev or total_assets_curr)
+                if lev_curr <= lev_prev:
+                    f_score += 1  # leverage decreasing
+
+            if current_assets and current_liabs and current_assets_prev and current_liabs_prev:
+                cr_curr = current_assets / current_liabs
+                cr_prev = current_assets_prev / current_liabs_prev
+                if cr_curr > cr_prev:
+                    f_score += 1  # current ratio improving
+
+            if shares and shares_prev and shares <= shares_prev * 1.01:
+                f_score += 1  # no dilution
+
+            # Efficiency (2 signals)
+            gm_curr = gross_profit / revenue if gross_profit and revenue else None
+            gm_prev = gross_profit_prev / revenue_prev if gross_profit_prev and revenue_prev else None
+            if gm_curr and gm_prev and gm_curr > gm_prev:
+                f_score += 1  # gross margin improving
+
+            if revenue and total_assets_curr and revenue_prev and total_assets_prev:
+                at_curr = revenue / total_assets_curr
+                at_prev = revenue_prev / total_assets_prev
+                if at_curr > at_prev:
+                    f_score += 1  # asset turnover improving
+
+            # ── Sloan Accrual Ratio ───────────────────────────────────────────
+            sloan = None
+            if net_income and op_cf and investing_cf and avg_assets:
+                sloan = (net_income - op_cf - investing_cf) / avg_assets
+
+            # ── Forward price return ──────────────────────────────────────────
+            if ticker not in price_cache:
+                try:
+                    hist = yf.Ticker(ticker).history(period="max")
+                    price_cache[ticker] = hist["Close"] if not hist.empty else None
+                except Exception:
+                    price_cache[ticker] = None
+
+            series = price_cache.get(ticker)
+            if series is None or series.empty:
+                errors.append({"ticker": ticker, "reason": "no price history"})
+                continue
+
+            # Price at signal date
+            signal_dt = datetime.strptime(signal_date_str, "%Y-%m-%d").date()
+            fwd_dt = signal_dt + timedelta(days=holding_days)
+
+            def _price_on_or_after(target_date):
+                for ts, price in series.items():
+                    ts_date = ts.date() if hasattr(ts, "date") else ts
+                    if ts_date >= target_date:
+                        return round(float(price), 2)
+                return None
+
+            signal_price = _price_on_or_after(signal_dt)
+            fwd_price = _price_on_or_after(fwd_dt) if fwd_dt <= today else None
+
+            if not signal_price:
+                errors.append({"ticker": ticker, "reason": "no price at signal date"})
+                continue
+
+            forward_return = None
+            if fwd_price:
+                forward_return = round((fwd_price / signal_price - 1) * 100, 2)
+
+            spy_return = _sp500_return(signal_date_str, fwd_dt.strftime("%Y-%m-%d")) if fwd_price else None
+            alpha = round(forward_return - spy_return, 2) if forward_return is not None and spy_return is not None else None
+
+            results.append({
+                "ticker": ticker,
+                "signal_date": signal_date_str,
+                "piotroski_fscore": f_score,
+                "sloan_accrual_ratio": round(sloan, 4) if sloan is not None else None,
+                "signal_price": signal_price,
+                "forward_price": fwd_price,
+                "forward_return_pct": forward_return,
+                "spy_return_pct": spy_return,
+                "alpha_pct": alpha,
+            })
+
+        except Exception as e:
+            errors.append({"ticker": ticker, "reason": str(e)[:80]})
+
+    if not results:
+        return {
+            "mode": "signal_calibration",
+            "error": "Could not compute signals for any ticker",
+            "errors": errors[:10],
+        }
+
+    # ── Bucket analysis ──────────────────────────────────────────────────────
+
+    def _bucket_stats(subset: list) -> dict:
+        rets = [r["forward_return_pct"] for r in subset if r["forward_return_pct"] is not None]
+        alps = [r["alpha_pct"] for r in subset if r["alpha_pct"] is not None]
+        if not rets:
+            return {"count": len(subset), "no_forward_data": True}
+        wins = sum(1 for r in rets if r > 0)
+        avg_r = sum(rets) / len(rets)
+        avg_a = sum(alps) / len(alps) if alps else None
+        return {
+            "count": len(subset),
+            "with_forward_return": len(rets),
+            "win_rate_pct": round(wins / len(rets) * 100, 1),
+            "avg_return_pct": round(avg_r, 2),
+            "avg_alpha_pct": round(avg_a, 2) if avg_a is not None else None,
+        }
+
+    # Piotroski buckets
+    strong = [r for r in results if r["piotroski_fscore"] >= 8]
+    moderate = [r for r in results if 5 <= r["piotroski_fscore"] < 8]
+    weak = [r for r in results if r["piotroski_fscore"] < 5]
+
+    # Sloan buckets (only where ratio available)
+    sloan_results = [r for r in results if r["sloan_accrual_ratio"] is not None]
+    sloan_clean = [r for r in sloan_results if r["sloan_accrual_ratio"] < 0.05]
+    sloan_caution = [r for r in sloan_results if 0.05 <= r["sloan_accrual_ratio"] <= 0.10]
+    sloan_red = [r for r in sloan_results if r["sloan_accrual_ratio"] > 0.10]
+
+    # Combined best signal: Piotroski Strong AND Sloan Clean
+    best_combo = [r for r in results
+                  if r["piotroski_fscore"] >= 8
+                  and r.get("sloan_accrual_ratio") is not None
+                  and r["sloan_accrual_ratio"] < 0.05]
+
+    # Check if Piotroski discriminates (strong > weak avg returns)
+    strong_avg = _bucket_stats(strong).get("avg_return_pct")
+    weak_avg = _bucket_stats(weak).get("avg_return_pct")
+    discriminates = (
+        "YES — strong F-Score outperformed weak by "
+        f"{round(strong_avg - weak_avg, 1)}pp"
+        if strong_avg is not None and weak_avg is not None and strong_avg > weak_avg
+        else "NO — weak F-Score unexpectedly outperformed or insufficient data"
+        if strong_avg is not None and weak_avg is not None
+        else "INCONCLUSIVE — insufficient data"
+    )
+
+    return {
+        "mode": "signal_calibration",
+        "parameters": {
+            "tickers_analyzed": len(results),
+            "tickers_errored": len(errors),
+            "holding_days": holding_days,
+        },
+        "piotroski_calibration": {
+            "strong_8_9": _bucket_stats(strong),
+            "moderate_5_7": _bucket_stats(moderate),
+            "weak_0_4": _bucket_stats(weak),
+            "discriminates": discriminates,
+        },
+        "sloan_calibration": {
+            "clean_lt_0_05": _bucket_stats(sloan_clean),
+            "caution_0_05_to_0_10": _bucket_stats(sloan_caution),
+            "red_flag_gt_0_10": _bucket_stats(sloan_red),
+            "interpretation": (
+                "If clean Sloan (accruals < 0.05) outperforms red-flag (> 0.10), "
+                "the accrual signal has predictive power in this universe."
+            ),
+        },
+        "combined_best_signal": {
+            "piotroski_strong_AND_sloan_clean": _bucket_stats(best_combo),
+            "note": "Piotroski ≥ 8 AND Sloan < 0.05 — both signals agree on quality",
+        },
+        "all_signals": results,
+        "errors": errors[:10],
+        "interpretation": (
+            f"Piotroski discriminates: {discriminates}. "
+            "Strong F-Score (8-9) stocks should outperform weak (0-4) if the signal works in this universe. "
+            "Sloan accrual < 0.05 means earnings backed by cash (quality signal). "
+            "If neither signal discriminates, weight them lower in the ML factor model."
+        ),
+    }
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 def run_backtest(
@@ -886,16 +1188,16 @@ def run_backtest(
     max_tickers: int = 20,
 ) -> dict:
     """
-    Run a backtest in one of four modes.
+    Run a backtest in one of five modes.
 
     Args:
-        mode: "trade_history" | "signal_cohorts" | "momentum" | "fundamental_history"
-        tickers: for mode="momentum" (required) or "fundamental_history" (optional)
-        holding_days: for mode="momentum"
+        mode: "trade_history" | "signal_cohorts" | "momentum" | "fundamental_history" | "signal_calibration"
+        tickers: for mode="momentum" (required) or "fundamental_history"/"signal_calibration" (optional)
+        holding_days: for mode="momentum" or "signal_calibration"
         start_year: for mode="fundamental_history" (default 2015)
         score_threshold: for mode="fundamental_history" (default 6.0)
         holding_quarters: for mode="fundamental_history" (default 4)
-        max_tickers: for mode="fundamental_history" (default 20, stays within FMP free tier)
+        max_tickers: for "fundamental_history"/"signal_calibration" (default 20)
     """
     if mode == "trade_history":
         return _trade_history_backtest()
@@ -913,5 +1215,11 @@ def run_backtest(
             holding_quarters=holding_quarters,
             max_tickers=max_tickers,
         )
+    elif mode == "signal_calibration":
+        return _signal_calibration_backtest(
+            tickers=tickers,
+            holding_days=holding_days,
+            max_tickers=max_tickers,
+        )
     else:
-        return {"error": f"Unknown mode '{mode}'. Use: trade_history, signal_cohorts, momentum, fundamental_history"}
+        return {"error": f"Unknown mode '{mode}'. Use: trade_history, signal_cohorts, momentum, fundamental_history, signal_calibration"}

@@ -693,6 +693,88 @@ Focus entirely on refreshing stale entries — no new stock discovery this sessi
     return run_agent_session(prompt, model=model, **kwargs)
 
 
+def run_thesis_verification(model: Optional[str] = None, min_age_days: int = 90, **kwargs) -> str:
+    """
+    Verify structured thesis assumptions logged 90+ days ago against current fundamentals.
+
+    Pulls unverified assumptions from the DB, groups them by ticker, and for each
+    ticker runs a targeted research pass to confirm or refute each assumption.
+    Verified outcomes are saved back to the DB to track prediction accuracy over time.
+    """
+    # Pull pending verifications before building the prompt
+    pending = portfolio.get_pending_thesis_verifications(min_age_days=min_age_days)
+    if not pending:
+        print(f"No unverified thesis assumptions older than {min_age_days} days found.")
+        return "No pending thesis verifications."
+
+    tickers = [p["ticker"] for p in pending]
+    ticker_list = ", ".join(tickers)
+
+    # Summarise what needs verifying
+    assumption_summary = []
+    for item in pending:
+        t = item["ticker"]
+        for a in item["assumptions"]:
+            assumption_summary.append(
+                f"  {t} [{a['type']}] — '{a['statement'][:100]}' (logged {a['logged_at'][:10]}, id={a['id']})"
+            )
+    assumption_text = "\n".join(assumption_summary[:60])  # cap to avoid prompt bloat
+
+    prompt = f"""
+Please run a thesis verification session for {len(pending)} tickers with unverified assumptions
+logged more than {min_age_days} days ago.
+
+## Tickers to verify: {ticker_list}
+
+## Assumptions to check:
+{assumption_text}
+
+## Your Task
+
+For each ticker, verify whether the key assumptions from the original thesis have played out.
+Use the tools below to research each ticker efficiently.
+
+**For each ticker ({ticker_list}), run in parallel:**
+1. `get_stock_fundamentals(ticker)` — check revenue growth, margins, ROE, FCF yield
+2. `score_piotroski_fscore(ticker)` — has financial strength improved or declined?
+3. `score_earnings_quality(ticker)` — has earnings quality changed?
+4. `analyze_momentum_acceleration(ticker)` — is growth accelerating or decelerating?
+5. `get_stock_news(ticker)` — any thesis-breaking events in the last 90 days?
+
+**For each assumption, assess:**
+- CONFIRMED: The assumption is playing out as expected
+- REFUTED: The assumption has been contradicted by actual results
+- INCONCLUSIVE: Insufficient evidence to judge yet
+
+**After verifying each ticker:**
+1. Call `mark_thesis_assumption_verified(assumption_id, result)` for each assumption
+   — pass the assumption id and one of: "CONFIRMED", "REFUTED", "INCONCLUSIVE: <reason>"
+2. Call `log_prediction` to record your updated conviction on each held position
+3. If a REFUTED assumption is for a currently held position and it is a core moat/growth
+   assumption, treat it as a sell signal — investigate further and potentially exit
+
+**Output format per ticker:**
+```
+### TICKER
+Assumptions verified: X/Y
+CONFIRMED: [list]
+REFUTED: [list — if any, state investment implication]
+INCONCLUSIVE: [list]
+Thesis integrity: INTACT / WEAKENED / BROKEN
+Action: HOLD / REDUCE / EXIT / WATCHLIST
+```
+
+**Finally:**
+- Call `save_session_reflection` with a summary of all verification outcomes,
+  which theses remain intact, and any actions taken
+- Call `save_session_audit` with session_type="thesis_verification"
+
+Remember: a confirmed assumption strengthens conviction; a refuted core assumption
+(especially moat or FCF durability) is a sell signal regardless of current price.
+"""
+    return run_agent_session(prompt, model=model, **kwargs)
+
+
 def run_custom_prompt(prompt: str, model: Optional[str] = None, initial_content: Optional[list] = None, **kwargs) -> str:
     """Run a custom prompt."""
     return run_agent_session(prompt, model=model, initial_content=initial_content, **kwargs)
