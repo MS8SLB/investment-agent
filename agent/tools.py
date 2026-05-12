@@ -2477,9 +2477,19 @@ def handle_tool_call(tool_name: str, tool_input: dict) -> Any:
                 if not current_price or not pred["price_at_decision"]:
                     continue
                 ret_pct = (current_price - pred["price_at_decision"]) / pred["price_at_decision"] * 100
-                # Approximate SPY return over same period (rough — would need historical SPY)
-                update_prediction_outcome(pred["id"], current_price, round(ret_pct, 2), 0)
-                reconciled.append({"ticker": pred["ticker"], "return_pct": round(ret_pct, 2)})
+                # Compute SPY return over same period using historical data
+                spy_alpha_pct = 0.0
+                try:
+                    if pred.get("decision_date") and spy_now:
+                        spy_hist = yf.Ticker("^GSPC").history(start=pred["decision_date"], end=pred["decision_date"])
+                        if not spy_hist.empty:
+                            spy_price_at_decision = float(spy_hist.iloc[0]["Close"])
+                            spy_ret_pct = (spy_now - spy_price_at_decision) / spy_price_at_decision * 100
+                            spy_alpha_pct = ret_pct - spy_ret_pct
+                except Exception:
+                    pass
+                update_prediction_outcome(pred["id"], current_price, round(ret_pct, 2), round(spy_alpha_pct, 2))
+                reconciled.append({"ticker": pred["ticker"], "return_pct": round(ret_pct, 2), "spy_alpha_pct": round(spy_alpha_pct, 2)})
             except Exception:
                 continue
         accuracy = get_prediction_accuracy()

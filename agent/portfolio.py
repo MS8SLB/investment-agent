@@ -334,6 +334,12 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         except sqlite3.OperationalError:
             pass
 
+        # Migrate: add last_reviewed_at column to track when watchlist items were last evaluated
+        try:
+            conn.execute("ALTER TABLE watchlist ADD COLUMN last_reviewed_at TEXT")
+        except sqlite3.OperationalError:
+            pass
+
         # Seed initial state only if not present
         existing = conn.execute("SELECT id FROM portfolio_state WHERE id = 1").fetchone()
         if not existing:
@@ -869,16 +875,17 @@ def add_to_watchlist(
         tier = "active"
     conn = _get_connection()
     with conn:
+        now = datetime.utcnow().isoformat()
         conn.execute(
-            """INSERT INTO watchlist (ticker, company_name, reason, target_entry_price, added_at, tier)
-               VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO watchlist (ticker, company_name, reason, target_entry_price, added_at, tier, last_reviewed_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(ticker) DO UPDATE SET
                    reason = excluded.reason,
                    company_name = excluded.company_name,
                    target_entry_price = excluded.target_entry_price,
-                   added_at = excluded.added_at,
-                   tier = excluded.tier""",
-            (ticker, company_name, reason, target_entry_price, datetime.utcnow().isoformat(), tier),
+                   tier = excluded.tier,
+                   last_reviewed_at = excluded.last_reviewed_at""",
+            (ticker, company_name, reason, target_entry_price, now, tier, now),
         )
     conn.close()
     return {"success": True, "ticker": ticker, "tier": tier}
@@ -1537,19 +1544,24 @@ def get_watchlist_history(ticker: str = None, limit: int = 50) -> list[dict]:
 
 
 def get_stale_watchlist_entries(min_age_days: int = 60) -> list:
-    """Return watchlist entries that haven't been re-evaluated in min_age_days days."""
+    """Return watchlist entries where last_reviewed_at is older than min_age_days days."""
     cutoff = (datetime.utcnow() - timedelta(days=min_age_days)).isoformat()
     conn = _get_connection()
-    rows = conn.execute(
-        "SELECT ticker, company_name, reason, target_entry_price, added_at FROM watchlist WHERE added_at < ? ORDER BY added_at ASC",
-        (cutoff,)
-    ).fetchall()
+    # Use last_reviewed_at if present (tracks when agent last evaluated the item),
+    # otherwise fall back to added_at (when item was added to watchlist).
+    rows = conn.execute("""
+        SELECT ticker, company_name, reason, target_entry_price, added_at,
+               COALESCE(last_reviewed_at, added_at) as last_eval_date
+        FROM watchlist
+        WHERE COALESCE(last_reviewed_at, added_at) < ?
+        ORDER BY COALESCE(last_reviewed_at, added_at) ASC
+    """, (cutoff,)).fetchall()
     conn.close()
     result = []
     for r in rows:
         try:
-            added = datetime.fromisoformat(r["added_at"])
-            age_days = (datetime.utcnow() - added).days
+            last_eval = datetime.fromisoformat(r["last_eval_date"])
+            age_days = (datetime.utcnow() - last_eval).days
         except Exception:
             age_days = min_age_days
         result.append({
@@ -1558,6 +1570,7 @@ def get_stale_watchlist_entries(min_age_days: int = 60) -> list:
             "reason": r["reason"],
             "target_entry_price": r["target_entry_price"],
             "added_at": r["added_at"],
+            "last_reviewed_at": r["last_eval_date"],
             "age_days": age_days,
             "staleness": "very_stale" if age_days > 180 else "stale",
             "action_needed": "Re-research: thesis may have changed or price target may have been hit",
