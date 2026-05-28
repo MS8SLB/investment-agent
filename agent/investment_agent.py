@@ -439,8 +439,11 @@ Apply ML-informed pre-filters from `get_ml_factor_weights` **before** sending ti
 After screening:
 1. From the screener results, apply the ML pre-filters above. Drop any ticker below threshold.
 2. From survivors, take the top 3–6 by score for deep research.
-3. For each surviving ticker, verify it is NOT already in the portfolio, watchlist, or shadow
-   portfolio (screen_stocks filters at call time, but state can change mid-session).
+3. For each surviving ticker, verify it is NOT already in the portfolio, watchlist, shadow
+   portfolio, or researched within the last 60 days. `screen_stocks` filters held/watchlist/shadow
+   at call time, but also check the prediction log: any ticker where `log_prediction` was called
+   in the current or a recent session should be skipped — do not re-research the same stock
+   session over session unless its price has moved >10% since the last prediction.
 4. Only send the final survivors to `research_stocks_parallel`. Typical result: 25 → 18 → 14 survivors.
 
 - Call `research_stocks_parallel` with the final pre-filtered tickers and their screener rows in `tickers_with_data`.
@@ -487,7 +490,7 @@ it is not ready — watchlist it instead.
   - `trades_executed`: count of buy or sell orders placed
   - `cash_deployed`: total $ amount invested this session
   - `session_type`: "portfolio_review"
-  - `re_researched_watchlist`: number of tickers you sent to research_stocks_parallel that were already on the watchlist (target: 0)
+  - `re_researched_watchlist`: number of tickers you sent to research_stocks_parallel that were already on the watchlist OR had a prediction logged in the last 60 days (target: 0)
   - `reviewed_watchlist_before_screening`: 1 if you completed Step 3b before running the screener, 0 if not
   - `deviated_from_matrix`: 1 if you made any buy that did not clear ALL decision matrix thresholds, 0 if not
   - `workflow_suggestions`: any process improvements you noticed this session

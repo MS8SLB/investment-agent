@@ -1234,11 +1234,13 @@ def get_shadow_positions() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def filter_already_analyzed(candidates: list[str]) -> dict:
+def filter_already_analyzed(candidates: list[str], recent_days: int = 60) -> dict:
     """
-    Filter out any tickers that have already been analyzed (held, watchlisted, or shadowed).
+    Filter out tickers already analyzed: held, watchlisted, shadowed, or researched
+    (any prediction logged) within the last recent_days days.
     Returns a dict with 'filtered' (new candidates) and 'skipped' (already analyzed with reason).
     """
+    import datetime as _datetime
     candidates_upper = [t.upper() for t in candidates]
 
     holdings = get_holdings()
@@ -1250,6 +1252,15 @@ def filter_already_analyzed(candidates: list[str]) -> dict:
     shadow = get_shadow_positions()
     shadow_tickers = {s["ticker"].upper() for s in shadow}
 
+    # Also skip tickers researched (any prediction logged) within the last recent_days days.
+    cutoff = (datetime.utcnow() - _datetime.timedelta(days=recent_days)).isoformat()
+    conn = _get_connection()
+    recent_rows = conn.execute(
+        "SELECT DISTINCT ticker FROM prediction_tracking WHERE decision_date >= ?", (cutoff,)
+    ).fetchall()
+    conn.close()
+    recently_researched = {row[0].upper() for row in recent_rows}
+
     filtered = []
     skipped = {}
 
@@ -1260,6 +1271,8 @@ def filter_already_analyzed(candidates: list[str]) -> dict:
             skipped[ticker] = "already on watchlist"
         elif ticker in shadow_tickers:
             skipped[ticker] = "already analyzed (shadow portfolio)"
+        elif ticker in recently_researched:
+            skipped[ticker] = f"researched within last {recent_days} days"
         else:
             filtered.append(ticker)
 
