@@ -260,11 +260,13 @@ def initialize_portfolio(starting_cash: float = 100_000.0) -> None:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS kb_entries (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                category   TEXT NOT NULL,
-                ticker     TEXT,
-                content    TEXT NOT NULL,
-                source     TEXT,
-                created_at TEXT NOT NULL
+                topic      TEXT    NOT NULL,
+                title      TEXT    NOT NULL DEFAULT '',
+                content    TEXT    NOT NULL,
+                tags       TEXT    NOT NULL DEFAULT '[]',
+                source     TEXT    NOT NULL DEFAULT 'manual',
+                created_at TEXT    NOT NULL DEFAULT '',
+                updated_at TEXT    NOT NULL DEFAULT ''
             )
         """)
 
@@ -2512,7 +2514,7 @@ def save_session_audit(
 def log_workflow_issue(issue: str, suggestion: str, severity: str = "low") -> dict:
     """
     Log a workflow inefficiency noticed during the session.
-    Stored in kb_entries with category='workflow_issue' for later review.
+    Stored in kb_entries with topic='workflow_issue' for later review.
     severity: 'low' | 'medium' | 'high'
     """
     import json as _json
@@ -2524,11 +2526,12 @@ def log_workflow_issue(issue: str, suggestion: str, severity: str = "low") -> di
         "severity": severity,
         "session_date": now[:10],
     })
+    title = issue[:80]
     with conn:
         conn.execute(
-            """INSERT INTO kb_entries (category, ticker, content, source, created_at)
-               VALUES ('workflow_issue', NULL, ?, 'agent_self_audit', ?)""",
-            (content, now),
+            """INSERT INTO kb_entries (topic, title, content, source, created_at, updated_at)
+               VALUES ('workflow_issue', ?, ?, 'agent_self_audit', ?, ?)""",
+            (title, content, now, now),
         )
     conn.close()
     return {"logged": True, "severity": severity, "issue": issue[:80]}
@@ -2552,7 +2555,7 @@ def get_behaviour_summary(n_sessions: int = 10) -> dict:
 
     issues = conn.execute(
         """SELECT content FROM kb_entries
-           WHERE category = 'workflow_issue'
+           WHERE topic = 'workflow_issue'
            ORDER BY created_at DESC LIMIT 20"""
     ).fetchall()
     conn.close()
