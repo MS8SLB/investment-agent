@@ -1300,12 +1300,13 @@ Apply this rubric to ensure your moat scores are consistent across sessions:
 18. **Technical entry timing** — `get_technical_indicators`: ONLY call this if you are leaning
     toward "buy" on fundamental and valuation grounds. Technicals do NOT change a fundamental
     verdict — they inform entry timing only.
-    - RSI > 70 (overbought): flag as a timing risk; consider "watchlist" over "buy" even if
-      fundamentals are solid, unless there is a clear catalyst imminent.
-    - MACD bearish crossover + price below EMA-50: momentum is deteriorating; a slightly better
-      entry may be days or weeks away — adjust target_entry_price downward.
-    - Death cross (EMA-50 below EMA-200): stock is in a longer-term downtrend; require a wider
-      margin of safety (25%+ rather than 20%) before buying into a downtrend.
+    - RSI > 70 (overbought): flag in thesis as a timing caution; do NOT downgrade to "watchlist"
+      purely for this — note it as a risk and reduce position size if buying.
+    - MACD bearish crossover + price below EMA-50: momentum is deteriorating; lower the
+      target_entry_price by ~5% to wait for a cleaner entry, but do not change recommendation.
+    - Death cross (EMA-50 below EMA-200): note in thesis as "downtrend — size smaller or wait
+      for EMA cross." Do NOT use this to increase the MoS threshold or downgrade a buy to watchlist.
+      The MoS requirement already accounts for downside — a death cross is a sizing note only.
     - RSI < 35 + price near lower Bollinger Band: near-term oversold — good entry timing.
     - MACD bullish crossover: momentum turning up — confirms entry.
     - Report `overall_signal` in full_thesis as a one-word entry timing note ("bullish entry",
@@ -1394,12 +1395,17 @@ After completing your research, output ONLY a JSON object with this exact struct
 }
 
 Recommendation guide:
-- "buy": moat is clear and durable, price is ≥20% below your intrinsic value estimate,
-  management is trustworthy, no major red flags, AND estimated IRR at current price ≥ 15%.
-  Conviction score ≥ 7.
-- "watchlist": moat is real but price does not offer the required margin of safety — ANY level
-  of overvaluation, including IRR well below 8%. A wonderful business at a bad price is a
-  future opportunity, not a pass. Set target_entry_price to intrinsic value × 0.80. Note:
+- "buy": moat is clear and durable, price meets the margin-of-safety threshold (see below),
+  management is trustworthy, no major red flags. Conviction score ≥ 7.
+  **Margin-of-safety thresholds by domicile:**
+    - US / developed-market stocks: price ≥ 20% below intrinsic value
+    - Emerging-market stocks (China, India, Brazil, SE Asia, etc.): price ≥ 30% below IV
+      (higher threshold accounts for governance, currency, and regulatory risk)
+  IRR is useful context but is NOT a separate gate — a stock that clears the MoS threshold
+  already implies an adequate return. Do not invent an extra "IRR ≥ 15%" hurdle on top of MoS.
+- "watchlist": moat is real but price does not offer the required margin of safety. A wonderful
+  business at a bad price is a future opportunity, not a pass.
+  Set target_entry_price to intrinsic value × 0.80 (DM) or × 0.70 (EM). Note:
   "waiting for price" or "waiting for earnings to pass" as appropriate.
 - "pass": no identifiable moat, or fundamentals are too weak, or the thesis is unclear,
   or serious red flags (governance, fraud risk, balance sheet distress), or IRR < 10% even
