@@ -11,6 +11,9 @@ from typing import Any, Optional
 from agent import market_data, portfolio, sec_data, external_data, ml_insights
 
 
+_SESSION_TOOL_CALLS: int = 0
+_SESSION_TOOL_NAMES: set = set()
+_SESSION_START_TS: float = _time.time()
 
 def _reset_session_tracker() -> None:
     global _SESSION_TOOL_CALLS, _SESSION_TOOL_NAMES, _SESSION_START_TS
