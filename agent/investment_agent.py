@@ -181,10 +181,24 @@ quality. Diversification by sector is not a virtue — it is a concession to unc
 ---
 """
 
+def _save_checkpoint(path: str, messages: list, iteration: int) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({"iteration": iteration, "messages": messages}, f)
+
+
+def _delete_checkpoint(path: str) -> None:
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
 def run_agent_session(
     initial_prompt: str,
     model: Optional[str] = None,
     initial_content: Optional[list] = None,
+    checkpoint_path: Optional[str] = None,
     **kwargs
 ) -> str:
     """Core agentic loop shared by all entry points."""
@@ -193,17 +207,31 @@ def run_agent_session(
     client = anthropic.Anthropic()
     model = model or os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-6")
 
-    messages = []
-    # Cache the main workflow prompt — it's static and the same every session,
-    # so marking it ephemeral lets the API reuse the KV cache across calls.
-    cached_prompt = [{"type": "text", "text": initial_prompt, "cache_control": {"type": "ephemeral"}}]
-    # If initial_content is provided (e.g. user-flagged tickers), prepend it to the main prompt
-    if initial_content:
-        # initial_content is a list of content blocks; wrap in a "user" message
-        messages.append({"role": "user", "content": initial_content})
-        messages.append({"role": "user", "content": cached_prompt})
-    else:
-        messages.append({"role": "user", "content": cached_prompt})
+    # Resume from checkpoint if one exists, otherwise start fresh.
+    messages = None
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        try:
+            with open(checkpoint_path) as f:
+                ckpt = json.load(f)
+            messages = ckpt["messages"]
+            print(
+                f"\n[Resuming from checkpoint — {len(messages)} messages, "
+                f"iteration {ckpt.get('iteration', '?')} — skipping already-completed work]\n"
+            )
+        except Exception:
+            messages = None  # corrupt checkpoint → start fresh
+
+    if messages is None:
+        messages = []
+        # Cache the main workflow prompt — it's static and the same every session,
+        # so marking it ephemeral lets the API reuse the KV cache across calls.
+        cached_prompt = [{"type": "text", "text": initial_prompt, "cache_control": {"type": "ephemeral"}}]
+        # If initial_content is provided (e.g. user-flagged tickers), prepend it to the main prompt
+        if initial_content:
+            messages.append({"role": "user", "content": initial_content})
+            messages.append({"role": "user", "content": cached_prompt})
+        else:
+            messages.append({"role": "user", "content": cached_prompt})
 
     tools = TOOL_DEFINITIONS
 
@@ -271,10 +299,9 @@ def run_agent_session(
 
         messages.append({"role": "assistant", "content": assistant_content})
 
-        if stop_reason == "end_turn":
-            break
-
-        if not tool_uses:
+        if stop_reason == "end_turn" or not tool_uses:
+            if checkpoint_path:
+                _delete_checkpoint(checkpoint_path)
             break
 
         # execute tools — parallel when multiple tools are called in one turn
@@ -299,6 +326,10 @@ def run_agent_session(
                     f.result()  # propagate exceptions
 
         messages.append({"role": "user", "content": tool_results})
+
+        # Persist state after every completed round-trip so we can resume on interrupt.
+        if checkpoint_path:
+            _save_checkpoint(checkpoint_path, messages, iteration)
 
     return "Session complete"
 
@@ -475,6 +506,7 @@ it is not ready — watchlist it instead.
 3. `deviated_from_matrix` — did you execute any buy order where one or more decision matrix criteria
    were below threshold? 1 = yes (a rules violation to correct next session), 0 = no (correct).
 """
+    kwargs.setdefault("checkpoint_path", "data/session_checkpoint.json")
     return run_agent_session(prompt, model=model, **kwargs)
 
 
