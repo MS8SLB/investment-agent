@@ -25,19 +25,65 @@ from agent.portfolio import DB_PATH, _get_connection
 def _init_kb() -> None:
     """Create kb_entries table and pre-seed with default knowledge if empty."""
     with _get_connection() as con:
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS kb_entries (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                topic       TEXT    NOT NULL,
-                title       TEXT    NOT NULL,
-                content     TEXT    NOT NULL,
-                tags        TEXT    NOT NULL DEFAULT '[]',
-                source      TEXT    NOT NULL DEFAULT 'manual',
-                created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-                updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-            )
-        """)
+        col_info = {row[1]: row for row in con.execute("PRAGMA table_info(kb_entries)").fetchall()}
+
+        # ── Migration: old schema (category/ticker NOT NULL) → new schema (topic/title/tags) ──
+        # Detect old schema: either 'topic' absent, or it exists but 'category' column still present
+        # (the latter happens when a prior ALTER TABLE ADD COLUMN left both columns in place).
+        needs_rebuild = col_info and ("topic" not in col_info or "category" in col_info)
+        if needs_rebuild:
+            # Rebuild table: create new, copy with column mapping, drop old, rename.
+            con.execute("""
+                CREATE TABLE kb_entries_new (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    topic      TEXT    NOT NULL,
+                    title      TEXT    NOT NULL,
+                    content    TEXT    NOT NULL,
+                    tags       TEXT    NOT NULL DEFAULT '[]',
+                    source     TEXT    NOT NULL DEFAULT 'manual',
+                    created_at TEXT    NOT NULL DEFAULT '',
+                    updated_at TEXT    NOT NULL DEFAULT ''
+                )
+            """)
+            has_ticker = "ticker" in col_info
+            has_category = "category" in col_info
+            con.execute(f"""
+                INSERT INTO kb_entries_new (id, topic, title, content, tags, source, created_at, updated_at)
+                SELECT
+                    id,
+                    COALESCE({'category' if has_category else "NULL"}, 'company'),
+                    COALESCE({'ticker' if has_ticker else "NULL"}, '') ||
+                        CASE WHEN {'ticker' if has_ticker else "NULL"} IS NOT NULL THEN ' — ' ELSE '' END ||
+                        SUBSTR(content, 1, 50),
+                    content,
+                    CASE WHEN {'ticker' if has_ticker else "NULL"} IS NOT NULL
+                         THEN json_array({'ticker' if has_ticker else "NULL"}) ELSE '[]' END,
+                    COALESCE(source, 'manual'),
+                    COALESCE(created_at, datetime('now')),
+                    COALESCE(created_at, datetime('now'))
+                FROM kb_entries
+            """)
+            con.execute("DROP TABLE kb_entries")
+            con.execute("ALTER TABLE kb_entries_new RENAME TO kb_entries")
+            col_info = {row[1]: row for row in con.execute("PRAGMA table_info(kb_entries)").fetchall()}
+
+        # Fresh install — table didn't exist yet
+        if not col_info:
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS kb_entries (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    topic      TEXT    NOT NULL,
+                    title      TEXT    NOT NULL,
+                    content    TEXT    NOT NULL,
+                    tags       TEXT    NOT NULL DEFAULT '[]',
+                    source     TEXT    NOT NULL DEFAULT 'manual',
+                    created_at TEXT    NOT NULL DEFAULT '',
+                    updated_at TEXT    NOT NULL DEFAULT ''
+                )
+            """)
+
         con.execute("CREATE INDEX IF NOT EXISTS idx_kb_topic ON kb_entries(topic)")
+
         count = con.execute("SELECT COUNT(*) FROM kb_entries").fetchone()[0]
         if count == 0:
             _seed(con)
