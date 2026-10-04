@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% block title %}Análise{% endblock %}
+{% block content %}
+<h1>Análise e gráficos</h1><p class="sub">Cada gráfico refere-se a <b>um teste</b>, na sua unidade. Nunca se misturam testes diferentes. Tempos: menor = melhor · Pontos/cestos: maior = melhor.</p>
+<form class="filters" id="f" onsubmit="return false">
+ <div><label>Teste</label><select name="teste_id">{% for t in testes %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}</select></div>
+ <div><label>Escalão</label><select name="escalao_id"><option value="">Todos</option>{% for e in escaloes %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="equipa_id"><option value="">Todas</option>{% for e in equipas %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>Sexo</label><select name="sexo"><option value="">Todos</option><option value="F">Feminino</option><option value="M">Masculino</option></select></div>
+ <div><label>De</label><input type="date" name="ini"></div><div><label>Até</label><input type="date" name="fim"></div>
+</form>
+<div id="aviso"></div>
+<div class="grid g4 kp" id="kpis"></div>
+<h2>Média coletiva por data</h2><div class="card"><div class="chartbox"><canvas id="cMed"></canvas></div><p class="small muted">Média do melhor resultado de cada atleta em cada data (n indicado ao passar o rato).</p></div>
+<h2>Evolução individual</h2><div class="card"><div class="filters"><div><label>Atleta</label><select id="atl" name="atleta_id" form="f"><option value="">— escolher —</option>{% for a in atletas %}<option value="{{ a.id }}">{{ a.nome }} ({{ a.escalao.nome }})</option>{% endfor %}</select></div></div>
+<div class="chartbox"><canvas id="cInd"></canvas></div></div>
+<h2>Distribuição dos resultados</h2><div class="card"><div class="chartbox"><canvas id="cDist"></canvas></div><p class="small muted">Último resultado de cada atleta (n.º de atletas por intervalo).</p></div>
+<h2>Comparação entre datas</h2><div class="card"><div class="filters"><div><label>Data 1</label><select id="d1" form="f" name="d1"></select></div><div><label>Data 2</label><select id="d2" form="f" name="d2"></select></div></div>
+<div id="comp" class="tw"></div></div>
+<h2>Comparação entre escalões</h2><div class="card" id="esc"></div>
+{% endblock %}
+{% block scripts %}<script>
+const f=document.getElementById('f');let T=null;
+function qs(){return new URLSearchParams(new FormData(f)).toString()}
+async function carregar(manterDatas){
+ const d=await getJSON('/analise/dados?'+qs());T=d.teste;const u=T.unidade,c=T.casas,m=T.menor_melhor;
+ document.getElementById('aviso').innerHTML=d.n_atletas?'':'<div class="alert warn">Sem resultados para este teste e filtros.</div>';
+ const R=d.resumo_ultimo;document.getElementById('kpis').innerHTML=[['Atletas avaliados',d.n_atletas],['Avaliações',d.n_avaliacoes],
+  ['Média (último resultado)',R.media==null?'—':ptNum(R.media,c)+' '+u],['Melhor (último resultado)',R.n?ptNum(m?R.min:R.max,c)+' '+u:'—']].map(([l,v])=>`<div class="kpi"><div class="v" style="font-size:1.4rem">${v}</div><div class="l">${l}</div></div>`).join('');
+ if(d.medias.length)linha(document.getElementById('cMed'),[{label:'Média coletiva',data:d.medias.map(p=>({x:p.x,y:p.media}))}],u,m,c);else limpar('cMed');
+ if(d.individual&&d.individual.length)linha(document.getElementById('cInd'),[{label:'Melhor resultado',data:d.individual}],u,m,c);else limpar('cInd');
+ if(d.distribuicao.labels.length)barras(document.getElementById('cDist'),d.distribuicao.labels,d.distribuicao.counts,'N.º de atletas');else limpar('cDist');
+ if(!manterDatas){const opts=d.datas.map(x=>`<option value="${x}">${fmtData(x)}</option>`).join('');d1.innerHTML=opts;d2.innerHTML=opts;if(d.datas.length>1){d1.value=d.datas[0];d2.value=d.datas[d.datas.length-1]}}
+ compar(d.comparacao);
+ const E=d.escaloes;document.getElementById('esc').innerHTML=E.permitido?`<div class="alert warn">${E.aviso}</div><div class="chartbox"><canvas id="cEsc"></canvas></div>`+
+  `<div class="tw"><table><tr><th>Escalão</th><th>n</th><th>Média</th><th>Mín.</th><th>Máx.</th></tr>${E.linhas.map(l=>`<tr><td>${l.escalao}</td><td>${l.n}</td><td>${ptNum(l.media,c)} ${u}</td><td>${ptNum(l.min,c)}</td><td>${ptNum(l.max,c)}</td></tr>`).join('')}</table></div>`:`<p class="muted">Comparação não disponível. ${E.motivo}</p>`;
+ if(E.permitido)barras(document.getElementById('cEsc'),E.linhas.map(l=>l.escalao),E.linhas.map(l=>l.media),'Média ('+u+')','#0B1F3A');
+}
+function limpar(id){const el=document.getElementById(id);if(el._c){el._c.destroy();el._c=null}const x=el.getContext('2d');x.clearRect(0,0,el.width,el.height)}
+function compar(C){const el=document.getElementById('comp');if(!C){el.innerHTML='<p class="muted">Escolha duas datas diferentes.</p>';return}
+ if(!C.n){el.innerHTML='<p class="muted">Nenhum atleta tem resultado nas duas datas.</p>';return}
+ const c=T.casas,u=T.unidade;el.innerHTML=`<p>Média: <b>${ptNum(C.media1,c)}</b> → <b>${ptNum(C.media2,c)}</b> ${u} · ${C.melhoraram} de ${C.n} atletas melhoraram.</p>
+ <table><tr><th>Atleta</th><th>${fmtData(C.d1)}</th><th>${fmtData(C.d2)}</th><th>Variação</th><th></th></tr>${C.linhas.map(l=>`<tr><td>${l.nome}</td><td>${ptNum(l.v1,c)}</td><td>${ptNum(l.v2,c)}</td><td>${(l.delta>0?'+':'')+ptNum(l.delta,c)} ${u}</td><td class="${l.melhorou?'good':(l.melhorou===false?'badc':'')}">${l.melhorou?'▲ melhorou':(l.melhorou===false?'▼ piorou':'= igual')}</td></tr>`).join('')}</table>`}
+f.addEventListener('change',e=>carregar(['d1','d2','atleta_id'].includes(e.target.name)));
+document.querySelector('[name=teste_id]').addEventListener('change',()=>carregar(false));
+carregar(false);
+</script>{% endblock %}

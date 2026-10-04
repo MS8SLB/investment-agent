@@ -120,3 +120,52 @@ def comparar_escaloes(rows, minimo_n: int = 3) -> list[dict]:
     for at, _, v in ultimo_por_atleta(rows).values():
         por_esc[(at.escalao.ordem, at.escalao.nome)].append(v)
     return [{"escalao": k[1], **resumo(v), "suficiente": len(v) >= minimo_n} for k, v in sorted(por_esc.items())]
+
+
+def dados_analise(db: Session, teste: Teste, escalao_id=None, equipa_id=None, sexo=None, ini=None, fim=None,
+                  atleta_id=None, d1=None, d2=None) -> dict:
+    """Tudo o que a página de análise precisa para UM teste (uma unidade, nunca misturada)."""
+    atletas = atletas_filtrados(db, escalao_id, equipa_id, sexo)
+    ids = [a.id for a in atletas]
+    rows = resultados(db, teste.id, ids, ini, fim)
+    medias = medias_por_data(rows)
+    ult = ultimo_por_atleta(rows)
+    valores_ult = [v for _, _, v in ult.values()]
+    datas = sorted({d for _, d, _, _ in rows})
+    out = {
+        "teste": {"id": teste.id, "nome": teste.nome, "unidade": teste.unidade, "menor_melhor": teste.menor_melhor,
+                  "casas": teste.casas},
+        "n_atletas": len(ult), "n_avaliacoes": len({aid for *_, aid in rows}),
+        "datas": [d.isoformat() for d in datas],
+        "medias": [{"x": m["data"].isoformat(), "media": m["media"], "n": m["n"], "min": m["min"], "max": m["max"]}
+                   for m in medias],
+        "resumo_ultimo": resumo(valores_ult),
+        "distribuicao": histograma(valores_ult),
+        "individual": None, "comparacao": None,
+    }
+    if atleta_id:
+        out["individual"] = [{"x": p["data"].isoformat(), "y": p["valor"]}
+                             for p in serie_atleta(db, atleta_id, teste.id, ini, fim)]
+    if d1 and d2:
+        linhas = comparar_datas(teste, rows, d1, d2)
+        out["comparacao"] = {
+            "d1": d1.isoformat(), "d2": d2.isoformat(),
+            "linhas": [{"nome": l["atleta"].nome, "v1": l["v1"], "v2": l["v2"], "delta": l["delta"],
+                        "melhorou": l["melhorou"]} for l in linhas],
+            "media1": resumo([l["v1"] for l in linhas])["media"], "media2": resumo([l["v2"] for l in linhas])["media"],
+            "melhoraram": sum(1 for l in linhas if l["melhorou"]), "n": len(linhas)}
+    # comparação entre escalões: só quando metodologicamente defensável
+    if escalao_id or equipa_id:
+        out["escaloes"] = {"permitido": False, "motivo": "Retire os filtros de escalão e de equipa para comparar escalões."}
+    elif not sexo:
+        out["escaloes"] = {"permitido": False, "motivo": "Selecione o sexo: comparar escalões misturando sexos não é adequado."}
+    else:
+        linhas = comparar_escaloes(rows)
+        validas = [l for l in linhas if l["suficiente"]]
+        if len(validas) < 2:
+            out["escaloes"] = {"permitido": False, "motivo": "São necessários pelo menos 2 escalões com 3 ou mais atletas avaliados."}
+        else:
+            out["escaloes"] = {"permitido": True, "linhas": validas,
+                               "aviso": "Escalões diferentes têm idades e maturação diferentes: use apenas como contexto, "
+                                        "não como critério de classificação."}
+    return out
