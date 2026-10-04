@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block title %}Painel{% endblock %}
+{% block content %}
+<h1>Painel</h1><p class="sub">Visão geral da avaliação quantitativa técnica.</p>
+{% if not n_atletas %}<div class="card"><h3>Bem-vindo!</h3><p>Para começar: <b>1.</b> <a href="/equipas">crie uma equipa</a> (opcional) · <b>2.</b> <a href="/atletas/novo">registe atletas</a> · <b>3.</b> <a href="/avaliacoes/nova">registe uma avaliação</a>.</p></div>{% endif %}
+<div class="grid g4 kp"><div class="kpi"><div class="v">{{ n_atletas }}</div><div class="l">Atletas registados</div></div>
+<div class="kpi"><div class="v">{{ n_avaliados }}</div><div class="l">Atletas avaliados</div></div>
+<div class="kpi"><div class="v">{{ n_aval }}</div><div class="l">Avaliações realizadas</div></div>
+<div class="kpi"><div class="v">{{ indicadores|selectattr('n')|list|length }}/{{ indicadores|length }}</div><div class="l">Testes com resultados</div></div></div>
+<div class="grid g2" style="margin-top:16px">
+<div class="card"><h3>Distribuição por escalão</h3><div class="chartbox" style="height:240px"><canvas id="cEsc"></canvas></div></div>
+<div class="card"><h3>Evolução da média coletiva</h3>
+{% if testes_com_dados %}<select id="tsel" style="margin-bottom:8px">{% for t in testes_com_dados %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}</select>
+<div class="chartbox" style="height:210px"><canvas id="cEvo"></canvas></div>{% else %}<p class="muted">Sem resultados ainda.</p>{% endif %}</div></div>
+<h2>Indicadores por teste</h2>
+<div class="card tw"><table><tr><th>Teste</th><th>Atletas</th><th>Média (último resultado)</th><th>Melhor resultado</th><th>Atletas que melhoraram*</th></tr>
+{% for i in indicadores %}{% set t = i.t %}<tr><td><b>{{ t.nome.split(' (')[0] }}</b><br><span class="small muted">{{ t.unidade_nome }} · {{ 'menor' if t.menor_melhor else 'maior' }} = melhor</span></td>
+{% if i.n %}<td>{{ i.n }}</td><td>{{ fmt(i.media, t) }} {{ t.unidade }}</td><td>{{ fmt(i.melhor, t) }} {{ t.unidade }}</td>
+<td>{% if i.com_evolucao %}{{ i.melhoraram }} de {{ i.com_evolucao }}{% else %}<span class="muted">—</span>{% endif %}</td>{% else %}<td colspan="4" class="muted">Sem resultados</td>{% endif %}</tr>{% endfor %}</table>
+<p class="small muted">* Entre a 1.ª e a última avaliação, considerando o sentido de cada teste. Não existe média global: cada teste tem a sua unidade. Sem normas validadas, os valores são absolutos.</p></div>
+<h2>Últimas avaliações</h2>
+<div class="card tw"><table><tr><th>Data</th><th>Atleta</th><th>Escalão</th><th>Testes</th></tr>
+{% for av in ultimas %}<tr><td>{{ av.data|data_pt }}</td><td><a href="/avaliacoes/{{ av.id }}">{{ av.atleta.nome }}</a></td><td>{{ av.escalao.nome }}</td><td class="small">{{ av.resultados|length }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Ainda sem avaliações.</td></tr>{% endfor %}</table></div>
+{% endblock %}
+{% block scripts %}<script>
+const DIST={{ dist|tojson }};
+(function(){const el=document.getElementById('cEsc');el._c=new Chart(el,{type:'bar',data:{labels:DIST.map(d=>d.nome),datasets:[{label:'Atletas registados',data:DIST.map(d=>d.atletas),backgroundColor:'#0B1F3A'},{label:'Atletas avaliados',data:DIST.map(d=>d.avaliados),backgroundColor:'#E8600A'}]},
+ options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{precision:0}}}}})})();
+const ts=document.getElementById('tsel');
+async function evo(){const d=await getJSON('/analise/dados?teste_id='+ts.value);linha(document.getElementById('cEvo'),[{label:'Média coletiva',data:d.medias.map(p=>({x:p.x,y:p.media}))}],d.teste.unidade,d.teste.menor_melhor,d.teste.casas)}
+if(ts){ts.addEventListener('change',evo);evo()}
+</script>{% endblock %}

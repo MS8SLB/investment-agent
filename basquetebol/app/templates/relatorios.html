@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Relatórios{% endblock %}
+{% block content %}
+<h1>Relatórios PDF</h1><p class="sub">Escolha o período e os testes a incluir. O PDF inclui tabelas, gráficos, evolução e espaço para as observações do treinador.</p>
+{% macro testes_box() %}<div class="full"><label>Testes incluídos (nenhum marcado = todos com resultados)</label>
+<div class="grid g2">{% for t in testes %}<label style="font-weight:400"><input type="checkbox" name="teste_id" value="{{ t.id }}" style="width:auto"> {{ t.nome.split(' (')[0] }}</label>{% endfor %}</div></div>{% endmacro %}
+<form method="get" action="/relatorios/individual.pdf" target="_blank" class="card form"><h3 class="full">Relatório individual</h3>
+<div class="full"><label>Atleta *</label><select name="atleta_id" required><option value="">— escolher —</option>{% for a in atletas %}<option value="{{ a.id }}">{{ a.nome }} ({{ a.escalao.nome }})</option>{% endfor %}</select></div>
+<div><label>De</label><input type="date" name="ini"></div><div><label>Até</label><input type="date" name="fim"></div>
+{{ testes_box() }}<div><button>Gerar PDF individual</button></div></form>
+<form method="get" action="/relatorios/coletivo.pdf" target="_blank" class="card form"><h3 class="full">Relatório coletivo</h3>
+<div><label>Equipa</label><select name="equipa_id"><option value="">Todas</option>{% for e in equipas %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+<div><label>Escalão</label><select name="escalao_id"><option value="">Todos</option>{% for e in escaloes %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+<div><label>Sexo</label><select name="sexo"><option value="">Todos</option><option value="F">Feminino</option><option value="M">Masculino</option></select></div>
+<div><label>De</label><input type="date" name="ini"></div><div><label>Até</label><input type="date" name="fim"></div>
+{{ testes_box() }}<div><button>Gerar PDF coletivo</button></div></form>
+{% endblock %}
