@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}Avaliação coletiva{% endblock %}
+{% block content %}
+<h1>Avaliação coletiva</h1><p class="sub">Registe um teste para toda uma equipa ou escalão, numa data. Se o atleta já tiver avaliação nessa data, o resultado é acrescentado/atualizado.</p>
+<form class="filters" method="get">
+ <div><label>Teste</label><select name="teste_id" required><option value="">— escolher —</option>{% for x in testes %}<option value="{{ x.id }}" {{ 'selected' if t and t.id==x.id }}>{{ x.nome }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="equipa_id"><option value="">—</option>{% for e in equipas %}<option value="{{ e.id }}" {{ 'selected' if f.equipa_id==e.id }}>{{ e.nome }} ({{ e.escalao.nome }})</option>{% endfor %}</select></div>
+ <div><label>ou Escalão</label><select name="escalao_id"><option value="">—</option>{% for e in escaloes %}<option value="{{ e.id }}" {{ 'selected' if f.escalao_id==e.id }}>{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>Data</label><input type="date" name="data" value="{{ d.isoformat() }}" max="{{ hoje().isoformat() }}"></div>
+ <div style="flex:0 0 auto"><button>Carregar atletas</button></div></form>
+{% if t and not atletas %}<div class="alert warn">Escolha uma equipa ou um escalão com atletas registados.</div>{% endif %}
+{% if t and atletas %}
+<div class="card"><h3>{{ t.nome }}</h3><p class="small muted">{{ t.protocolo|replace('\n',' ') }} · {{ t.unidade_nome }} · {{ 'menor' if t.menor_melhor else 'maior' }} = melhor</p>
+{% if t.pendencias %}<p class="small"><span class="pill warn">a confirmar</span> {{ t.pendencias[0] }}</p>{% endif %}</div>
+<form method="post" action="/avaliacoes/coletiva">
+<input type="hidden" name="teste_id" value="{{ t.id }}"><input type="hidden" name="data" value="{{ d.isoformat() }}">
+<input type="hidden" name="equipa_id" value="{{ f.equipa_id or '' }}"><input type="hidden" name="escalao_id" value="{{ f.escalao_id or '' }}">
+<div class="card tw"><table data-dir="{{ t.direcao }}" data-casas="{{ t.casas }}"><tr><th>Atleta</th>{% for n in range(1, t.n_tentativas + 1) %}<th>Tent. {{ n }} ({{ t.unidade }})</th>{% endfor %}<th>Melhor</th></tr>
+{% for a in atletas %}{% set ex = existentes.get(a.id, {}) %}<tr class="lin"><td><input type="hidden" name="aid" value="{{ a.id }}">{{ a.nome }}<br><span class="muted small">{{ a.escalao.nome }} · {{ a.sexo }}</span></td>
+{% for n in range(1, t.n_tentativas + 1) %}<td><input inputmode="decimal" name="t{{ a.id }}_{{ n }}" value="{{ ex.get(n, '') }}" style="min-width:80px" autocomplete="off"></td>{% endfor %}
+<td><span class="best bv">—</span></td></tr>{% endfor %}</table></div>
+<button>Guardar resultados</button></form>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+document.querySelectorAll('table[data-dir]').forEach(tb=>{const dir=tb.dataset.dir,c=+tb.dataset.casas;
+ const calc=r=>{const vs=[...r.querySelectorAll('input[inputmode]')].map(i=>parseFloat(i.value.replace(',','.'))).filter(v=>!isNaN(v));
+  r.querySelector('.bv').textContent=vs.length?(dir==='menor'?Math.min(...vs):Math.max(...vs)).toFixed(c).replace('.',','):'—'};
+ tb.querySelectorAll('tr.lin').forEach(r=>{r.addEventListener('input',()=>calc(r));calc(r)})});
+</script>{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Testes{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between"><div><h1>Testes e protocolos</h1>
+<p class="sub">Baterias do documento ENB «Avaliação Quantitativa». Os protocolos mantêm-se como no documento.</p></div>
+<a class="btn sec" href="/testes/novo">+ Novo teste (outra bateria)</a></div>
+<div class="grid g2">
+{% for t in testes %}<div class="card"><h3><a href="/testes/{{ t.id }}">{{ t.nome }}</a></h3>
+<p class="muted small">{{ t.referencia }}{% if t.dominio %} · {{ t.dominio }}{% endif %}</p>
+<p><span class="pill">{{ t.n_tentativas }} tentativa(s)</span> <span class="pill">{{ t.unidade_nome }}</span> <span class="pill">{{ 'menor' if t.menor_melhor else 'maior' }} = melhor</span>
+{% if t.personalizado %}<span class="pill warn">personalizado</span>{% endif %}{% if t.pendencias %}<span class="pill warn">a confirmar</span>{% endif %}</p>
+<p class="small">Usado em: {% for e in escaloes %}{% if t in e.testes %}<span class="pill ok">{{ e.nome }}</span> {% endif %}{% endfor %}</p></div>
+{% endfor %}</div>
+{% endblock %}

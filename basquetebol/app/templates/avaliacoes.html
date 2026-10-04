@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}Histórico{% endblock %}
+{% block content %}
+<h1>Histórico de avaliações</h1><p class="sub">{{ avs|length }} avaliação(ões) (máx. 300 mais recentes)</p>
+<form class="filters" method="get">
+ <div><label>Atleta</label><select name="atleta_id"><option value="">Todos</option>{% for a in atletas %}<option value="{{ a.id }}" {{ 'selected' if f.atleta_id==a.id }}>{{ a.nome }}</option>{% endfor %}</select></div>
+ <div><label>Escalão</label><select name="escalao_id"><option value="">Todos</option>{% for e in escaloes %}<option value="{{ e.id }}" {{ 'selected' if f.escalao_id==e.id }}>{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="equipa_id"><option value="">Todas</option>{% for e in equipas %}<option value="{{ e.id }}" {{ 'selected' if f.equipa_id==e.id }}>{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>De</label><input type="date" name="ini" value="{{ f.ini }}"></div><div><label>Até</label><input type="date" name="fim" value="{{ f.fim }}"></div>
+ <div style="flex:0 0 auto"><button>Filtrar</button> <a class="btn sec" href="/avaliacoes">Limpar</a></div></form>
+<div class="card tw"><table><tr><th>Data</th><th>Atleta</th><th>Escalão</th><th>Testes</th><th></th></tr>
+{% for av in avs %}<tr><td>{{ av.data|data_pt }}</td><td><a href="/atletas/{{ av.atleta.id }}">{{ av.atleta.nome }}</a></td><td>{{ av.escalao.nome }}</td>
+<td class="small">{% for r in av.resultados|sort(attribute='teste.ordem') %}{{ r.teste.nome.split(' (')[0] }}: <b>{{ fmt(r.melhor_valor, r.teste) }} {{ r.teste.unidade }}</b>{{ '; ' if not loop.last }}{% endfor %}</td>
+<td><a class="btn sec sm" href="/avaliacoes/{{ av.id }}">Abrir</a></td></tr>
+{% else %}<tr><td colspan="5" class="muted">Sem avaliações.</td></tr>{% endfor %}</table></div>
+{% endblock %}

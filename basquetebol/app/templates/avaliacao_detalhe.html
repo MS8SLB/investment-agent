@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}Avaliação{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between"><div><h1>Avaliação de {{ av.data|data_pt }}</h1>
+<p class="sub"><a href="/atletas/{{ av.atleta.id }}">{{ av.atleta.nome }}</a> · {{ av.escalao.nome }} · {{ av.atleta.sexo|sexo_pt }}</p></div>
+<div class="actions"><a class="btn" href="/avaliacoes/{{ av.id }}/editar">Editar</a>
+<form method="post" action="/avaliacoes/{{ av.id }}/apagar" onsubmit="return confirm('Apagar esta avaliação?')"><button class="btn dan">Apagar</button></form></div></div>
+{% if av.observacoes %}<div class="card"><b>Observações:</b> {{ av.observacoes }}</div>{% endif %}
+{% for l in linhas %}{% set r = l.r %}{% set t = r.teste %}<div class="card"><h3>{{ t.nome }}</h3>
+<div class="tw"><table><tr>{% for x in r.tentativas %}<th>Tentativa {{ x.numero }}</th>{% endfor %}<th>Melhor</th></tr>
+<tr>{% for x in r.tentativas %}<td>{{ fmt(x.valor, t) }} {{ t.unidade }}{% if x.observacoes %}<br><span class="small muted">{{ x.observacoes }}</span>{% endif %}</td>{% endfor %}<td><b>{{ fmt(r.melhor_valor, t) }} {{ t.unidade }}</b></td></tr></table></div>
+<p class="small muted">{{ 'Menor' if t.menor_melhor else 'Maior' }} valor = melhor resultado.
+{% if l.ref.disponivel %}Classificação ({{ l.ref.tabela }}): <b>{{ l.ref.classe }}</b>{% else %}<span class="pill warn">Sem referências</span> Resultado absoluto.{% endif %}</p>
+{% if r.observacoes %}<p>{{ r.observacoes }}</p>{% endif %}</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block title %}{{ 'Editar' if t else 'Novo' }} teste{% endblock %}
+{% block content %}
+<h1>{{ 'Editar teste' if t else 'Novo teste' }}</h1>
+<p class="sub">{% if t and not t.personalizado %}Atenção: este teste vem do documento ENB. Só altere o protocolo se o documento de referência for atualizado. Alterar o sentido ou as casas decimais depois de existirem resultados pode torná-los incoerentes.{% else %}Defina o protocolo exatamente como a fonte metodológica.{% endif %}</p>
+<form method="post" class="card form">
+ <div class="full"><label>Nome *</label><input name="nome" required value="{{ t.nome if t }}"></div>
+ <div class="full"><label>Referência / fonte</label><input name="referencia" value="{{ t.referencia if t }}"></div>
+ <div><label>Unidade (curta) *</label><input name="unidade" required value="{{ t.unidade if t }}" placeholder="s, pontos, cestos"></div>
+ <div><label>Unidade (nome completo)</label><input name="unidade_nome" value="{{ t.unidade_nome if t }}"></div>
+ <div><label>Melhor resultado *</label><select name="direcao"><option value="menor" {{ 'selected' if t and t.direcao=='menor' }}>Menor valor (ex.: tempo)</option><option value="maior" {{ 'selected' if t and t.direcao=='maior' }}>Maior valor (ex.: pontos)</option></select></div>
+ <div><label>N.º de tentativas (máx.) *</label><input type="number" name="n_tentativas" min="1" max="20" value="{{ t.n_tentativas if t else 1 }}"></div>
+ <div><label>Valor mínimo aceite</label><input name="valor_min" value="{{ t.valor_min if t and t.valor_min is not none }}"></div>
+ <div><label>Valor máximo aceite</label><input name="valor_max" value="{{ t.valor_max if t and t.valor_max is not none }}"></div>
+ <div><label>Casas decimais</label><input type="number" name="casas" min="0" max="4" value="{{ t.casas if t else 2 }}"></div>
+ <div class="full"><label>Objetivo</label><textarea name="objetivo" rows="2">{{ t.objetivo if t }}</textarea></div>
+ <div class="full"><label>Descrição</label><textarea name="descricao" rows="5">{{ t.descricao if t }}</textarea></div>
+ <div class="full"><label>Protocolo (tentativas, recuperação, melhor resultado)</label><textarea name="protocolo" rows="3">{{ t.protocolo if t }}</textarea></div>
+ <div class="full"><label>Material necessário</label><textarea name="material" rows="2">{{ t.material if t }}</textarea></div>
+ <div class="full"><label>Descrição do resultado</label><textarea name="resultado_descricao" rows="2">{{ t.resultado_descricao if t }}</textarea></div>
+ <div class="full"><label>Pontos a confirmar (um por linha; aparecem como aviso)</label><textarea name="a_confirmar" rows="3">{{ t.a_confirmar if t }}</textarea></div>
+ <div class="full actions"><button>Guardar</button><a class="btn sec" href="{{ '/testes/%d'|format(t.id) if t else '/testes' }}">Cancelar</a></div>
+</form>
+{% endblock %}

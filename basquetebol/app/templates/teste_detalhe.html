@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}{{ t.nome }}{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between"><div><h1>{{ t.nome }}</h1><p class="sub">{{ t.referencia }} · {{ t.dominio }}</p></div>
+<div class="actions"><a class="btn sec" href="/testes/{{ t.id }}/editar">Editar configuração</a><a class="btn sec" href="/testes">Voltar</a></div></div>
+{% if t.pendencias %}<div class="alert warn"><b>A confirmar pelo responsável metodológico:</b><ul style="margin:6px 0 0">{% for p in t.pendencias %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+<div class="grid g3"><div class="kpi"><div class="v">{{ t.n_tentativas }}</div><div class="l">Tentativas (máx.)</div></div>
+<div class="kpi"><div class="v" style="font-size:1.3rem">{{ t.unidade_nome }}</div><div class="l">Unidade de medida</div></div>
+<div class="kpi"><div class="v" style="font-size:1.3rem">{{ 'Menor' if t.menor_melhor else 'Maior' }} valor</div><div class="l">é o melhor resultado</div></div></div>
+<h2>Objetivo</h2><div class="card"><pre class="txt">{{ t.objetivo }}</pre></div>
+<h2>Descrição do teste</h2><div class="card"><pre class="txt">{{ t.descricao }}</pre></div>
+<h2>Protocolo</h2><div class="card"><pre class="txt">{{ t.protocolo }}</pre></div>
+<h2>Material necessário</h2><div class="card"><pre class="txt">{{ t.material }}</pre></div>
+<h2>Resultado</h2><div class="card"><pre class="txt">{{ t.resultado_descricao }}</pre></div>
+<h2>Escalões que utilizam este teste</h2><div class="card">{% for e in escaloes %}{% if t in e.testes %}<span class="pill ok">{{ e.nome }}</span> {% endif %}{% endfor %}
+<p class="muted small">Altere em <a href="/configuracao">Configuração</a>.</p></div>
+{% endblock %}
