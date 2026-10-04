@@ -116,7 +116,7 @@ def comparar_datas(teste: Teste, rows, d1: date, d2: date) -> list[dict]:
 
 def comparar_escaloes(rows, minimo_n: int = 3) -> list[dict]:
     """Média do último resultado de cada atleta, por escalão (para o mesmo teste e sexo)."""
-    por_esc: dict[str, list[float]] = defaultdict(list)
+    por_esc: dict[tuple, list[float]] = defaultdict(list)
     for at, _, v in ultimo_por_atleta(rows).values():
-        por_esc[at.escalao.nome].append(v)
-    return [{"escalao": k, **resumo(v), "suficiente": len(v) >= minimo_n} for k, v in por_esc.items()]
+        por_esc[(at.escalao.ordem, at.escalao.nome)].append(v)
+    return [{"escalao": k[1], **resumo(v), "suficiente": len(v) >= minimo_n} for k, v in sorted(por_esc.items())]

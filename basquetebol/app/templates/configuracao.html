@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block title %}Configuração{% endblock %}
+{% block content %}
+<h1>Configuração</h1><p class="sub">Testes utilizados em cada escalão e tabelas de referência.</p>
+<h2>Testes por escalão</h2>
+<form method="post" action="/configuracao/escaloes" class="card">
+<div class="tw"><table><tr><th>Teste</th>{% for e in escaloes %}<th style="text-align:center">{{ e.nome }}</th>{% endfor %}</tr>
+{% for t in testes %}<tr><td>{{ t.nome }}</td>{% for e in escaloes %}<td style="text-align:center"><input type="checkbox" style="width:auto" name="sel" value="{{ e.id }}:{{ t.id }}" {{ 'checked' if t in e.testes }}></td>{% endfor %}</tr>{% endfor %}</table></div>
+<p class="small muted">O documento ENB está intitulado «Sub10 / Sub12 / Sub14». <b>Não define testes para o Sub-8</b>: selecione-os apenas se o responsável metodológico o decidir.</p>
+{% for e in escaloes %}{% if not e.testes %}<div class="alert warn">{{ e.nome }}: sem testes selecionados.</div>{% endif %}{% endfor %}
+<button>Guardar seleção</button></form>
+
+<h2 id="referencias">Tabelas de referência</h2>
+<div class="alert warn">Esta aplicação <b>não inclui</b> normas, percentis nem critérios de classificação. Quando não existe tabela, apresentam-se apenas resultados absolutos. Importe aqui apenas tabelas validadas.</div>
+<div class="card tw"><table><tr><th>Teste</th>{% for e in escaloes %}<th>{{ e.nome }}</th>{% endfor %}</tr>
+{% for t in testes %}<tr><td>{{ t.nome.split(' (')[0] }}</td>{% for e in escaloes %}{% set c = cobertura[(t.id, e.id)] %}<td>{% if c %}<span class="pill ok">{{ c|length }} tabela(s)</span>{% else %}<span class="pill warn">sem referências</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</table></div>
+{% if tabelas %}<div class="card tw"><h3>Tabelas importadas</h3><table><tr><th>Nome</th><th>Teste</th><th>Escalão</th><th>Sexo</th><th>Fonte</th><th>Faixas</th><th></th></tr>
+{% for r in tabelas %}<tr><td>{{ r.nome }}</td><td>{{ r.teste.nome.split(' (')[0] }}</td><td>{{ r.escalao.nome if r.escalao else 'todos' }}</td><td>{{ r.sexo or 'todos' }}</td><td>{{ r.fonte }}</td>
+<td class="small">{% for f in r.faixas %}{{ f.rotulo }} [{{ f.minimo if f.minimo is not none else '−∞' }}; {{ f.maximo if f.maximo is not none else '+∞' }}]<br>{% endfor %}</td>
+<td><form method="post" action="/configuracao/referencias/{{ r.id }}/apagar" onsubmit="return confirm('Remover a tabela?')"><button class="btn dan sm">Remover</button></form></td></tr>{% endfor %}</table></div>{% endif %}
+<form method="post" action="/configuracao/referencias" enctype="multipart/form-data" class="card form"><h3 class="full">Importar tabela de referência (CSV)</h3>
+<div><label>Teste *</label><select name="teste_id">{% for t in testes %}<option value="{{ t.id }}">{{ t.nome.split(' (')[0] }}</option>{% endfor %}</select></div>
+<div><label>Escalão (opcional)</label><select name="escalao_id"><option value="">Todos</option>{% for e in escaloes %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+<div><label>Sexo (opcional)</label><select name="sexo"><option value="">Todos</option><option value="F">Feminino</option><option value="M">Masculino</option></select></div>
+<div><label>Nome da tabela *</label><input name="nome" required></div>
+<div class="full"><label>Fonte (publicação / estudo / autor) *</label><input name="fonte" required></div>
+<div class="full"><label>Ficheiro CSV *</label><input type="file" name="ficheiro" accept=".csv,text/csv" required>
+<p class="small muted">Cabeçalho obrigatório: <code>rotulo;minimo;maximo</code> (limites inclusivos; vazio = sem limite). Exemplo: <code>Percentil 50;11,9;12,3</code></p></div>
+<div class="full"><label style="font-weight:400"><input type="checkbox" name="validada" value="1" style="width:auto"> Confirmo que esta tabela foi validada metodologicamente.</label></div>
+<div><button>Importar</button></div></form>
+{% endblock %}
