@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Análise e gráficos</h1><p class="sub">Cada gráfico refere-se a <b>um teste</b>, na sua unidade. Nunca se misturam testes diferentes. Tempos: menor = melhor · Pontos/cestos: maior = melhor.</p>
 <form class="filters" id="f" onsubmit="return false">
- <div><label>Teste</label><select name="teste_id">{% for t in testes %}<option value="{{ t.id }}">{{ t.nome }}</option>{% endfor %}</select></div>
+ <div><label>Teste</label><select name="teste_id">{% for t in testes %}<option value="{{ t.id }}" {{ 'selected' if t.id == padrao }}>{{ t.nome }}</option>{% endfor %}</select></div>
  <div><label>Escalão</label><select name="escalao_id"><option value="">Todos</option>{% for e in escaloes %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
  <div><label>Equipa</label><select name="equipa_id"><option value="">Todas</option>{% for e in equipas %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
  <div><label>Sexo</label><select name="sexo"><option value="">Todos</option><option value="F">Feminino</option><option value="M">Masculino</option></select></div>
@@ -29,7 +29,7 @@ async function carregar(manterDatas){
  if(d.medias.length)linha(document.getElementById('cMed'),[{label:'Média coletiva',data:d.medias.map(p=>({x:p.x,y:p.media}))}],u,m,c);else limpar('cMed');
  if(d.individual&&d.individual.length)linha(document.getElementById('cInd'),[{label:'Melhor resultado',data:d.individual}],u,m,c);else limpar('cInd');
  if(d.distribuicao.labels.length)barras(document.getElementById('cDist'),d.distribuicao.labels,d.distribuicao.counts,'N.º de atletas');else limpar('cDist');
- if(!manterDatas){const opts=d.datas.map(x=>`<option value="${x}">${fmtData(x)}</option>`).join('');d1.innerHTML=opts;d2.innerHTML=opts;if(d.datas.length>1){d1.value=d.datas[0];d2.value=d.datas[d.datas.length-1]}}
+ if(!manterDatas){const opts=d.datas.map(x=>`<option value="${x}">${fmtData(x)}</option>`).join('');d1.innerHTML=opts;d2.innerHTML=opts;if(d.datas.length>1){d1.value=d.datas[0];d2.value=d.datas[d.datas.length-1];return carregar(true)}}
  compar(d.comparacao);
  const E=d.escaloes;document.getElementById('esc').innerHTML=E.permitido?`<div class="alert warn">${E.aviso}</div><div class="chartbox"><canvas id="cEsc"></canvas></div>`+
   `<div class="tw"><table><tr><th>Escalão</th><th>n</th><th>Média</th><th>Mín.</th><th>Máx.</th></tr>${E.linhas.map(l=>`<tr><td>${l.escalao}</td><td>${l.n}</td><td>${ptNum(l.media,c)} ${u}</td><td>${ptNum(l.min,c)}</td><td>${ptNum(l.max,c)}</td></tr>`).join('')}</table></div>`:`<p class="muted">Comparação não disponível. ${E.motivo}</p>`;

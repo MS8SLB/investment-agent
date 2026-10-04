@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Teste
+from ..models import ResultadoTeste, Teste
 from ..services import estatistica as est
 from ..web import listas, render, to_date, to_int
 
@@ -13,8 +13,10 @@ router = APIRouter(prefix="/analise")
 @router.get("")
 def pagina(request: Request, db: Session = Depends(get_db)):
     testes = list(db.scalars(select(Teste).order_by(Teste.ordem, Teste.id)))
-    return render(request, "analise.html", sec="analise", testes=testes, atletas=est.atletas_filtrados(db),
-                  **listas(db))
+    com_dados = {r for (r,) in db.execute(select(ResultadoTeste.teste_id).distinct())}
+    padrao = next((t.id for t in testes if t.id in com_dados), testes[0].id if testes else None)
+    return render(request, "analise.html", sec="analise", testes=testes, padrao=padrao,
+                  atletas=est.atletas_filtrados(db), **listas(db))
 
 
 @router.get("/dados")
