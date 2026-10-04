@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Histórico{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Histórico de avaliações</h1><a class="btn" href="/avaliacoes/nova">+ Nova avaliação</a></div>
+<form class="filters" method="get">
+ <div><label>Atleta</label><select name="athlete_id"><option value="">Todos</option>{% for a in athletes %}<option value="{{ a.id }}" {{ 'selected' if athlete_id==a.id|string }}>{{ a.name }}</option>{% endfor %}</select></div>
+ <div><label>Escalão</label><select name="category_id"><option value="">Todos</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id==c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="team_id"><option value="">Todas</option>{% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if team_id==t.id|string }}>{{ t.name }}</option>{% endfor %}</select></div>
+ <div><button class="btn">Filtrar</button></div></form>
+{% if evs %}<div class="tw"><table><thead><tr><th>Data</th><th>Atleta</th><th>Escalão</th><th>Testes realizados</th><th>Treinador</th><th></th></tr></thead><tbody>
+{% for e in evs %}<tr><td>{{ e.date|dpt }}</td><td><a href="/atletas/{{ e.athlete_id }}">{{ e.athlete.name }}</a></td><td>{{ e.category.name }}</td>
+<td>{% for r in e.results %}<span class="badge">{{ r.test.numeral }}</span> {% endfor %}</td><td>{{ e.evaluator or '—' }}</td><td><a class="btn sm sec" href="/avaliacoes/{{ e.id }}">Abrir</a></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="card tint">Sem avaliações para estes filtros.</div>{% endif %}
+{% endblock %}

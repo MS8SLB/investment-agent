@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}{{ t.name }}{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>{{ t.numeral }}{{ '. ' if t.numeral }}{{ t.name }}</h1><p class="lead" style="margin:0">{{ t.capacity }}{% if t.source %} · <i>{{ t.source }}</i>{% endif %}</p></div><a class="btn sec" href="/testes/{{ t.id }}/editar">Editar</a></div>
+{% if not t.attempts_confirmed %}<div class="warnbox">⚠ O documento ENB não especifica o número de tentativas/forma de pontuar este teste. Valores atuais a confirmar.</div>{% endif %}
+<div class="grid g3" style="margin-bottom:14px"><div class="card kpi"><div class="v" style="font-size:24px">{{ t.unit }}</div><div class="l">Unidade de medida</div></div>
+<div class="card kpi"><div class="v" style="font-size:24px">{{ t.n_attempts }}</div><div class="l">Tentativas (campos de registo)</div></div>
+<div class="card kpi"><div class="v" style="font-size:20px">{{ t.better_label }}</div><div class="l">Sentido do resultado</div></div></div>
+<div class="grid g2" style="align-items:start">
+<div class="card"><h3>Objetivo</h3><p>{{ t.objective }}</p><h3>Descrição</h3><pre class="proto">{{ t.description }}</pre></div>
+<div><div class="card" style="margin-bottom:14px"><h3>Protocolo / procedimento</h3><pre class="proto">{{ t.procedure }}</pre><p class="muted" style="margin:8px 0 0"><b>Tentativas:</b> {{ t.attempts_rule or '—' }}</p></div>
+<div class="card" style="margin-bottom:14px"><h3>Material necessário</h3><pre class="proto">{{ t.materials or '—' }}</pre></div>
+<div class="card"><h3>Resultado</h3><pre class="proto">{{ t.result_note or '—' }}</pre></div></div></div>
+<h2>Escalões e referências</h2><div class="tw"><table><thead><tr><th>Escalão</th><th>Usa este teste</th><th>Protocolo no doc. ENB</th><th>Referências validadas</th></tr></thead><tbody>
+{% for s in cat_status %}<tr><td>{{ s.c.name }}</td><td>{{ '✔' if s.enabled else '—' }}</td><td>{% if s.c.has_enb_protocol %}Sim{% else %}<span class="badge warn">Sem protocolo ENB</span>{% endif %}</td><td>{% if s.ref %}<span class="badge ok">Disponíveis</span>{% else %}<span class="badge">Sem referências — valores absolutos</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Relatórios{% endblock %}
+{% block content %}
+<h1>Relatórios PDF</h1><p class="lead">Escolha o período e os testes a incluir. Os relatórios têm tabelas, gráficos de evolução e espaço para observações do treinador.</p>
+{% macro tests_box() %}<div class="full"><label>Testes incluídos (nenhum marcado = todos com resultados)</label><div class="grid g2">{% for t in tests %}<label style="font-weight:500"><input type="checkbox" name="test" value="{{ t.id }}"> {{ t.numeral }}. {{ t.name.split('(')[0] }}</label>{% endfor %}</div></div>{% endmacro %}
+<div class="grid g2" style="align-items:start">
+<form id="fi" method="get" class="card form" target="_blank" onsubmit="this.action='/relatorios/atleta/'+this.athlete.value+'.pdf'"><h3 class="full">Relatório individual</h3>
+<div class="full"><label>Atleta *</label><select name="athlete" required><option value="">—</option>{% for a in athletes %}<option value="{{ a.id }}">{{ a.name }} · {{ a.category.name }}</option>{% endfor %}</select></div>
+<div><label>De</label><input type="date" name="date_from"></div><div><label>Até</label><input type="date" name="date_to"></div>{{ tests_box() }}
+<div class="full"><button class="btn">Gerar PDF</button></div></form>
+<form method="get" action="/relatorios/coletivo.pdf" target="_blank" class="card form"><h3 class="full">Relatório coletivo</h3>
+<div><label>Escalão</label><select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+<div><label>ou Equipa</label><select name="team_id"><option value="">—</option>{% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+<div><label>Sexo</label><select name="sex"><option value="">Ambos</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div><div></div>
+<div><label>De</label><input type="date" name="date_from"></div><div><label>Até</label><input type="date" name="date_to"></div>{{ tests_box() }}
+<div class="full"><button class="btn">Gerar PDF</button></div></form></div>
+{% endblock %}

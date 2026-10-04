@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}Painel{% endblock %}
+{% block content %}
+<h1>Painel</h1><p class="lead">Visão geral das avaliações. Todos os indicadores são calculados por teste (nunca se misturam unidades).</p>
+<div class="grid g4">
+ <div class="card kpi"><div class="v">{{ counts.athletes }}</div><div class="l">Atletas registados</div></div>
+ <div class="card kpi"><div class="v">{{ counts.evaluated }}</div><div class="l">Atletas avaliados</div></div>
+ <div class="card kpi"><div class="v">{{ counts.evaluations }}</div><div class="l">Avaliações realizadas</div></div>
+ <div class="card kpi"><div class="v">{{ counts.results }}</div><div class="l">Resultados de testes</div></div></div>
+<div class="grid g2" style="margin-top:14px">
+ <div class="card"><h3>Distribuição por escalão</h3><div class="chart sm"><canvas id="dist"></canvas></div></div>
+ <div class="card"><h3>Evolução coletiva{% if sel %} — {{ sel.name.split('(')[0] }}{% endif %}</h3>
+ {% if sel %}<form method="get" style="margin-bottom:8px"><select name="test_id" onchange="this.form.submit()">{% for t in with_data %}<option value="{{ t.id }}" {{ 'selected' if t.id==sel.id }}>{{ t.numeral }}. {{ t.name.split('(')[0] }}</option>{% endfor %}</select></form>
+ <div class="chart sm"><canvas id="evo"></canvas></div><p class="muted" style="margin:6px 0 0;font-size:13px">Média do melhor resultado de cada atleta por data ({{ sel.unit }}; {{ sel.better_label }}).</p>
+ {% else %}<p class="muted">Sem resultados registados.</p>{% endif %}</div></div>
+<h2>Indicadores coletivos por teste</h2>
+{% if inds %}<div class="tw"><table><thead><tr><th>Teste</th><th>Última data</th><th class="n">N</th><th class="n">Média</th><th class="n">Melhor</th><th class="n">Δ média vs. data anterior</th></tr></thead><tbody>
+{% for i in inds %}<tr><td>{{ i.test.numeral }}. {{ i.test.name.split('(')[0] }} <span class="muted">({{ i.test.unit }})</span></td><td>{{ i.last_date|dpt }}</td><td class="n">{{ i.stats.n }}</td><td class="n">{{ i.stats.mean|num(i.test.decimals) }}</td><td class="n">{{ i.best|num(i.test.decimals) }}</td>
+<td class="n {{ 'up' if i.improved else ('down' if i.improved is false) }}">{{ i.delta|signed(i.test.decimals) if i.delta is not none else '—' }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="card tint">Ainda não há resultados. <a href="/atletas/novo">Registe atletas</a> e depois a <a href="/avaliacoes/nova">primeira avaliação</a>.</div>{% endif %}
+{% if prog %}<h2>Indicadores individuais — evolução no teste «{{ sel.name.split('(')[0] }}»</h2>
+<div class="tw"><table><thead><tr><th>Atleta</th><th>Primeira</th><th>Última</th><th class="n">Variação</th></tr></thead><tbody>
+{% for p in prog %}<tr><td><a href="/atletas/{{ p.athlete.id }}">{{ p.athlete.name }}</a></td><td>{{ p.first.best_value|num(sel.decimals) }} <span class="muted">({{ p.first.evaluation.date|dpt }})</span></td><td>{{ p.last.best_value|num(sel.decimals) }} <span class="muted">({{ p.last.evaluation.date|dpt }})</span></td>
+<td class="n {{ 'up' if p.improved else ('down' if p.improved is false) }}">{{ p.delta|signed(sel.decimals) }} {{ sel.unit }}</td></tr>{% endfor %}</tbody></table></div>
+<p class="muted" style="font-size:13px">Ordenado da maior melhoria para o maior agravamento. Verde = melhoria, vermelho = agravamento (respeitando o sentido do teste).</p>{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+mkChart('dist','bar',{{ counts.dist|map(attribute='name')|list|tojson }},[{label:'Atletas',data:{{ counts.dist|map(attribute='athletes')|list|tojson }},backgroundColor:NAVY},{label:'Avaliados',data:{{ counts.dist|map(attribute='evaluated')|list|tojson }},backgroundColor:ORANGE}],{dec:0,zero:true});
+{% if sel and evo %}mkChart('evo','line',{{ evo.labels|tojson }},[{label:'Média',data:{{ evo.mean|tojson }},borderColor:ORANGE,backgroundColor:ORANGE,tension:.2,pointRadius:5}],{dec:{{ sel.decimals }},unit:'{{ sel.unit }}'});{% endif %}
+</script>{% endblock %}

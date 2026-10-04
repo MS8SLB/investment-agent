@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Atletas{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Atletas</h1><p class="lead" style="margin:0">{{ athletes|length }} atleta(s)</p></div>
+<div class="actions"><a class="btn" href="/atletas/novo">+ Novo atleta</a><a class="btn sec" href="/equipas">Equipas</a></div></div>
+<form class="filters" method="get">
+  <div><label>Pesquisar nome</label><input name="q" value="{{ q }}" placeholder="Nome do atleta"></div>
+  <div><label>Escalão</label><select name="category_id"><option value="">Todos</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id==c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div><label>Equipa</label><select name="team_id"><option value="">Todas</option>{% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if team_id==t.id|string }}>{{ t.name }}{% if t.club %} ({{ t.club }}){% endif %}</option>{% endfor %}</select></div>
+  <div><label>Sexo</label><select name="sex"><option value="">Todos</option><option value="M" {{ 'selected' if sex=='M' }}>Masculino</option><option value="F" {{ 'selected' if sex=='F' }}>Feminino</option></select></div>
+  <div><button class="btn">Filtrar</button></div>
+</form>
+{% if athletes %}
+<div class="tw"><table><thead><tr><th>Nome</th><th>Escalão</th><th>Equipa / Clube</th><th>Sexo</th><th class="n">Avaliações</th><th>Última</th><th></th></tr></thead><tbody>
+{% for a in athletes %}<tr>
+ <td><a href="/atletas/{{ a.id }}"><b>{{ a.name }}</b></a></td><td><span class="badge">{{ a.category.name }}</span></td>
+ <td>{{ a.team.name if a.team else '—' }}{% if a.club %}<br><span class="muted">{{ a.club }}</span>{% endif %}</td>
+ <td>{{ a.sex }}</td><td class="n">{{ counts.get(a.id,0) }}</td><td>{{ last[a.id]|dpt if a.id in last else '—' }}</td>
+ <td><a class="btn sm" href="/avaliacoes/nova?athlete_id={{ a.id }}">Avaliar</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="card tint">Ainda não há atletas{% if q or category_id or team_id or sex %} com estes filtros{% endif %}. <a href="/atletas/novo">Registar o primeiro atleta</a>.</div>{% endif %}
+{% endblock %}

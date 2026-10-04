@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block title %}Teste{% endblock %}
+{% block content %}
+{% set f = form if form else ({'name':t.name,'source':t.source,'capacity':t.capacity,'objective':t.objective,'description':t.description,'procedure':t.procedure,'materials':t.materials,'result_note':t.result_note,'attempts_rule':t.attempts_rule,'unit':t.unit,'direction':t.direction,'n_attempts':t.n_attempts,'decimals':t.decimals,'max_value':'' if t.max_value is none else t.max_value,'attempts_confirmed':'on' if t.attempts_confirmed else ''} if t else {'direction':'lower','n_attempts':1,'decimals':2,'attempts_confirmed':'on'}) %}
+<h1>{{ 'Editar teste' if t else 'Novo teste' }}</h1>
+{% if t and t.is_enb %}<div class="warnbox">Este é um protocolo do documento ENB. Só altere os textos se o responsável metodológico o validar.</div>{% endif %}
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form method="post" class="card form">
+<div class="full"><label>Nome *</label><input name="name" required value="{{ f.get('name','') }}"></div>
+<div><label>Fonte / autores</label><input name="source" value="{{ f.get('source','') }}"></div><div><label>Capacidade avaliada</label><input name="capacity" value="{{ f.get('capacity','') }}"></div>
+<div><label>Unidade de medida *</label><input name="unit" required value="{{ f.get('unit','') }}" placeholder="s, pontos, cestos…"></div>
+<div><label>Sentido do resultado *</label><select name="direction"><option value="lower" {{ 'selected' if f.get('direction')=='lower' }}>Menor valor = melhor (tempos)</option><option value="higher" {{ 'selected' if f.get('direction')=='higher' }}>Maior valor = melhor (pontos, cestos)</option></select></div>
+<div><label>N.º de tentativas</label><input type="number" min="1" max="10" name="n_attempts" value="{{ f.get('n_attempts',1) }}"></div>
+<div><label>Casas decimais</label><input type="number" min="0" max="3" name="decimals" value="{{ f.get('decimals',2) }}"></div>
+<div><label>Valor máximo possível (opcional)</label><input name="max_value" value="{{ f.get('max_value','') }}"></div>
+<div><label>Regra das tentativas</label><input name="attempts_rule" value="{{ f.get('attempts_rule','') }}"></div>
+<div class="full"><label style="font-weight:500"><input type="checkbox" name="attempts_confirmed" {{ 'checked' if f.get('attempts_confirmed') }}> Número de tentativas confirmado pelo protocolo</label></div>
+<div class="full"><label>Objetivo</label><textarea name="objective" rows="2">{{ f.get('objective','') }}</textarea></div>
+<div class="full"><label>Descrição do teste</label><textarea name="description" rows="6">{{ f.get('description','') }}</textarea></div>
+<div class="full"><label>Protocolo / procedimento</label><textarea name="procedure" rows="4">{{ f.get('procedure','') }}</textarea></div>
+<div class="full"><label>Material necessário</label><textarea name="materials" rows="2">{{ f.get('materials','') }}</textarea></div>
+<div class="full"><label>Nota sobre o resultado</label><textarea name="result_note" rows="2">{{ f.get('result_note','') }}</textarea></div>
+<div class="full actions"><button class="btn">Guardar</button><a class="btn sec" href="{{ '/testes/%d'|format(t.id) if t else '/testes' }}">Cancelar</a></div></form>
+{% endblock %}
