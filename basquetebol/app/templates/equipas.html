@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% block title %}Equipas{% endblock %}
+{% block content %}
+<h1>Equipas</h1><p class="sub">Uma equipa pertence a um clube e a um escalão.</p>
+<div class="card"><h3>Nova equipa</h3>
+<form method="post" action="/equipas" class="form">
+ <div><label>Nome da equipa</label><input name="nome" required></div>
+ <div><label>Clube</label><input name="clube"></div>
+ <div><label>Escalão</label><select name="escalao_id">{% for e in escaloes %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><button>Criar equipa</button></div>
+</form></div>
+<div class="card tw"><table><tr><th>Equipa</th><th>Clube</th><th>Escalão</th><th>Atletas</th><th></th></tr>
+{% for e in equipas %}<tr>
+ <td><a href="/atletas?equipa_id={{ e.id }}">{{ e.nome }}</a></td><td>{{ e.clube or '—' }}</td><td>{{ e.escalao.nome }}</td><td>{{ contagens.get(e.id, 0) }}</td>
+ <td class="actions">
+  <details><summary>Editar</summary>
+   <form method="post" action="/equipas/{{ e.id }}/editar" class="form" style="margin-top:8px;min-width:260px">
+    <div><label>Nome</label><input name="nome" value="{{ e.nome }}" required></div>
+    <div><label>Clube</label><input name="clube" value="{{ e.clube }}"></div>
+    <div><label>Escalão</label><select name="escalao_id">{% for s in escaloes %}<option value="{{ s.id }}" {{ 'selected' if s.id==e.escalao_id }}>{{ s.nome }}</option>{% endfor %}</select></div>
+    <div><button class="sm btn">Guardar</button></div></form></details>
+  <form method="post" action="/equipas/{{ e.id }}/apagar" onsubmit="return confirm('Apagar a equipa? Os atletas não são apagados.')"><button class="btn dan sm">Apagar</button></form>
+ </td></tr>
+{% else %}<tr><td colspan="5" class="muted">Ainda não há equipas.</td></tr>{% endfor %}</table></div>
+{% endblock %}

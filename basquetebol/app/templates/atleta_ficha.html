@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block title %}{{ a.nome }}{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between"><div><h1>{{ a.nome }}</h1>
+<p class="sub">{{ a.escalao.nome }} · {{ a.sexo|sexo_pt }} · {{ idade(a.data_nascimento) }} anos ({{ a.data_nascimento|data_pt }}) · {{ a.equipa.nome if a.equipa else 'sem equipa' }}{% if a.clube %} · {{ a.clube }}{% endif %}</p></div>
+<div class="actions"><a class="btn" href="/avaliacoes/nova?atleta_id={{ a.id }}">+ Nova avaliação</a><a class="btn sec" href="/atletas/{{ a.id }}/editar">Editar</a>
+<a class="btn sec" href="/relatorios/individual.pdf?atleta_id={{ a.id }}">Relatório PDF</a>
+<form method="post" action="/atletas/{{ a.id }}/apagar" onsubmit="return confirm('Apagar o atleta e TODAS as suas avaliações?')"><button class="btn dan">Apagar</button></form></div></div>
+{% if a.notas %}<div class="card small"><pre class="txt">{{ a.notas }}</pre></div>{% endif %}
+<h2>Resumo por teste</h2>
+<div class="card tw"><table><tr><th>Teste</th><th>N.º aval.</th><th>Último</th><th>Melhor de sempre</th><th>Variação (1.ª → última)</th><th>Referência</th><th>Evolução</th></tr>
+{% for r in resumo %}{% set t = r.teste %}<tr><td><b>{{ t.nome }}</b><br><span class="muted small">{{ t.unidade_nome }} · {{ 'menor' if t.menor_melhor else 'maior' }} = melhor</span></td>
+<td>{{ r.n }}</td><td>{{ fmt(r.ultimo, t) }}</td><td>{{ fmt(r.melhor, t) }}</td>
+<td>{% if r.var %}<span class="{{ 'good' if r.var.melhorou else ('badc' if r.var.melhorou is false else '') }}">{{ '%+.*f'|format(t.casas, r.var.delta)|replace('.',',') }} {{ t.unidade }}{% if r.var.pct is not none %} ({{ '%+.1f'|format(r.var.pct)|replace('.',',') }}%){% endif %} {{ '▲ melhorou' if r.var.melhorou else ('▼ piorou' if r.var.melhorou is false else '= igual') }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+<td>{% if r.ref.disponivel %}{{ r.ref.classe or '—' }}<br><span class="muted small">{{ r.ref.tabela }}</span>{% else %}<span class="pill warn">Sem referências</span> <span class="muted small">resultado absoluto</span>{% endif %}</td>
+<td>{% if r.n > 0 %}<button class="btn sec sm" onclick="grafico({{ t.id }})">Ver gráfico</button>{% endif %}</td></tr>
+{% endfor %}</table></div>
+<div class="card" id="gbox" style="display:none"><h3 id="gtit"></h3><div class="chartbox"><canvas id="g"></canvas></div></div>
+<h2>Histórico de avaliações</h2>
+<div class="card tw"><table><tr><th>Data</th><th>Escalão</th><th>Testes e melhores resultados</th><th>Observações</th><th></th></tr>
+{% for av in avs %}<tr><td><b>{{ av.data|data_pt }}</b></td><td>{{ av.escalao.nome }}</td>
+<td>{% for r in av.resultados|sort(attribute='teste.ordem') %}{{ r.teste.nome.split(' (')[0] }}: <b>{{ fmt(r.melhor_valor, r.teste) }} {{ r.teste.unidade }}</b><br>{% endfor %}</td>
+<td class="small">{{ av.observacoes }}</td><td><a class="btn sec sm" href="/avaliacoes/{{ av.id }}">Abrir</a></td></tr>
+{% else %}<tr><td colspan="5" class="muted">Sem avaliações registadas.</td></tr>{% endfor %}</table></div>
+{% endblock %}
+{% block scripts %}<script>
+const TESTES={{ testes_js|tojson }};
+async function grafico(id){const t=TESTES[id];const d=await getJSON('/atletas/{{ a.id }}/serie/'+id);
+ document.getElementById('gbox').style.display='block';document.getElementById('gtit').textContent='Evolução — '+t.nome;
+ linha(document.getElementById('g'),[{label:'Melhor resultado',data:d}],t.u,t.m,t.c);document.getElementById('gbox').scrollIntoView({behavior:'smooth'})}
+</script>{% endblock %}

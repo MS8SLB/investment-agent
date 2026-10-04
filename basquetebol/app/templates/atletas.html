@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block title %}Atletas{% endblock %}
+{% block content %}
+<div class="actions" style="justify-content:space-between"><div><h1>Atletas</h1><p class="sub">{{ atletas|length }} atleta(s)</p></div>
+<a class="btn" href="/atletas/novo">+ Novo atleta</a></div>
+<form class="filters" method="get">
+ <div><label>Pesquisar nome</label><input name="q" value="{{ f.q }}" placeholder="Nome do atleta"></div>
+ <div><label>Escalão</label><select name="escalao_id"><option value="">Todos</option>{% for e in escaloes %}<option value="{{ e.id }}" {{ 'selected' if f.escalao_id==e.id }}>{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="equipa_id"><option value="">Todas</option>{% for e in equipas %}<option value="{{ e.id }}" {{ 'selected' if f.equipa_id==e.id }}>{{ e.nome }} ({{ e.escalao.nome }})</option>{% endfor %}</select></div>
+ <div><label>Sexo</label><select name="sexo"><option value="">Todos</option><option value="F" {{ 'selected' if f.sexo=='F' }}>Feminino</option><option value="M" {{ 'selected' if f.sexo=='M' }}>Masculino</option></select></div>
+ <div style="flex:0 0 auto"><button>Filtrar</button> <a class="btn sec" href="/atletas">Limpar</a></div>
+</form>
+<div class="card tw"><table><tr><th>Nome</th><th>Escalão</th><th>Equipa</th><th>Clube</th><th>Sexo</th><th>Idade</th><th>Avaliações</th></tr>
+{% for a in atletas %}<tr><td><a href="/atletas/{{ a.id }}"><b>{{ a.nome }}</b></a></td><td>{{ a.escalao.nome }}</td>
+<td>{{ a.equipa.nome if a.equipa else '—' }}</td><td>{{ a.clube or '—' }}</td><td>{{ a.sexo }}</td><td>{{ idade(a.data_nascimento) }}</td><td>{{ n_aval[a.id] }}</td></tr>
+{% else %}<tr><td colspan="7" class="muted">Nenhum atleta encontrado. <a href="/atletas/novo">Registar o primeiro atleta</a>.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

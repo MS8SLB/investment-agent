@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}{{ 'Editar' if a else 'Novo' }} atleta{% endblock %}
+{% block content %}
+<h1>{{ 'Editar atleta' if a else 'Novo atleta' }}</h1><p class="sub">Todos os campos marcados com * são obrigatórios.</p>
+<form method="post" class="card form">
+ <div><label>Nome *</label><input name="nome" required value="{{ a.nome if a }}"></div>
+ <div><label>Data de nascimento *</label><input type="date" name="data_nascimento" required value="{{ a.data_nascimento.isoformat() if a }}"></div>
+ <div><label>Sexo *</label><select name="sexo" required><option value="">—</option><option value="F" {{ 'selected' if a and a.sexo=='F' }}>Feminino</option><option value="M" {{ 'selected' if a and a.sexo=='M' }}>Masculino</option></select></div>
+ <div><label>Escalão *</label><select name="escalao_id">{% for e in escaloes %}<option value="{{ e.id }}" {{ 'selected' if a and a.escalao_id==e.id }}>{{ e.nome }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="equipa_id"><option value="">Sem equipa</option>{% for e in equipas %}<option value="{{ e.id }}" {{ 'selected' if a and a.equipa_id==e.id }}>{{ e.nome }} — {{ e.escalao.nome }}{% if e.clube %} ({{ e.clube }}){% endif %}</option>{% endfor %}</select></div>
+ <div><label>Clube</label><input name="clube" value="{{ a.clube if a }}" placeholder="Se vazio, usa o clube da equipa"></div>
+ <div class="full"><label>Notas</label><textarea name="notas" rows="2">{{ a.notas if a }}</textarea></div>
+ <div class="full actions"><button>Guardar</button><a class="btn sec" href="{{ '/atletas/%d'|format(a.id) if a else '/atletas' }}">Cancelar</a></div>
+</form>
+{% endblock %}

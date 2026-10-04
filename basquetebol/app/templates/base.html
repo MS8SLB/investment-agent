@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ config.TITULO }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/js/chart.umd.js"></script>
+</head>
+<body>
+{% set nav = [('/', 'Painel', 'painel'), ('/atletas', 'Atletas', 'atletas'), ('/equipas', 'Equipas', 'equipas'),
+  ('/avaliacoes/nova', 'Nova avaliação', 'nova'), ('/avaliacoes/coletiva', 'Avaliação coletiva', 'coletiva'),
+  ('/avaliacoes', 'Histórico', 'avaliacoes'), ('/analise', 'Análise e gráficos', 'analise'),
+  ('/relatorios', 'Relatórios PDF', 'relatorios'), ('/testes', 'Testes e protocolos', 'testes'),
+  ('/configuracao', 'Configuração', 'configuracao')] %}
+<div class="top"><button data-menu>☰ Menu</button><b>{{ config.SUBTITULO }}</b></div>
+<div class="layout">
+<aside class="side">
+  <div class="brand"><b>{{ config.TITULO }}</b><small>{{ config.SUBTITULO }}</small></div>
+  <nav>{% for href, nome, k in nav %}<a href="{{ href }}" class="{{ 'on' if sec == k else '' }}">{{ nome }}</a>{% endfor %}</nav>
+  <div class="foot">Autor e responsável metodológico:<br><b>{{ config.AUTOR }}</b><br>Protocolos: documento ENB</div>
+</aside>
+<main class="main">
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+{% if erro %}<div class="alert err">{{ erro }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+</div>
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
