@@ -18,6 +18,27 @@ from basketball_eval import norms, service
 from basketball_eval import qualitative as ql
 
 st.set_page_config(page_title="Movimentos Defensivos", layout="wide")
+
+
+def _require_password():
+    """Se existir APP_PASSWORD (st.secrets ou variável de ambiente), exige-a antes de mostrar dados."""
+    try:
+        expected = st.secrets.get("APP_PASSWORD")
+    except Exception:  # sem ficheiro de secrets (uso local)
+        expected = None
+    expected = expected or os.environ.get("APP_PASSWORD")
+    if not expected or st.session_state.get("auth_ok"):
+        return
+    pw = st.text_input("Palavra-passe", type="password")
+    if pw:
+        if pw == expected:
+            st.session_state["auth_ok"] = True
+            st.rerun()
+        st.error("Palavra-passe incorreta.")
+    st.stop()
+
+
+_require_password()
 st.title(dm.TEST_NAME_PT)
 st.caption(f"{dm.TEST_NAME_EN} — {dm.REFERENCE} · Unidade: segundos · **Menor tempo = melhor desempenho**")
 
