@@ -6,8 +6,9 @@ import streamlit as st
 
 from minibasket import calc
 from minibasket import competencies as comp
-from minibasket import db, evaluations, service
+from minibasket import charts, db, evaluations, service
 from minibasket.db import CATEGORIES, MOMENTS
+from minibasket.views.common import is_dark
 
 NOT_RATED = 0   # opção «—» (não avaliada)
 
@@ -78,6 +79,8 @@ def render() -> None:
                                    placeholder=f"Observação sobre {c.short.lower()} (opcional)")
 
     avg = calc.global_average(scores)
+    st.plotly_chart(charts.radar_figure([{"name": "Esta avaliação", "scores": scores}], max(levels), levels, is_dark(),
+                                        height=420))
     st.metric("MÉDIA GLOBAL", f"{calc.fmt(avg)} / {max(levels)}",
               help="Calculada automaticamente a partir das competências classificadas.")
     if calc.missing(scores) and avg is not None:

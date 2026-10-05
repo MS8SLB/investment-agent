@@ -13,6 +13,7 @@ import streamlit as st
 from minibasket import competencies as comp
 from minibasket import db
 from minibasket.views import evaluate as evaluate_view
+from minibasket.views import player_evolution as evolution_view
 from minibasket.views import players as players_view
 from minibasket.views import teams as teams_view
 
@@ -51,6 +52,8 @@ elif section == "Equipas":
     teams_view.render()
 elif section == "Avaliar":
     evaluate_view.render()
+elif section == "Evolução do Jogador":
+    evolution_view.render()
 elif section == "Jogadores":
     players_view.render()
 else:

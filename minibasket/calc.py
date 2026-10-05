@@ -50,3 +50,26 @@ def fmt(x: Optional[float], decimals: int = 2, signed: bool = False) -> str:
     q = Decimal(1).scaleb(-decimals)
     s = f"{Decimal(repr(float(x))).quantize(q, rounding=ROUND_HALF_UP):{'+' if signed else ''}.{decimals}f}"
     return s.replace(".", ",")
+
+
+def compare(before: Mapping[str, Optional[int]], after: Mapping[str, Optional[int]]) -> dict:
+    """Compara duas avaliações do mesmo jogador, competência a competência.
+
+    delta = depois − antes (positivo = evolução); None se faltar um dos resultados.
+    As médias comparam-se só nas competências avaliadas nas duas ocasiões, para que uma
+    avaliação incompleta não crie uma evolução aparente.
+    """
+    rows = []
+    for k in comp.KEYS:
+        b, a = before.get(k), after.get(k)
+        rows.append({"key": k, "before": b, "after": a, "delta": None if b is None or a is None else a - b})
+    common = [r for r in rows if r["delta"] is not None]
+    avg_b = float(Fraction(sum(r["before"] for r in common), len(common))) if common else None
+    avg_a = float(Fraction(sum(r["after"] for r in common), len(common))) if common else None
+    return {
+        "rows": rows,
+        "n_common": len(common),
+        "avg_before": avg_b,
+        "avg_after": avg_a,
+        "avg_delta": None if avg_b is None else float(Fraction(sum(r["delta"] for r in common), len(common))),
+    }
