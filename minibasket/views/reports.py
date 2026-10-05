@@ -14,6 +14,12 @@ def _area_line(a: dict) -> str:
     return f"**{a['name']}** — {a['score']}" + (f" ({a['level']})" if a["level"] else "")
 
 
+def download(exporter, target_id: int, key: str) -> None:
+    """Botão de descarga do PDF (gerado com as mesmas permissões que a consulta)."""
+    data, name = exporter(current_user(), target_id)
+    st.download_button("⬇️ Descarregar PDF", data, file_name=name, mime="application/pdf", key=f"{key}_{target_id}")
+
+
 def render_individual(r: dict) -> None:
     top = r["scale_max"]
     st.markdown("## Relatório de avaliação individual")
@@ -182,10 +188,12 @@ def render() -> None:
                                    format_func=lambda i: f"{fmt_date(by_id[i]['evaluation_date'])} · {by_id[i]['moment']}"
                                                           f" · média {calc.fmt(by_id[i]['average'])}")
                 render_individual(access.individual_report(current_user(), eid))
+                download(access.export_individual_pdf, eid, "dl_ind")
     with t_team:
         team = pick_team("rep_t")
         if team:
             render_team(access.team_report(current_user(), team["id"]))
+            download(access.export_team_pdf, team["id"], "dl_team")
     with t_parent:
         st.caption("Pré-visualização do que o encarregado de educação vê: só o próprio jogador, sem comparações com a "
                    "equipa e sem as notas internas do treinador.")
@@ -199,3 +207,4 @@ def render() -> None:
                 eid = st.selectbox("Avaliação", list(by_id)[::-1], key="rep_p_eval",
                                    format_func=lambda i: f"{fmt_date(by_id[i]['evaluation_date'])} · {by_id[i]['moment']}")
                 render_parent(access.parent_report(current_user(), eid))
+                download(access.export_parent_pdf, eid, "dl_parent")

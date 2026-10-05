@@ -99,6 +99,9 @@ def _profile(pid: int, teams) -> None:
                     except service.ValidationError as e:
                         st.error(str(e))
 
+    data, name = access.export_player_sheet_pdf(current_user(), pid)
+    st.download_button("⬇️ Ficha em PDF", data, file_name=name, mime="application/pdf", key=f"dl_sheet_{pid}")
+
     st.markdown("**Percurso nas equipas**")
     for h in p["team_history"]:
         end = _fmt_date(h["left_on"]) if h["left_on"] else "atual"

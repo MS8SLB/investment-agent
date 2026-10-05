@@ -5,7 +5,7 @@ import streamlit as st
 from minibasket import access, charts, db, evolution
 from minibasket import competencies as comp
 from minibasket.views.common import current_user, fmt_date, is_dark
-from minibasket.views.reports import render_parent
+from minibasket.views.reports import download, render_parent
 
 
 def render() -> None:
@@ -26,6 +26,7 @@ def render() -> None:
         eid = st.selectbox("Avaliação", list(by_id)[::-1], key="guardian_eval",
                            format_func=lambda i: f"{fmt_date(by_id[i]['evaluation_date'])} · {by_id[i]['moment']}")
         render_parent(access.parent_report(user, eid))
+        download(access.export_parent_pdf, eid, "dl_guardian")
     with t_evo:
         scale = db.active_scale()
         levels, top = dict(scale["levels"]), max(v for v, _ in scale["levels"])

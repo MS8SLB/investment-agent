@@ -19,9 +19,8 @@ from __future__ import annotations
 from typing import Optional
 
 from . import evaluations as ev
-from . import reports, service, teamstats
-from . import auth
-from .db import connect, init_db
+from . import auth, pdf, reports, service, teamstats
+from .db import active_scale, connect, init_db
 
 
 class PermissionDenied(Exception):
@@ -296,3 +295,33 @@ def admin_assignments(user, target_id: int, db_path=None) -> dict:
         return {"teams": q("SELECT team_id FROM team_coaches WHERE user_id=?"),
                 "children": q("SELECT player_id FROM guardians_players WHERE user_id=?"),
                 "player_access": q("SELECT player_id FROM player_access WHERE user_id=?")}
+
+
+# ── exportação em PDF (mesmas permissões que a consulta) ────────────────────
+def export_individual_pdf(user, evaluation_id: int, db_path=None) -> tuple[bytes, str]:
+    r = individual_report(user, evaluation_id, db_path)
+    return pdf.individual_pdf(r), pdf.filename("relatorio-individual", r["player"]["name"], r["date"])
+
+
+def export_parent_pdf(user, evaluation_id: int, db_path=None) -> tuple[bytes, str]:
+    """O encarregado de educação só exporta o relatório do seu educando; o treinador, dos seus jogadores."""
+    r = parent_report(user, evaluation_id, db_path)
+    return pdf.parent_pdf(r), pdf.filename("relatorio-pais", r["player"]["name"], r["date"])
+
+
+def export_team_pdf(user, team_id: int, db_path=None) -> tuple[bytes, str]:
+    r = team_report(user, team_id, db_path)
+    return pdf.team_pdf(r), pdf.filename("relatorio-equipa", f"{r['team']['name']}-{r['team']['season'].replace('/', '-')}",
+                                         r["as_of"])
+
+
+def export_player_sheet_pdf(user, player_id: int, db_path=None) -> tuple[bytes, str]:
+    """Ficha individual (inclui dados pessoais): só treinadores com acesso ao jogador e administrador."""
+    p = get_player(user, player_id, db_path)
+    if not p:
+        raise service.ValidationError("Jogador inexistente.")
+    history = [{"evaluation_date": e["evaluation_date"], "moment": e["moment"], "category": e["category"],
+                "coach": e["coach"], "average": e["average"], "complete": e["complete"]}
+               for e in ev.list_evaluations(player_id, db_path=db_path)]
+    top = max(v for v, _ in active_scale(db_path)["levels"])
+    return pdf.player_sheet_pdf({"player": p, "history": history, "scale_max": top}), pdf.filename("ficha", p["name"])
