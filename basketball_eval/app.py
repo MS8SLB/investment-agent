@@ -15,12 +15,14 @@ import streamlit as st
 
 from basketball_eval import defensive_movement as dm
 from basketball_eval import norms, service
+from basketball_eval import qualitative as ql
 
 st.set_page_config(page_title="Movimentos Defensivos", layout="wide")
 st.title(dm.TEST_NAME_PT)
 st.caption(f"{dm.TEST_NAME_EN} — {dm.REFERENCE} · Unidade: segundos · **Menor tempo = melhor desempenho**")
 
-tab_eval, tab_player, tab_team, tab_players = st.tabs(["Avaliar", "Ficha individual", "Equipa", "Jogadores"])
+tab_eval, tab_qual, tab_player, tab_team, tab_players = st.tabs(
+    ["Avaliar", "Avaliação qualitativa", "Ficha individual", "Equipa", "Jogadores"])
 
 
 def _players(category=None):
@@ -81,6 +83,54 @@ with tab_eval:
                 st.success("Avaliação guardada.")
             except ValueError as e:
                 st.error(str(e))
+
+# ── Avaliação qualitativa ───────────────────────────────────────────────────
+with tab_qual:
+    st.subheader(ql.TEST_NAME_PT)
+    st.caption("Observe a execução do percurso e classifique cada critério de 1 a 4 (mais alto = melhor). "
+               "Critérios e descritores são uma proposta de trabalho, não uma norma validada.")
+    qplayers = _players()
+    if not qplayers:
+        st.info("Sem jogadores. Adicione-os no separador «Jogadores».")
+    else:
+        qlab = {f"{p['name']} · {p['category']} (#{p['id']})": p for p in qplayers}
+        qp = qlab[st.selectbox("Jogador", list(qlab), key="qp")]
+        q1, q2, q3 = st.columns(3)
+        q_date = q1.date_input("Data da observação", date.today(), key="qd")
+        q_session = q2.text_input("Sessão/momento", key="qs")
+        q_coach = q3.text_input("Treinador", key="qc")
+        ratings = {}
+        for key, crit in ql.CRITERIA.items():
+            with st.expander(f"{crit['name']} · {crit['dimension']}", expanded=False):
+                for lvl in ql.SCALE:
+                    st.markdown(f"**{lvl} – {ql.SCALE_LABELS[lvl]}:** {crit['descriptors'][lvl]}")
+                ratings[key] = st.radio("Classificação", [None, *ql.SCALE], horizontal=True, key=f"q_{key}",
+                                        format_func=lambda v: "—" if v is None else str(v))
+        s_note = st.text_area("Notas — pontos fortes", key="qsn")
+        i_note = st.text_area("Notas — a melhorar", key="qin")
+        if any(v is not None for v in ratings.values()):
+            sm = ql.summarize(ratings)
+            st.metric("Média", f"{sm.average:.2f} / 4", help=f"{sm.n_rated}/{sm.n_total} critérios")
+            dims = list(sm.by_dimension)
+            fig = go.Figure(go.Scatterpolar(r=[sm.by_dimension[d] for d in dims] + [sm.by_dimension[dims[0]]],
+                                            theta=dims + [dims[0]], fill="toself"))
+            fig.update_polars(radialaxis=dict(range=[0, 4]))
+            st.plotly_chart(fig, width="stretch")
+        if st.button("GUARDAR OBSERVAÇÃO", type="primary"):
+            try:
+                cid = service.get_or_create_coach(q_coach) if q_coach.strip() else None
+                service.save_qualitative(qp["id"], q_date, ratings, s_note or None, i_note or None,
+                                         q_session or None, cid)
+                st.success("Observação guardada.")
+            except ValueError as e:
+                st.error(str(e))
+        qh = service.qualitative_history(qp["id"])
+        if qh:
+            st.divider()
+            st.markdown("**Relatório mais recente**")
+            st.text(service.qualitative_report_text(qp["id"]))
+            st.line_chart(pd.DataFrame({"Média": [r["average"] for r in qh]},
+                                       index=[r["evaluation_date"] for r in qh]))
 
 # ── Ficha individual ────────────────────────────────────────────────────────
 with tab_player:

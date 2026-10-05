@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Sequence
 
+import json
+
 from . import defensive_movement as dm
+from . import qualitative as ql
 from .db import connect, init_db
 
 
@@ -203,3 +206,50 @@ def coach_report_text(player_id: int, db_path: str | None = None) -> str:
     if evo:
         lines += ["", evo.message]
     return "\n".join(lines)
+
+
+# ── Avaliação qualitativa ───────────────────────────────────────────────────
+
+def save_qualitative(player_id: int, evaluation_date, ratings: dict, strengths_note: str | None = None,
+                     improve_note: str | None = None, session_label: str | None = None,
+                     coach_id: int | None = None, db_path: str | None = None) -> int:
+    """Grava a grelha de observação (classificações 1–4 por critério)."""
+    init_db(db_path)
+    clean = ql.validate_ratings(ratings)
+    avg = ql.summarize(clean).average
+    with connect(db_path) as c:
+        p = c.execute("SELECT category FROM players WHERE id=?", (player_id,)).fetchone()
+        if p is None:
+            raise ValueError(f"Jogador {player_id} não existe.")
+        cur = c.execute(
+            """INSERT INTO qualitative_evaluations
+               (player_id, evaluation_date, category, ratings, average, strengths_note,
+                improve_note, session_label, coach_id) VALUES (?,?,?,?,?,?,?,?,?)""",
+            (player_id, _iso(evaluation_date), p["category"], json.dumps(clean), avg,
+             strengths_note, improve_note, session_label, coach_id))
+        return cur.lastrowid
+
+
+def qualitative_history(player_id: int, db_path: str | None = None) -> list[dict]:
+    """Avaliações qualitativas do jogador por data crescente (ratings já como dict)."""
+    init_db(db_path)
+    with connect(db_path) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM qualitative_evaluations WHERE player_id=? ORDER BY evaluation_date, id",
+            (player_id,))]
+    for r in rows:
+        r["ratings"] = json.loads(r["ratings"])
+    return rows
+
+
+def qualitative_report_text(player_id: int, db_path: str | None = None) -> str:
+    h = qualitative_history(player_id, db_path)
+    if not h:
+        return "Sem avaliação qualitativa registada."
+    with connect(db_path) as c:
+        name = c.execute("SELECT name FROM players WHERE id=?", (player_id,)).fetchone()["name"]
+    text = ql.feedback_text(name, h[-1]["ratings"], h[-2]["ratings"] if len(h) > 1 else None)
+    for label, key in (("Notas — pontos fortes", "strengths_note"), ("Notas — a melhorar", "improve_note")):
+        if h[-1][key]:
+            text += f"\n\n{label}: {h[-1][key]}"
+    return text
