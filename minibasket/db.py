@@ -20,8 +20,9 @@ ROLES = ("admin", "coach", "guardian")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS clubs (
-    id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    name    TEXT NOT NULL UNIQUE,
+    is_demo INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -158,6 +159,9 @@ def init_db(path: str | None = None) -> None:
     """Cria o esquema e semeia competências e escala por omissão (idempotente)."""
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        # migração: marca de dados de teste nos clubes (Fase 12)
+        if "is_demo" not in {r["name"] for r in conn.execute("PRAGMA table_info(clubs)")}:
+            conn.execute("ALTER TABLE clubs ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0")
         # migração: bloqueio por tentativas falhadas (Fase 10)
         ucols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
         if "failed_attempts" not in ucols:

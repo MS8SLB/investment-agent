@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from minibasket import access, auth
+from minibasket import access, auth, seed, service
 from minibasket.views.common import current_user
 
 ROLE_OPTIONS = ["coach", "guardian", "admin"]
@@ -13,10 +13,39 @@ def _player_label(p: dict) -> str:
     return f"{p['name']} — {p['team'] or 'sem equipa'} ({p['category'] or '—'})"
 
 
+def _demo_section(user: dict) -> None:
+    with st.expander("🧪 Dados de teste"):
+        counts = access.admin_demo_summary(user)
+        st.caption("Dados fictícios para experimentar a plataforma (5 jogadores Sub-8, 8 Sub-10 e 8 Sub-12, com 3 ou 4 "
+                   "avaliações cada). Ficam sempre identificados como «dados de teste» e separados dos reais.")
+        if any(counts.values()):
+            st.write(f"Existentes: {counts['teams']} equipas, {counts['players']} jogadores, "
+                     f"{counts['evaluations']} avaliações, {counts['users']} contas.")
+            sure = st.checkbox("Confirmo que quero remover todos os dados de teste (os dados reais não são afetados).",
+                               key="demo_confirm")
+            if st.button("Remover dados de teste", disabled=not sure, key="demo_remove"):
+                try:
+                    access.admin_remove_demo(user)
+                    st.success("Dados de teste removidos.")
+                    st.rerun()
+                except service.ValidationError as e:
+                    st.error(str(e))
+        else:
+            if st.button("Carregar dados de teste", key="demo_load"):
+                try:
+                    res = access.admin_load_demo(user)
+                    st.success(f"Dados de teste carregados: {res['players']} jogadores, {res['evaluations']} avaliações.")
+                    st.rerun()
+                except service.ValidationError as e:
+                    st.error(str(e))
+        st.caption(seed.PASSWORD_NOTE)
+
+
 def render() -> None:
     user = current_user()
     users = access.list_users(user)
     clubs = access.list_clubs(user)
+    _demo_section(user)
     st.dataframe(pd.DataFrame([{
         "Utilizador": u["username"], "Nome": u["display_name"], "Perfil": auth.role_label(u["role"]),
         "Ativo": "Sim" if u["active"] else "Não", "Palavra-passe": "Definida" if u["has_password"] else "Por definir",

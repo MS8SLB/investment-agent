@@ -58,7 +58,7 @@ def radar_figure(series: Sequence[dict], scale_max: int = 5, levels: Mapping[int
         ),
         showlegend=len(series) >= 2,
         legend=dict(orientation="h", yanchor="top", y=-0.08, xanchor="center", x=0.5),
-        margin=dict(l=70, r=70, t=30, b=40), height=height,
+        margin=dict(l=110, r=110, t=30, b=40), height=height,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
     )
     return fig

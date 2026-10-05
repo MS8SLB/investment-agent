@@ -23,6 +23,13 @@ def render() -> None:
         st.info("Ainda não há equipas associadas à sua conta. Crie-as na secção «Equipas» ou peça ao administrador para as atribuir.")
         _cycle()
         return
+    has_demo, has_real = any(t["is_demo"] for t in all_teams), any(not t["is_demo"] for t in all_teams)
+    show_demo = has_demo and not has_real
+    if has_demo and has_real:
+        show_demo = st.radio("Dados", ["Reais", "Dados de teste"], horizontal=True, key="dash_data") == "Dados de teste"
+    if show_demo:
+        st.warning("A mostrar **dados de teste** (fictícios).")
+    all_teams = [t for t in all_teams if bool(t["is_demo"]) == show_demo]       # nunca somar reais e de teste
     seasons = sorted({t["season"] for t in all_teams}, reverse=True)
     season = st.selectbox("Época", seasons, key="dash_season")
     teams = [t for t in all_teams if t["season"] == season]
@@ -53,7 +60,7 @@ def render() -> None:
     for t in teams:
         o = ov[t["id"]]
         ch = o["change"]
-        rows.append({"Equipa": t["name"] + (" (dados de teste)" if t["is_demo"] else ""), "Escalão": t["category"],
+        rows.append({"Equipa": t["name"] + (" (dados de teste)" if t["is_demo"] and "teste" not in t["name"].lower() else ""), "Escalão": t["category"],
                      "Jogadores": t["n_players"], "Avaliados": o["n_evaluated"], "Média global": calc.fmt(o["average"]),
                      "Evolução": calc.fmt(ch["avg_delta"], signed=True) if ch and ch["avg_delta"] is not None else "—",
                      "Última avaliação": fmt_date(o["last_date"]) if o["last_date"] else "—"})

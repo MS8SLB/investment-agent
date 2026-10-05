@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Optional
 
 from . import evaluations as ev
-from . import auth, pdf, reports, service, teamstats
+from . import auth, pdf, reports, seed, service, teamstats
 from .db import active_scale, connect, init_db
 
 
@@ -295,6 +295,21 @@ def admin_assignments(user, target_id: int, db_path=None) -> dict:
         return {"teams": q("SELECT team_id FROM team_coaches WHERE user_id=?"),
                 "children": q("SELECT player_id FROM guardians_players WHERE user_id=?"),
                 "player_access": q("SELECT player_id FROM player_access WHERE user_id=?")}
+
+
+def admin_demo_summary(user, db_path=None) -> dict:
+    require_admin(user)
+    return seed.summary(db_path)
+
+
+def admin_load_demo(user, db_path=None) -> dict:
+    require_admin(user)
+    return seed.load_demo(db_path=db_path)
+
+
+def admin_remove_demo(user, db_path=None) -> dict:
+    require_admin(user)
+    return seed.remove_demo(db_path=db_path)
 
 
 # ── exportação em PDF (mesmas permissões que a consulta) ────────────────────

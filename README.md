@@ -122,3 +122,9 @@ Based on my analysis, I've initiated a position in Apple (AAPL) at $228.50/share
 | `ANTHROPIC_API_KEY` | required | Your Anthropic API key |
 | `STARTING_CASH` | `100000` | Virtual starting balance |
 | `CLAUDE_MODEL` | `claude-opus-4-6` | Claude model to use |
+
+## Plataforma de Avaliação do Minibasquete
+
+Este repositório inclui também uma aplicação independente para avaliação de jogadores Sub-8/10/12
+(Roda das Competências, evolução, relatórios para treinadores e pais, PDF). Ver [`minibasket/README.md`](minibasket/README.md)
+— `streamlit run minibasket/app.py`.

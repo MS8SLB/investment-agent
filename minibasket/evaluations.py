@@ -84,8 +84,10 @@ def create_evaluation(player_id: int, evaluation_date, moment: str, scores: Mapp
     clean = _check_scores(scores, {v for v, _ in scale["levels"]})
     notes = {k: (v or "").strip() for k, v in (notes or {}).items() if k in comp.BY_KEY}
     with connect(db_path) as c:
-        if not c.execute("SELECT 1 FROM players WHERE id=?", (player_id,)).fetchone():
+        prow = c.execute("SELECT is_demo FROM players WHERE id=?", (player_id,)).fetchone()
+        if not prow:
             raise ValidationError("Jogador inexistente.")
+        is_demo = is_demo or bool(prow["is_demo"])        # avaliações de jogadores de teste são de teste
         team = _team_at(c, player_id, on)
         if not team:
             raise ValidationError("O jogador não tem equipa; associe-o a uma equipa antes de avaliar.")

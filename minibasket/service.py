@@ -148,8 +148,10 @@ def create_player(name: str, team_id: int, birth_date=None, sex: str | None = No
     jersey, joined = _jersey(jersey_number), _iso(joined_on, "Data de entrada")
     init_db(db_path)
     with connect(db_path) as c:
-        if not c.execute("SELECT 1 FROM teams WHERE id=?", (team_id,)).fetchone():
+        team = c.execute("SELECT is_demo FROM teams WHERE id=?", (team_id,)).fetchone()
+        if not team:
             raise ValidationError("Equipa inexistente.")
+        is_demo = is_demo or bool(team["is_demo"])        # nunca misturar dados reais numa equipa de teste
         pid = c.execute(
             "INSERT INTO players(name, photo_path, birth_date, sex, notes, is_demo) VALUES (?,?,?,?,?,?)",
             (name, photo_path, birth, sex, (notes or "").strip() or None, int(is_demo))).lastrowid

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
-from minibasket import db
+from minibasket import db, seed
 from minibasket.views import admin as admin_view
 from minibasket.views import auth_view
 from minibasket.views import dashboard as dashboard_view
@@ -47,6 +47,8 @@ st.sidebar.title("🏀 Minibasquete")
 section = st.sidebar.radio("Navegação", [s for s, _ in SECTIONS])
 st.sidebar.caption("Sem evolução individual, não há sucesso coletivo.")
 auth_view.sidebar_account(user)
+if user["role"] != "guardian" and seed.has_demo():
+    st.sidebar.warning("Existem dados de teste na base de dados.")
 
 st.title(section)
 st.caption(dict(SECTIONS)[section])
