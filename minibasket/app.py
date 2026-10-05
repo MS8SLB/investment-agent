@@ -12,6 +12,7 @@ import streamlit as st
 
 from minibasket import competencies as comp
 from minibasket import db
+from minibasket.views import evaluate as evaluate_view
 from minibasket.views import players as players_view
 from minibasket.views import teams as teams_view
 
@@ -48,6 +49,8 @@ if section == "Dashboard":
     st.caption("Escala pedagógica de avaliação; não corresponde a normas científicas nem a percentis.")
 elif section == "Equipas":
     teams_view.render()
+elif section == "Avaliar":
+    evaluate_view.render()
 elif section == "Jogadores":
     players_view.render()
 else:
