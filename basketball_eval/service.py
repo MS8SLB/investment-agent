@@ -33,10 +33,10 @@ def add_player(name: str, category: str, sex: Optional[str] = None, team: Option
     init_db(db_path)
     with connect(db_path) as c:
         cur = c.execute(
-            "INSERT INTO players(name, sex, category, team, birth_date) VALUES (?,?,?,?,?)",
+            "INSERT INTO players(name, sex, category, team, birth_date) VALUES (?,?,?,?,?) RETURNING id",
             (name.strip(), sex, _check_category(category), team, _iso(birth_date) if birth_date else None),
         )
-        return cur.lastrowid
+        return cur.fetchone()[0]
 
 
 def list_players(category: str | None = None, team: str | None = None, db_path: str | None = None):
@@ -53,7 +53,7 @@ def list_players(category: str | None = None, team: str | None = None, db_path: 
 def get_or_create_coach(name: str, db_path: str | None = None) -> int:
     init_db(db_path)
     with connect(db_path) as c:
-        c.execute("INSERT OR IGNORE INTO coaches(name) VALUES (?)", (name.strip(),))
+        c.execute("INSERT INTO coaches(name) VALUES (?) ON CONFLICT DO NOTHING", (name.strip(),))
         return c.execute("SELECT id FROM coaches WHERE name=?", (name.strip(),)).fetchone()["id"]
 
 
@@ -126,12 +126,12 @@ def save_test(player_id: int, evaluation_date, times: Sequence, valid_flags: Seq
                 trial_1_valid, trial_2_valid, trial_3_valid, first_is_practice,
                 best_time, best_trial, previous_best_time, change_seconds, change_percentage,
                 valid, location, session_label, notes, coach_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id""",
             (player_id, d, category, *raw, *[int(bool(v)) for v in valid_flags], int(first_is_practice),
              calc.best_time, calc.best_trial, calc.previous_best_time, calc.change_seconds,
              calc.change_percentage, int(calc.valid), location, session_label, notes, coach_id),
         )
-        return cur.lastrowid
+        return cur.fetchone()[0]
 
 
 def history(player_id: int, db_path: str | None = None) -> list[dict]:

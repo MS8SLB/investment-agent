@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 
@@ -71,11 +72,71 @@ CREATE TABLE IF NOT EXISTS test_protocols (
 """
 
 
+def _is_pg(target: str) -> bool:
+    return target.startswith(("postgres://", "postgresql://"))
+
+
+def target_for(path: str | None = None) -> str:
+    """Destino efetivo: caminho/URL explícito > $DATABASE_URL (Postgres) > ficheiro SQLite por omissão."""
+    return path or os.environ.get("DATABASE_URL") or DB_PATH
+
+
+# ── Postgres (opcional): o resto do código escreve SQL «estilo SQLite» ──────
+_PG_POOLS: dict = {}
+_PG_READY: set = set()          # destinos cujo esquema já foi criado nesta sessão
+
+
+def _pg_sql(sql: str) -> str:
+    """Traduz o pouco SQL específico do SQLite usado nos esquemas/consultas."""
+    sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+    sql = sql.replace("datetime('now')", "to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')")
+    sql = re.sub(r"\bREAL\b", "DOUBLE PRECISION", sql)     # REAL em Postgres é float4 (perde precisão)
+    return sql.replace("?", "%s")
+
+
+class _PgConn:
+    """Interface mínima compatível com sqlite3.Connection (execute / executescript)."""
+
+    def __init__(self, raw):
+        import psycopg2.extras
+        self.raw = raw
+        self._factory = psycopg2.extras.DictCursor    # linhas acessíveis por nome e por índice
+
+    def execute(self, sql: str, args=()):
+        cur = self.raw.cursor(cursor_factory=self._factory)
+        cur.execute(_pg_sql(sql), tuple(args))
+        return cur
+
+    def executescript(self, script: str) -> None:
+        script = re.sub(r"--[^\n]*", "", script)
+        for stmt in filter(None, (x.strip() for x in script.split(";"))):
+            self.execute(stmt)
+
+
+def _pg_pool(url: str):
+    if url not in _PG_POOLS:
+        from psycopg2.pool import ThreadedConnectionPool
+        _PG_POOLS[url] = ThreadedConnectionPool(1, 8, url)
+    return _PG_POOLS[url]
+
+
 @contextmanager
 def connect(path: str | None = None):
-    path = path or DB_PATH
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    conn = sqlite3.connect(path)
+    target = target_for(path)
+    if _is_pg(target):
+        pool = _pg_pool(target)
+        raw = pool.getconn()
+        try:
+            yield _PgConn(raw)
+            raw.commit()
+        except Exception:
+            raw.rollback()
+            raise
+        finally:
+            pool.putconn(raw)
+        return
+    os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+    conn = sqlite3.connect(target)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     try:
@@ -88,12 +149,28 @@ def connect(path: str | None = None):
         conn.close()
 
 
+def schema_ready(path: str | None = None, part: str = "base") -> bool:
+    """Em Postgres cada parte do esquema só é criada uma vez por sessão (evita ~20 comandos por pedido)."""
+    target = target_for(path)
+    return _is_pg(target) and (target, part) in _PG_READY
+
+
+def mark_schema_ready(path: str | None = None, part: str = "base") -> None:
+    target = target_for(path)
+    if _is_pg(target):
+        _PG_READY.add((target, part))
+
+
 def init_db(path: str | None = None) -> None:
+    if schema_ready(path):
+        return
     with connect(path) as conn:
         conn.executescript(SCHEMA)
         # Semeia o protocolo; só substitui um já guardado se for de versão anterior.
         row = conn.execute("SELECT config FROM test_protocols WHERE test_key='defensive_movement'").fetchone()
         stored = json.loads(row["config"]).get("version", 0) if row else -1
         if stored < proto.DEFAULT_PROTOCOL["version"]:
-            conn.execute("INSERT OR REPLACE INTO test_protocols(test_key, config) VALUES (?, ?)",
+            conn.execute("INSERT INTO test_protocols(test_key, config) VALUES (?, ?) "
+                         "ON CONFLICT(test_key) DO UPDATE SET config = excluded.config",
                          ("defensive_movement", proto.dumps(proto.DEFAULT_PROTOCOL)))
+    mark_schema_ready(path, "base")

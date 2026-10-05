@@ -72,3 +72,29 @@ def test_saving_without_scores_shows_error(dbpath):
 
 def test_navigation_entrypoint_loads(dbpath):
     run(HOME)
+
+
+# ── Acesso por palavra-passe ────────────────────────────────────────────────
+def test_remote_db_without_password_refuses_to_start(dbpath, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x@invalido:5432/x")
+    monkeypatch.delenv("APP_PASSWORD", raising=False)
+    at = run(HOME)
+    assert any("APP_PASSWORD" in e.value for e in at.error)
+    assert not at.get("segmented_control")             # nada da app foi mostrado
+
+
+def test_password_gate_blocks_then_allows(dbpath, monkeypatch):
+    monkeypatch.setenv("APP_PASSWORD", "frase-secreta")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    at = run(HOME)
+    assert at.text_input[0].proto.type == 1 and not at.get("segmented_control")   # 1 = campo de palavra-passe
+    at.text_input[0].set_value("errada")
+    at.button[0].click()
+    at.run()
+    assert any("incorreta" in e.value for e in at.error)
+    assert "auth_ok" not in at.session_state
+    at.text_input[0].set_value("frase-secreta")
+    at.button[0].click()
+    at.run()
+    assert not at.exception and at.session_state["auth_ok"] is True

@@ -25,9 +25,21 @@ def scores_for(**dim_scores):
 SPEC = scores_for(preparacao=4, execucao=3, finalizacao=4, consistencia=3, aplicacao_jogo=3)
 
 
-@pytest.fixture
-def db(tmp_path):
-    path = str(tmp_path / "q.db")
+PG_URL = os.environ.get("TEST_DATABASE_URL")     # ex.: postgresql://user@localhost:5432/teste (BD descartável!)
+
+
+@pytest.fixture(params=["sqlite"] + (["postgres"] if PG_URL else []))
+def db(request, tmp_path):
+    """Corre os testes de armazenamento em SQLite e, se TEST_DATABASE_URL existir, também em Postgres."""
+    if request.param == "postgres":
+        from basketball_eval import db as dbmod
+        with connect(PG_URL) as c:                  # esquema limpo em cada teste
+            c.execute("DROP SCHEMA public CASCADE")
+            c.execute("CREATE SCHEMA public")
+        dbmod._PG_READY.clear()
+        path = PG_URL
+    else:
+        path = str(tmp_path / "q.db")
     qual_db.init(path)
     return path
 
@@ -159,7 +171,9 @@ def test_tables_created_and_age_groups_seeded(db):
     svc.add_age_group("Sub-14", db)
     assert svc.list_age_groups(db)[-1] == "Sub-14"
     with connect(db) as c:
-        names = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        names = {r[0] for r in c.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='public'" if db.startswith("postgres")
+            else "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"players", "teams", "coaches", "evaluations", "evaluation_items"} <= names
 
 

@@ -41,7 +41,7 @@ def add_age_group(name: str, db_path: str | None = None) -> None:
     qual_db.init(db_path)
     with connect(db_path) as c:
         n = c.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM age_groups").fetchone()[0]
-        c.execute("INSERT OR IGNORE INTO age_groups(name, sort_order) VALUES (?, ?)", (name, n))
+        c.execute("INSERT INTO age_groups(name, sort_order) VALUES (?, ?) ON CONFLICT DO NOTHING", (name, n))
 
 
 def get_or_create_team(name: str, db_path: str | None = None) -> int:
@@ -50,7 +50,7 @@ def get_or_create_team(name: str, db_path: str | None = None) -> int:
         raise ValueError("O nome da equipa é obrigatório.")
     qual_db.init(db_path)
     with connect(db_path) as c:
-        c.execute("INSERT OR IGNORE INTO teams(name) VALUES (?)", (name,))
+        c.execute("INSERT INTO teams(name) VALUES (?) ON CONFLICT DO NOTHING", (name,))
         return c.execute("SELECT id FROM teams WHERE name=?", (name,)).fetchone()["id"]
 
 
@@ -108,10 +108,12 @@ def save_evaluation(competency: str, player_id: int, evaluation_date, scores: Ma
     with connect(db_path) as c:
         cur = c.execute(
             """INSERT INTO evaluations(competency, player_id, team_id, age_group, coach_id,
-                                       evaluation_date, observations) VALUES (?,?,?,?,?,?,?)""",
+                                       evaluation_date, observations) VALUES (?,?,?,?,?,?,?)
+               RETURNING id""",
             (competency, player_id, team_id, age_group, coach_id, d, _clean(observations)))
-        _write_items(c, cur.lastrowid, comp, clean)
-        return cur.lastrowid
+        new_id = cur.fetchone()[0]
+        _write_items(c, new_id, comp, clean)
+        return new_id
 
 
 def update_evaluation(evaluation_id: int, evaluation_date, scores: Mapping[str, Optional[int]],

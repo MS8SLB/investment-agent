@@ -9,6 +9,7 @@ as mesmas tabelas sem migração.
 from __future__ import annotations
 
 from .competencies import DEFAULT_AGE_GROUPS, SCALE_MAX, SCALE_MIN
+from . import db
 from .db import connect, init_db
 
 SCHEMA = f"""
@@ -53,8 +54,11 @@ CREATE TABLE IF NOT EXISTS evaluation_items (
 
 def init(db_path: str | None = None) -> None:
     """Cria (se faltar) as tabelas base e as da avaliação qualitativa."""
+    if db.schema_ready(db_path, "qual"):
+        return
     init_db(db_path)
     with connect(db_path) as c:
         c.executescript(SCHEMA)
         for i, name in enumerate(DEFAULT_AGE_GROUPS):
-            c.execute("INSERT OR IGNORE INTO age_groups(name, sort_order) VALUES (?, ?)", (name, i))
+            c.execute("INSERT INTO age_groups(name, sort_order) VALUES (?, ?) ON CONFLICT DO NOTHING", (name, i))
+    db.mark_schema_ready(db_path, "qual")
