@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from minibasket import calc, charts, db, evaluations
+from minibasket import calc, charts, db, evaluations, evolution
 from minibasket import competencies as comp
 from minibasket.views.common import fmt_date, is_dark, pick_player
 
@@ -67,6 +67,52 @@ def radar_section(history: list[dict]) -> None:
         st.info("Sem aumentos de classificação neste intervalo; é um bom momento para rever os objetivos de treino.")
 
 
+def history_section(pid: int, history: list[dict]) -> None:
+    """Histórico cronológico: nenhuma avaliação é apagada nem substituída."""
+    points = evolution.evolution_series(history)
+    rows = [{"Data": fmt_date(p["date"]), "Momento": p["moment"], "Escalão": p["category"],
+             "Média": calc.fmt(p["average"]) + ("" if p["complete"] else " (incompleta)"),
+             "Variação": "—" if p["delta"] is None else calc.fmt(p["delta"], signed=True)}
+            for p in points]
+    st.dataframe(pd.DataFrame(rows), hide_index=True)
+    ch = evolution.overall_change(history)
+    if ch:
+        st.write(f"**Do início ao momento atual:** média {calc.fmt(ch['avg_first'])} → {calc.fmt(ch['avg_last'])} "
+                 f"({calc.fmt(ch['delta'], signed=True)}) em {ch['n_evaluations']} avaliações.")
+    else:
+        st.caption("Com a segunda avaliação passa a ser possível acompanhar a evolução.")
+
+    st.markdown("#### Evolução por competência")
+    cols = [fmt_date(p["date"]) for p in points]
+    table = []
+    for r in evolution.competency_table(history):
+        row = {"Competência": comp.short_of(r["key"])}
+        row.update({c: ("—" if s is None else s) for c, s in zip(cols, r["scores"])})
+        row["Variação total"] = "—" if r["change"] is None else calc.fmt(r["change"], 0, signed=True) if r["change"] else "0"
+        table.append(row)
+    st.dataframe(pd.DataFrame(table), hide_index=True)
+
+    st.markdown("#### Detalhe das avaliações")
+    for e in reversed(history):
+        with st.expander(f"{fmt_date(e['evaluation_date'])} · {e['moment']} · média {calc.fmt(e['average'])}"
+                         + ("" if e["complete"] else " (incompleta)")):
+            st.caption(f"{e['category']} · {e['team']} · Treinador: {e['coach'] or '—'}")
+            for c in comp.COMPETENCIES:
+                v, n = e["scores"].get(c.key), e["notes"].get(c.key)
+                st.write(f"**{c.name}:** {v if v is not None else '—'}" + (f" — {n}" if n else ""))
+            if e["general_notes"]:
+                st.markdown(f"**Observações do treinador:** {e['general_notes']}")
+            if e["next_objectives"]:
+                st.markdown(f"**Objetivos para o período seguinte:** {e['next_objectives']}")
+    versions = [e for e in evaluations.list_evaluations(pid, include_superseded=True) if e["superseded_by"]]
+    if versions:
+        with st.expander(f"Versões anteriores corrigidas ({len(versions)})"):
+            st.caption("Ficam guardadas para auditoria e não entram na evolução.")
+            for e in versions:
+                st.write(f"{fmt_date(e['evaluation_date'])} · {e['moment']} · média {calc.fmt(e['average'])} "
+                         f"(registada em {e['created_at'][:16]})")
+
+
 def render() -> None:
     p = pick_player("evo")
     if not p:
@@ -78,3 +124,5 @@ def render() -> None:
         return
     st.markdown("### Roda das Competências")
     radar_section(history)
+    st.markdown("### Histórico e evolução")
+    history_section(p["id"], history)
