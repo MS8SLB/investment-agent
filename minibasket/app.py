@@ -12,6 +12,8 @@ import streamlit as st
 
 from minibasket import competencies as comp
 from minibasket import db
+from minibasket.views import players as players_view
+from minibasket.views import teams as teams_view
 
 st.set_page_config(page_title="Avaliação do Minibasquete", page_icon="🏀", layout="wide")
 db.init_db()
@@ -44,5 +46,9 @@ if section == "Dashboard":
     st.subheader(f"Escala: {scale_cfg['name']}")
     st.write(" · ".join(f"**{v}** — {t}" for v, t in scale_cfg["levels"]))
     st.caption("Escala pedagógica de avaliação; não corresponde a normas científicas nem a percentis.")
+elif section == "Equipas":
+    teams_view.render()
+elif section == "Jogadores":
+    players_view.render()
 else:
     st.info("Secção prevista para uma fase seguinte.")
