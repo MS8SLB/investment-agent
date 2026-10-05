@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from basketball_eval import defensive_movement as dm
-from basketball_eval import service
+from basketball_eval import norms, service
 
 st.set_page_config(page_title="Movimentos Defensivos", layout="wide")
 st.title(dm.TEST_NAME_PT)
@@ -106,6 +106,11 @@ with tab_player:
                 st.markdown(f"**{'Melhoria' if evo.status == dm.IMPROVED else 'Variação'}:** "
                             f"{dm.fmt_pct(t['change_percentage'], True)}")
                 st.info(evo.message)
+            if pl.get("birth_date"):
+                ref = norms.reference_position(t["best_time"], norms.age_at(pl["birth_date"], t["evaluation_date"]), pl.get("sex"))
+                if ref:
+                    st.caption(f"Referência ({ref['source']}), {ref['age']} anos: {ref['note']}. "
+                               "Posição indicativa; não é uma classificação.")
             h = pd.DataFrame(rep["history"])
             fig = go.Figure(go.Scatter(x=h["evaluation_date"], y=h["best_time"], mode="lines+markers+text",
                                        text=[dm.fmt_seconds(x) for x in h["best_time"]], textposition="top center"))

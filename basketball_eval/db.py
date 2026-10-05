@@ -1,5 +1,6 @@
 """Base de dados SQLite (basketball_eval). Ficheiro por omissão: data/basketball_eval.db."""
 
+import json
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -90,8 +91,9 @@ def connect(path: str | None = None):
 def init_db(path: str | None = None) -> None:
     with connect(path) as conn:
         conn.executescript(SCHEMA)
-        # Semeia o protocolo por omissão apenas se ainda não existir (não sobrescreve edições).
-        conn.execute(
-            "INSERT OR IGNORE INTO test_protocols(test_key, config) VALUES (?, ?)",
-            ("defensive_movement", proto.dumps(proto.DEFAULT_PROTOCOL)),
-        )
+        # Semeia o protocolo; só substitui um já guardado se for de versão anterior.
+        row = conn.execute("SELECT config FROM test_protocols WHERE test_key='defensive_movement'").fetchone()
+        stored = json.loads(row["config"]).get("version", 0) if row else -1
+        if stored < proto.DEFAULT_PROTOCOL["version"]:
+            conn.execute("INSERT OR REPLACE INTO test_protocols(test_key, config) VALUES (?, ?)",
+                         ("defensive_movement", proto.dumps(proto.DEFAULT_PROTOCOL)))

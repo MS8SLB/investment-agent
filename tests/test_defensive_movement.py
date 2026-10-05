@@ -174,3 +174,52 @@ def test_schema_has_spec_columns(db):
             "best_trial", "previous_best_time", "change_seconds", "change_percentage", "valid", "notes",
             "coach_id", "created_at"}
     assert spec <= cols
+
+
+# ── normas e protocolo completo ─────────────────────────────────────────────
+from basketball_eval import norms
+
+
+def test_norms_empty_by_default_then_loaded(db):
+    assert norms.reference_position(10.0, 10, db_path=db) is None
+    assert norms.load_matulaitis_2019(db) == 90
+    assert norms.load_matulaitis_2019(db) == 90  # idempotente
+    with connect(db) as c:
+        assert c.execute("SELECT COUNT(*) n FROM reference_norms").fetchone()["n"] == 90
+
+
+def test_norms_values_spot_check(db):
+    norms.load_matulaitis_2019(db)
+    # Idade 12: 90> = 8.3, 50 = 9.26, <10 = 10.3 (tabela do PDF)
+    assert norms.reference_position(8.3, 12, db_path=db)["percentile"] == 90
+    assert norms.reference_position(9.0, 12, db_path=db)["percentile"] == 60  # <=9.03 e >8.9
+    assert norms.reference_position(9.26, 12, db_path=db)["percentile"] == 50
+    assert norms.reference_position(11.0, 12, db_path=db)["percentile"] is None  # acima de 10.3
+    assert norms.reference_position(9.0, 20, db_path=db) is None  # sem norma para a idade
+
+
+def test_norms_monotonic_per_age():
+    """Menor tempo = melhor: os limites crescem ao descer o percentil.
+
+    Exceção conhecida, fiel à tabela do PDF (verificada): aos 15 anos, p80 = 7.7 > p70 = 7.54.
+    Não é «corrigida» na transcrição.
+    """
+    for i, age in enumerate(norms.AGES):
+        col = [norms.TABLE[p][i] for p in norms.PERCENTILES]
+        if age == 15:
+            assert norms.TABLE[80][i] > norms.TABLE[70][i]
+            continue
+        assert col == sorted(col), f"idade {age} fora de ordem: {col}"
+
+
+def test_age_at():
+    assert norms.age_at("2014-03-01", "2026-02-28") == 11
+    assert norms.age_at("2014-03-01", "2026-03-01") == 12
+
+
+def test_seeded_protocol_complete_and_coherent(db):
+    with connect(db) as c:
+        cfg = protocol.load(c)
+    assert cfg["sequence"] == list("ABCDEFA")
+    assert [(l["from"], l["to"]) for l in cfg["legs"]] == list(zip("ABCDEF", "BCDEFA"))
+    assert set(cfg["points"]) == set("ABCDEF")
