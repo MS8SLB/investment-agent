@@ -134,8 +134,42 @@ def render_team(r: dict) -> None:
             st.write(f"{i}. **{a['name']}** — média {calc.fmt(a['mean'])}")
 
 
+def render_parent(r: dict) -> None:
+    """Pré-visualização do relatório que o encarregado de educação vai ver."""
+    w, sec = r["wheel"], r["sections"]
+    st.markdown(f"## {r['player']['first_name']} — como está a correr")
+    if r["is_demo"]:
+        st.caption("Dados de teste")
+    st.caption(f"{r['player']['name']} · {r['category']} · {r['team']} ({r['club']}) · "
+               f"{fmt_date(r['date'])} · {r['moment']}" + (f" · Treinador: {r['coach']}" if r["coach"] else ""))
+    if r["incomplete_note"]:
+        st.caption(r["incomplete_note"])
+
+    st.markdown(f"### {sec['evolution']['title']}")
+    st.write(sec["evolution"]["text"])
+    series = [{"name": "Esta avaliação", "scores": w["scores"]}]
+    if w["previous_scores"]:
+        series.append({"name": f"Avaliação anterior · {fmt_date(w['previous_date'])}", "scores": w["previous_scores"]})
+    left, right = st.columns([3, 2])
+    left.plotly_chart(charts.radar_figure(series, w["scale_max"], w["levels"], is_dark(), height=400),
+                      key=f"parent_radar_{r['evaluation_id']}")
+    with right:
+        for k in r["skills"]:
+            st.write(f"**{k['name']}**  \n{k['dots']}  {k['level'] or ''}")
+
+    st.markdown(f"### {sec['strengths']['title']}")
+    st.write(sec["strengths"]["text"])
+    st.markdown(f"### {sec['working']['title']}")
+    st.write(sec["working"]["text"])
+    st.markdown(f"### {sec['goals']['title']}")
+    st.write(sec["goals"]["text"])
+    if r["message"]:
+        st.info(f"**Mensagem do treinador:** {r['message']}")
+    st.caption("Cada jogador evolui ao seu ritmo. Obrigado pelo acompanhamento e apoio.")
+
+
 def render() -> None:
-    t_ind, t_team = st.tabs(["Treinador · Individual", "Treinador · Equipa"])
+    t_ind, t_team, t_parent = st.tabs(["Treinador · Individual", "Treinador · Equipa", "Pais"])
     with t_ind:
         p = pick_player("rep")
         if p:
@@ -152,3 +186,16 @@ def render() -> None:
         team = pick_team("rep_t")
         if team:
             render_team(reports.team_report(team["id"]))
+    with t_parent:
+        st.caption("Pré-visualização do que o encarregado de educação vê: só o próprio jogador, sem comparações com a "
+                   "equipa e sem as notas internas do treinador.")
+        p = pick_player("rep_p")
+        if p:
+            history = evaluations.list_evaluations(p["id"])
+            if not history:
+                st.info("Este jogador ainda não tem avaliações.")
+            else:
+                by_id = {e["id"]: e for e in history}
+                eid = st.selectbox("Avaliação", list(by_id)[::-1], key="rep_p_eval",
+                                   format_func=lambda i: f"{fmt_date(by_id[i]['evaluation_date'])} · {by_id[i]['moment']}")
+                render_parent(reports.parent_report(eid))

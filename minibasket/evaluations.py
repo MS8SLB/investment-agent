@@ -72,7 +72,7 @@ def _check_scores(scores: Mapping[str, Optional[int]], valid_values: set[int]) -
 def create_evaluation(player_id: int, evaluation_date, moment: str, scores: Mapping[str, Optional[int]],
                       notes: Mapping[str, str] | None = None, coach_id: int | None = None,
                       general_notes: str | None = None, next_objectives: str | None = None,
-                      supersedes_id: int | None = None, is_demo: bool = False,
+                      parent_message: str | None = None, supersedes_id: int | None = None, is_demo: bool = False,
                       db_path: str | None = None) -> int:
     on = _iso(evaluation_date, "Data da avaliação", required=True)
     if on > date.today().isoformat():
@@ -101,11 +101,11 @@ def create_evaluation(player_id: int, evaluation_date, moment: str, scores: Mapp
                 raise ValidationError("Esta avaliação já foi corrigida; corrija a versão mais recente.")
         eid = c.execute(
             """INSERT INTO evaluations(player_id, team_id, category, scale_id, evaluation_date, moment, coach_id,
-                                       general_notes, next_objectives, supersedes_id, is_demo)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                                       general_notes, next_objectives, parent_message, supersedes_id, is_demo)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (player_id, team["team_id"], team["category"], scale["id"], on, moment, coach_id,
              (general_notes or "").strip() or None, (next_objectives or "").strip() or None,
-             supersedes_id, int(is_demo))).lastrowid
+             (parent_message or "").strip() or None, supersedes_id, int(is_demo))).lastrowid
         c.executemany("INSERT INTO evaluation_scores(evaluation_id, competency_key, score, note) VALUES (?,?,?,?)",
                       [(eid, k, clean[k], notes.get(k) or None) for k in comp.KEYS])
     return eid
@@ -114,13 +114,13 @@ def create_evaluation(player_id: int, evaluation_date, moment: str, scores: Mapp
 def correct_evaluation(evaluation_id: int, evaluation_date, moment: str, scores: Mapping[str, Optional[int]],
                        notes: Mapping[str, str] | None = None, coach_id: int | None = None,
                        general_notes: str | None = None, next_objectives: str | None = None,
-                       db_path: str | None = None) -> int:
+                       parent_message: str | None = None, db_path: str | None = None) -> int:
     """Cria uma nova versão que substitui (sem apagar) a avaliação indicada."""
     old = get_evaluation(evaluation_id, db_path)
     if not old:
         raise ValidationError("Avaliação a corrigir inexistente.")
     return create_evaluation(old["player_id"], evaluation_date, moment, scores, notes, coach_id, general_notes,
-                             next_objectives, supersedes_id=evaluation_id, is_demo=bool(old["is_demo"]),
+                             next_objectives, parent_message, supersedes_id=evaluation_id, is_demo=bool(old["is_demo"]),
                              db_path=db_path)
 
 

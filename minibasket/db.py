@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
     coach_id        INTEGER REFERENCES users(id),
     general_notes   TEXT,
     next_objectives TEXT,                         -- objetivos para o próximo período
+    parent_message  TEXT,                         -- mensagem escrita para os encarregados de educação
     supersedes_id   INTEGER REFERENCES evaluations(id),   -- correção de uma avaliação anterior
     is_demo         INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
@@ -155,6 +156,9 @@ def init_db(path: str | None = None) -> None:
     """Cria o esquema e semeia competências e escala por omissão (idempotente)."""
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        # migração: BDs criadas antes de existir a mensagem para os pais
+        if "parent_message" not in {r["name"] for r in conn.execute("PRAGMA table_info(evaluations)")}:
+            conn.execute("ALTER TABLE evaluations ADD COLUMN parent_message TEXT")
         conn.executemany(
             "INSERT OR IGNORE INTO competencies(key, name, short, position) VALUES (?,?,?,?)",
             [(c.key, c.name, c.short, c.position) for c in comp.COMPETENCIES])

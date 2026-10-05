@@ -91,13 +91,19 @@ def render() -> None:
     objectives = st.text_area("Objetivos para o próximo período", key=f"obj_{ctx}",
                               value=(base or {}).get("next_objectives") or "")
 
+    parent_msg = st.text_area("Mensagem para os pais (opcional)", key=f"pm_{ctx}", value=(base or {}).get("parent_message") or "",
+                              help="Texto positivo e simples, visível no relatório para os encarregados de educação. "
+                                   "As observações e notas acima são internas e não aparecem nesse relatório.")
+
     if st.button("GUARDAR AVALIAÇÃO", type="primary", key=f"save_{ctx}"):
         try:
             coach_id = evaluations.get_or_create_coach(coach_name) if coach_name.strip() else None
             if base:
-                evaluations.correct_evaluation(base["id"], ev_date, moment, scores, notes, coach_id, general, objectives)
+                evaluations.correct_evaluation(base["id"], ev_date, moment, scores, notes, coach_id, general, objectives,
+                                               parent_message=parent_msg)
             else:
-                evaluations.create_evaluation(pid, ev_date, moment, scores, notes, coach_id, general, objectives)
+                evaluations.create_evaluation(pid, ev_date, moment, scores, notes, coach_id, general, objectives,
+                                              parent_message=parent_msg)
             st.success(f"Avaliação guardada. Média global: {calc.fmt(avg)} / {max(levels)}.")
         except service.ValidationError as e:
             st.error(str(e))

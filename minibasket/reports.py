@@ -134,3 +134,121 @@ def team_report(team_id: int, db_path: str | None = None) -> dict:
             "homogeneous": gains["balanced"],
         }
     return out
+
+
+# ── Relatório para os pais ──────────────────────────────────────────────────
+# Nomes naturais das competências para texto corrido.
+PARENT_NAMES = {
+    "shooting": "o lançamento", "dribbling": "o domínio da bola", "passing": "o passe",
+    "reception": "a receção da bola", "footwork": "o trabalho de pés", "finishing": "as finalizações",
+    "individual_defense": "a defesa individual",
+    "individual_tactics": "a tática individual (tomada de decisão)", "fast_break": "o contra-ataque",
+}
+# Forma sem artigo, para listas («particularmente em …», «destaca-se em …»).
+_BARE = {k: v.split(" ", 1)[1] for k, v in PARENT_NAMES.items()}
+_IN = {"o": "no", "a": "na", "os": "nos", "as": "nas"}
+
+
+def _in(key: str) -> str:
+    """«no lançamento», «na defesa individual», «nas finalizações»."""
+    art, rest = PARENT_NAMES[key].split(" ", 1)
+    return f"{_IN[art]} {rest}"
+
+
+def _join(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " e " + items[-1]
+
+
+def _subject(first_name: str, sex: Optional[str]) -> str:
+    """«O João» / «A Ana»; sem artigo se o sexo não estiver registado (evita adivinhar)."""
+    return {"M": f"O {first_name}", "F": f"A {first_name}"}.get(sex or "", first_name)
+
+
+def parent_report(evaluation_id: int, db_path: str | None = None) -> dict:
+    """Relatório simples e positivo para o encarregado de educação.
+
+    Só contém o próprio jogador: sem médias nem comparações com a equipa, sem outros jogadores,
+    sem notas internas do treinador (apenas a «mensagem para os pais», escrita para esse fim).
+    """
+    e = ev.get_evaluation(evaluation_id, db_path)
+    if not e:
+        raise ValidationError("Avaliação inexistente.")
+    player = get_player(e["player_id"], db_path)
+    levels = dict(scale_levels(e["scale_id"], db_path))
+    top = max(levels) if levels else 5
+    first = player["name"].split()[0]
+    who = _subject(first, player["sex"])
+
+    ind = individual_report(evaluation_id, db_path)           # reutiliza a lógica de áreas e evolução
+    evo = ind["evolution"]
+
+    # Como está a evoluir?
+    prev_scores, show_prev = None, False
+    if not evo:
+        evo_text = (f"Esta é a primeira avaliação de {first}. Serve como ponto de partida para acompanhar, "
+                    "ao longo da época, o seu desenvolvimento.")
+    else:
+        gained = sorted((r for r in evo["rows"] if r["delta"] and r["delta"] > 0),
+                        key=lambda r: (-r["delta"], comp.KEYS.index(r["key"])))
+        if gained:
+            where = _join([_in(r["key"]) for r in gained[:2]])
+            evo_text = f"{who} apresentou uma evolução positiva ao longo deste período, particularmente {where}."
+        elif evo["avg_delta"] is not None and evo["avg_delta"] < 0:
+            evo_text = (f"Neste período, {first} esteve a consolidar algumas competências. Estamos a acompanhar "
+                        "este processo com exercícios de treino adequados.")
+        else:
+            evo_text = (f"{who} manteve o seu nível neste período, o que é uma base sólida "
+                        "para continuar a desenvolver.")
+        # a roda comparativa só se mostra quando o conjunto não recuou
+        show_prev = evo["avg_delta"] is None or evo["avg_delta"] >= 0
+        if show_prev:
+            prev = ev.list_evaluations(e["player_id"], db_path=db_path)
+            prev = [x for x in prev if x["evaluation_date"] == evo["previous_date"] and x["id"] != e["id"]]
+            prev_scores = prev[-1]["scores"] if prev else None
+            show_prev = prev_scores is not None
+
+    # Os seus pontos fortes / O que estamos a trabalhar
+    strengths = [a["key"] for a in ind["strengths"]]
+    focus = [a["key"] for a in ind["to_develop"]]
+    if strengths:
+        strengths_text = f"{who} destaca-se, neste momento, {_join([_in(k) for k in strengths])}."
+    elif ind["balanced"]:
+        strengths_text = f"{who} apresenta um perfil equilibrado, com todas as competências avaliadas ao mesmo nível."
+    else:
+        strengths_text = "Ainda não há dados suficientes para destacar competências."
+    if focus:
+        working_text = f"Estamos a trabalhar principalmente {_join([PARENT_NAMES[k] for k in focus])}."
+    elif ind["balanced"]:
+        working_text = "Estamos a trabalhar todas as competências de forma equilibrada."
+    else:
+        working_text = "Estamos a trabalhar as competências de base do Minibasquete."
+
+    # Objetivos: os do treinador, ou um texto geral a partir do foco
+    if e["next_objectives"]:
+        goals_text, from_coach = e["next_objectives"], True
+    elif focus:
+        goals_text = ("Para o próximo período, o objetivo será continuar a desenvolver "
+                      f"{_join([PARENT_NAMES[k] for k in focus[:2]])}, com exercícios de treino adequados à idade.")
+        from_coach = False
+    else:
+        goals_text = "Para o próximo período, o objetivo será continuar a desenvolver todas as competências, com prazer e confiança."
+        from_coach = False
+
+    skills = [{"key": r["key"], "name": r["name"], "score": r["score"], "level": r["level"],
+               "dots": "●" * r["score"] + "○" * (top - r["score"])} for r in ind["results"] if r["score"] is not None]
+    return {
+        "kind": "parent", "evaluation_id": e["id"], "generated_on": date.today().isoformat(),
+        "player": {"name": player["name"], "first_name": first, "photo_path": player["photo_path"]},
+        "category": e["category"], "team": e["team"], "club": e["club"], "date": e["evaluation_date"],
+        "moment": e["moment"], "coach": e["coach"], "is_demo": bool(e["is_demo"]),
+        "incomplete_note": None if e["complete"] else "Algumas competências ainda não foram avaliadas neste momento.",
+        "sections": {
+            "evolution": {"title": "Como está a evoluir?", "text": evo_text},
+            "strengths": {"title": "Os seus pontos fortes", "text": strengths_text, "items": strengths},
+            "working": {"title": "O que estamos a trabalhar", "text": working_text, "items": focus},
+            "goals": {"title": "Objetivos para a próxima etapa", "text": goals_text, "from_coach": from_coach},
+        },
+        "wheel": {"scores": e["scores"], "previous_scores": prev_scores if show_prev else None,
+                  "previous_date": evo["previous_date"] if show_prev else None, "scale_max": top, "levels": levels},
+        "skills": skills, "message": e["parent_message"],
+    }
