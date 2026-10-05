@@ -101,3 +101,27 @@ def line_figure(points: Sequence[dict], scale_max: int = 5, series_name: str = "
         showlegend=False, margin=dict(l=40, r=20, t=20, b=40), height=height,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
+
+
+def bar_figure(stats: Sequence[dict], scale_max: int = 5, dark: bool = False, height: int = 400) -> go.Figure:
+    """Média da equipa por competência (barras horizontais, pela ordem da roda, não por valor).
+
+    stats: saída de `teamstats.competency_stats`. A dica mostra mediana, melhor, mais baixo e n.
+    """
+    color = COLORS["dark" if dark else "light"][0]
+    names = [comp.short_of(r["key"]) for r in stats]
+    means = [r["mean"] for r in stats]
+    custom = [[calc.fmt(r["median"]), r["best"] if r["best"] is not None else "—",
+               r["lowest"] if r["lowest"] is not None else "—", r["n"]] for r in stats]
+    fig = go.Figure(go.Bar(
+        y=names, x=means, orientation="h", marker=dict(color=color), name="Média da equipa",
+        text=[calc.fmt(m) if m is not None else "" for m in means], textposition="outside", cliponaxis=False,
+        customdata=custom,
+        hovertemplate="<b>%{y}</b><br>Média: %{text}<br>Mediana: %{customdata[0]}<br>Melhor: %{customdata[1]}"
+                      "<br>Mais baixo: %{customdata[2]}<br>Jogadores avaliados: %{customdata[3]}<extra></extra>"))
+    fig.update_layout(
+        xaxis=dict(range=[0, scale_max + 0.3], tickvals=list(range(scale_max + 1)), gridcolor="rgba(128,128,128,0.25)"),
+        yaxis=dict(autorange="reversed"), bargap=0.45, showlegend=False,
+        margin=dict(l=130, r=40, t=20, b=40), height=height,
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    return fig

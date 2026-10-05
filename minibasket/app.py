@@ -1,4 +1,4 @@
-"""Plataforma de Avaliação do Minibasquete — esqueleto da aplicação.
+"""Plataforma de Avaliação do Minibasquete.
 
 Executar: streamlit run minibasket/app.py
 """
@@ -10,16 +10,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
-from minibasket import competencies as comp
 from minibasket import db
+from minibasket.views import dashboard as dashboard_view
 from minibasket.views import evaluate as evaluate_view
 from minibasket.views import player_evolution as evolution_view
 from minibasket.views import players as players_view
+from minibasket.views import team_evolution as team_evolution_view
 from minibasket.views import teams as teams_view
 
 st.set_page_config(page_title="Avaliação do Minibasquete", page_icon="🏀", layout="wide")
 db.init_db()
-scale_cfg = db.active_scale()
 
 SECTIONS = [
     ("Dashboard", "Visão geral das equipas, avaliações e evolução."),
@@ -39,21 +39,15 @@ st.title(section)
 st.caption(dict(SECTIONS)[section])
 
 if section == "Dashboard":
-    st.subheader("Ciclo pedagógico")
-    st.markdown(
-        "**Observar** → **Avaliar** → **Identificar necessidades** → **Definir objetivos** → "
-        "**Intervir no treino** → **Reavaliar** → **Verificar a evolução**")
-    st.subheader("Roda das Competências")
-    st.write(" · ".join(c.name for c in comp.COMPETENCIES))
-    st.subheader(f"Escala: {scale_cfg['name']}")
-    st.write(" · ".join(f"**{v}** — {t}" for v, t in scale_cfg["levels"]))
-    st.caption("Escala pedagógica de avaliação; não corresponde a normas científicas nem a percentis.")
+    dashboard_view.render()
 elif section == "Equipas":
     teams_view.render()
 elif section == "Avaliar":
     evaluate_view.render()
 elif section == "Evolução do Jogador":
     evolution_view.render()
+elif section == "Evolução da Equipa":
+    team_evolution_view.render()
 elif section == "Jogadores":
     players_view.render()
 else:
