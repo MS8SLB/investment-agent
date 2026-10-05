@@ -143,5 +143,5 @@ Para acrescentar uma competência (Drible, Passe…): definir uma `Competency` e
 uma página em `basketball_eval/ui/`, registada em `home.py`. A base de dados (`evaluations` + `evaluation_items`) e o
 cálculo são genéricos.
 
-**Publicar para vários treinadores** (Streamlit Community Cloud + Postgres + palavra-passe): ver `basketball_eval/DEPLOY.md`.
+**Publicar para vários treinadores** (Streamlit Community Cloud + Postgres + contas individuais): ver `basketball_eval/DEPLOY.md`.
 

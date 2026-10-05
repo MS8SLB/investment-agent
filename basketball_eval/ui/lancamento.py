@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from basketball_eval import competencies, qual_service as svc, qualitative as q, report
+from basketball_eval import auth, competencies, qual_service as svc, qualitative as q, report
 from basketball_eval import service as base
 from basketball_eval.competencies import LEVELS
 from basketball_eval.ui import components as ui
@@ -30,6 +30,10 @@ ui.inject_css()
 
 
 # ── Estado do formulário ────────────────────────────────────────────────────
+def player_name(player_id: int) -> str:
+    return next((p["name"] for p in svc.players_for(st.session_state.ctx_age) if p["id"] == player_id), "")
+
+
 def reset_form():
     for k in SC.values():
         st.session_state[k] = None
@@ -57,15 +61,24 @@ def load_for_edit(evaluation_id: int):
                             f_coach=ev["coach_name"] or "", edit_id=evaluation_id, view="Avaliar")
 
 
+def audit(action: str, evaluation_id: int, player_id: int, detail: str | None = None):
+    """Regista quem fez a ação (só com contas individuais)."""
+    me = st.session_state.get("auth_user")
+    if me:
+        auth.audit(me["username"], action, evaluation_id, player_id, detail)
+
+
 def save(player_id: int, team):
     try:
         args = (st.session_state.f_date, current_scores(), st.session_state.f_obs)
         if st.session_state.edit_id:
             svc.update_evaluation(st.session_state.edit_id, *args, coach=st.session_state.f_coach)
+            audit("editar_avaliacao", st.session_state.edit_id, player_id, player_name(player_id))
             msg = "Avaliação atualizada."
         else:
-            svc.save_evaluation(CKEY, player_id, *args, team=team, age_group=st.session_state.ctx_age,
-                                coach=st.session_state.f_coach)
+            new_id = svc.save_evaluation(CKEY, player_id, *args, team=team, age_group=st.session_state.ctx_age,
+                                         coach=st.session_state.f_coach)
+            audit("criar_avaliacao", new_id, player_id, player_name(player_id))
             msg = "Avaliação guardada."
         reset_form()
         st.session_state.flash = ("success", msg)
@@ -174,7 +187,10 @@ if view == "Avaliar":
     ui.legend()
     h1, h2, h3 = st.columns([1, 1, 1.4])
     h1.date_input("Data", key="f_date", format="DD/MM/YYYY")
-    h2.text_input("Treinador", key="f_coach")
+    me = st.session_state.get("auth_user")
+    if me and not editing:                       # com contas, o treinador é quem tem sessão iniciada
+        st.session_state.f_coach = me["display_name"]
+    h2.text_input("Treinador", key="f_coach", disabled=bool(me))
     h3.markdown(f"**Jogador:** {player['name']}  \n**Equipa:** {player['team'] or '—'} · **Escalão:** {age}")
 
     evalrow = st.container(key="evalrow")
@@ -329,6 +345,7 @@ elif view == "Histórico":
                 if st.checkbox("Confirmo que quero apagar esta avaliação", key=f"del_ok_{eid}"):
                     if st.button("Apagar definitivamente", type="primary", key=f"del_{eid}"):
                         svc.delete_evaluation(eid, confirm=True)
+                        audit("apagar_avaliacao", eid, pid, ev["player_name"])
                         st.session_state.flash = ("success", "Avaliação apagada.")
                         st.rerun()
 

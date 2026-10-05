@@ -1,7 +1,7 @@
 # Publicar a app de avaliação (vários treinadores e dispositivos)
 
 Arquitetura: **Streamlit Community Cloud** (a app) + **Postgres** (os dados, partilhados e persistentes) +
-**palavra-passe de acesso** do clube. O Supabase tem plano gratuito e serve de exemplo; qualquer Postgres funciona (Neon, etc.).
+**contas individuais** dos treinadores (ou, em alternativa simples, uma palavra-passe única do clube). O Supabase tem plano gratuito e serve de exemplo; qualquer Postgres funciona (Neon, etc.).
 
 > A app guarda dados pessoais de menores. Veja a secção «Privacidade» no fim.
 
@@ -26,12 +26,27 @@ O Streamlit Cloud lê o repositório no GitHub. Faça merge da PR (ou escolha a 
    (o ficheiro `basketball_eval/requirements.txt` é usado, só com o necessário).
 3. **Advanced settings → Secrets**, cole (ver `.streamlit/secrets.toml.example`):
    ```toml
-   APP_PASSWORD = "uma-frase-longa-e-unica"
    DATABASE_URL = "postgresql://postgres.xxxx:SUA_PASSWORD@…pooler.supabase.com:5432/postgres"
+   ADMIN_USERNAME = "admin"
+   ADMIN_PASSWORD = "palavra-passe-temporaria-longa"
    ```
-4. **Deploy**. No primeiro acesso as tabelas são criadas automaticamente. Partilhe o link e a palavra-passe com os treinadores.
+4. **Deploy**. No primeiro acesso as tabelas são criadas e é criado o administrador `admin`.
 
-A app **recusa arrancar** com `DATABASE_URL` sem `APP_PASSWORD`.
+A app **recusa arrancar** com `DATABASE_URL` sem `ADMIN_PASSWORD` (contas) nem `APP_PASSWORD`.
+
+## 3b. Contas dos treinadores
+1. Abra o link e entre como `admin` com `ADMIN_PASSWORD`. A app obriga a definir já a sua própria palavra-passe;
+   depois pode **apagar `ADMIN_PASSWORD` dos segredos**.
+2. Menu **Conta → Utilizadores → Nova conta**: utilizador (ex.: `rui.costa`), nome, perfil e uma palavra-passe
+   temporária. Entregue-a ao treinador: no primeiro acesso é obrigado a mudá-la.
+3. As avaliações ficam associadas ao treinador com sessão iniciada, e o registo de ações (criar/editar/apagar
+   avaliações, gerir contas) fica em «Registo de ações».
+4. Treinador esqueceu-se da palavra-passe → administrador usa «Repor palavra-passe». Saiu do clube → «Desativar conta»
+   (perde o acesso de imediato, mesmo com sessão aberta; o histórico mantém-se).
+5. Segurança: palavras-passe guardadas só com hash (scrypt), mínimo de 10 caracteres, bloqueio de 5 minutos após
+   5 tentativas falhadas, e nunca é possível desativar o último administrador.
+
+Alternativa simples: em vez de contas, defina só `APP_PASSWORD` (palavra-passe única do clube).
 
 ## 4. Levar os dados que já tem no computador (opcional)
 ```bash
@@ -52,8 +67,9 @@ TEST_DATABASE_URL=postgresql://user@localhost:5432/teste python -m pytest tests/
 Use uma base **descartável**: cada teste apaga o esquema `public`.
 
 ## Limitações a conhecer
-- Palavra-passe única do clube: quem a tiver vê todas as equipas. O treinador é indicado na avaliação (texto livre),
-  não há contas individuais nem registo de quem alterou o quê.
+- Todos os treinadores veem todas as equipas (não há permissões por equipa). Só o administrador gere contas.
+- Recarregar a página no navegador termina a sessão (comportamento do Streamlit): é preciso entrar de novo.
+- Não há recuperação de palavra-passe por email; é o administrador que a repõe.
 - Apps gratuitas do Streamlit Cloud adormecem após inatividade (o primeiro acesso demora); projetos inativos do plano
   gratuito do Supabase podem ser pausados. Confirme os limites atuais nos respetivos planos.
 - Cópias de segurança: confirme o que o seu plano inclui; caso contrário exporte periodicamente (`pg_dump` ou o export do Supabase).
