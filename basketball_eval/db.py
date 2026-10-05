@@ -51,6 +51,21 @@ CREATE TABLE IF NOT EXISTS defensive_movement_tests (
 );
 CREATE INDEX IF NOT EXISTS idx_dmt_player_date ON defensive_movement_tests(player_id, evaluation_date);
 
+CREATE TABLE IF NOT EXISTS qualitative_evaluations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id       INTEGER NOT NULL REFERENCES players(id),
+    evaluation_date TEXT NOT NULL,           -- ISO yyyy-mm-dd
+    category        TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14')),
+    ratings         TEXT NOT NULL,           -- JSON {criterio: 1..4}
+    average         REAL NOT NULL,
+    strengths_note  TEXT,
+    improve_note    TEXT,
+    session_label   TEXT,
+    coach_id        INTEGER REFERENCES coaches(id),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_qe_player_date ON qualitative_evaluations(player_id, evaluation_date);
+
 -- Valores de referência (opcionais; vazia por omissão — nada é assumido).
 CREATE TABLE IF NOT EXISTS reference_norms (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
