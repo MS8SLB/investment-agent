@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% block title %}Análise{% endblock %}
+{% block content %}
+<h1>Análise coletiva</h1><p class="lead">Escolha um teste e o grupo. As análises são sempre feitas teste a teste.</p>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form method="get" class="filters card" style="padding:14px">
+ <div><label>Teste *</label><select name="test_id" required><option value="">—</option>{% for t in tests %}<option value="{{ t.id }}" {{ 'selected' if test_id==t.id|string }}>{{ t.numeral }}. {{ t.name.split('(')[0] }}</option>{% endfor %}</select></div>
+ <div><label>Escalão</label><select name="category_id"><option value="">Todos</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id==c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+ <div><label>Equipa</label><select name="team_id"><option value="">Todas</option>{% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if team_id==t.id|string }}>{{ t.name }}</option>{% endfor %}</select></div>
+ <div><label>Sexo</label><select name="sex"><option value="">Ambos</option><option value="M" {{ 'selected' if sex=='M' }}>Masculino</option><option value="F" {{ 'selected' if sex=='F' }}>Feminino</option></select></div>
+ <div><label>De</label><input type="date" name="date_from" value="{{ date_from }}"></div><div><label>Até</label><input type="date" name="date_to" value="{{ date_to }}"></div>
+ <div><label style="font-weight:500"><input type="checkbox" name="cross" value="1" {{ 'checked' if cross }}> Comparar escalões</label></div>
+ <div><button class="btn">Analisar</button></div></form>
+{% if test %}{% if not n_rows %}<div class="card tint">Sem resultados para estes critérios.</div>{% else %}
+<h2>{{ test.numeral }}. {{ test.name }} <span class="badge">{{ test.unit }} · {{ test.better_label }}</span></h2>
+<div class="grid g2">
+ <div class="card"><h3>Médias coletivas por data</h3><div class="chart"><canvas id="evo"></canvas></div></div>
+ <div class="card"><h3>Estatísticas por data</h3><div class="tw"><table><thead><tr><th>Data</th><th class="n">N</th><th class="n">Média</th><th class="n">Mediana</th><th class="n">Mín</th><th class="n">Máx</th><th class="n">DP</th></tr></thead><tbody>
+ {% for s in series %}<tr><td>{{ s.date|dpt }}</td><td class="n">{{ s.n }}</td><td class="n">{{ s.mean|num(test.decimals) }}</td><td class="n">{{ s.median|num(test.decimals) }}</td><td class="n">{{ s.min|num(test.decimals) }}</td><td class="n">{{ s.max|num(test.decimals) }}</td><td class="n">{{ s.sd|num(test.decimals) if s.sd is not none else '—' }}</td></tr>{% endfor %}</tbody></table></div></div></div>
+
+<h2>Comparação entre duas datas</h2>
+<form method="get" class="filters">{% for k,v in [('test_id',test_id),('category_id',category_id),('team_id',team_id),('sex',sex),('date_from',date_from),('date_to',date_to),('cross',cross),('dist_date',dist_date)] %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+ <div><label>Data A</label><select name="date_a">{% for d in dates %}<option value="{{ d.isoformat() }}" {{ 'selected' if d==date_a_v }}>{{ d|dpt }}</option>{% endfor %}</select></div>
+ <div><label>Data B</label><select name="date_b">{% for d in dates %}<option value="{{ d.isoformat() }}" {{ 'selected' if d==date_b_v }}>{{ d|dpt }}</option>{% endfor %}</select></div><div><button class="btn sec">Comparar</button></div></form>
+{% if comp %}<div class="grid g2"><div class="card"><div class="chart"><canvas id="cmp"></canvas></div></div>
+ <div class="tw"><table><thead><tr><th>Atleta</th><th class="n">{{ date_a_v|dpt }}</th><th class="n">{{ date_b_v|dpt }}</th><th class="n">Δ</th></tr></thead><tbody>
+ {% for c in comp %}<tr><td>{{ c.athlete.name }}</td><td class="n">{{ c.a|num(test.decimals) }}</td><td class="n">{{ c.b|num(test.decimals) }}</td><td class="n {{ 'up' if c.improved else ('down' if c.improved is false) }}">{{ c.delta|signed(test.decimals) }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% else %}<p class="muted">Não há atletas avaliados nas duas datas escolhidas.</p>{% endif %}
+
+<h2>Distribuição dos resultados</h2>
+<form method="get" class="filters">{% for k,v in [('test_id',test_id),('category_id',category_id),('team_id',team_id),('sex',sex),('date_from',date_from),('date_to',date_to),('cross',cross),('date_a',date_a),('date_b',date_b)] %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+ <div><label>Data</label><select name="dist_date">{% for d in dates %}<option value="{{ d.isoformat() }}" {{ 'selected' if d==dist_date_v }}>{{ d|dpt }}</option>{% endfor %}</select></div><div><button class="btn sec">Atualizar</button></div></form>
+<div class="card"><div class="chart sm"><canvas id="hist"></canvas></div><p class="muted" style="margin:6px 0 0;font-size:13px">N.º de atletas por classe de resultado ({{ test.unit }}) em {{ dist_date_v|dpt }}.</p></div>
+
+{% if cross %}<h2>Comparação entre escalões (descritiva)</h2>
+<div class="warnbox">⚠ Escalões diferentes têm idades e maturação distintas e não há tabelas de referência validadas: esta comparação é apenas descritiva e <b>não deve ser usada para classificar ou comparar atletas</b>. Usa o último resultado de cada atleta.</div>
+{% if cross_rows %}<div class="tw"><table><thead><tr><th>Escalão</th><th class="n">N</th><th class="n">Média</th><th class="n">Mediana</th><th class="n">Mín</th><th class="n">Máx</th></tr></thead><tbody>{% for r in cross_rows %}<tr><td>{{ r.cat.name }}</td><td class="n">{{ r.n }}</td><td class="n">{{ r.mean|num(test.decimals) }}</td><td class="n">{{ r.median|num(test.decimals) }}</td><td class="n">{{ r.min|num(test.decimals) }}</td><td class="n">{{ r.max|num(test.decimals) }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% endif %}
+{% endif %}{% endif %}
+{% endblock %}
+{% block scripts %}{% if test and n_rows %}<script>
+mkChart('evo','line',{{ evo.labels|tojson }},[{label:'Média',data:{{ evo.mean|tojson }},borderColor:ORANGE,backgroundColor:ORANGE,tension:.2,pointRadius:5},{label:'Melhor do grupo',data:{{ evo.best|tojson }},borderColor:NAVY,backgroundColor:NAVY,borderDash:[5,4],tension:.2,pointRadius:3}],{dec:{{ test.decimals }},unit:'{{ test.unit }}',ytitle:'{{ test.unit }}'});
+{% if comp %}mkChart('cmp','bar',{{ comp_chart.labels|tojson }},[{label:'{{ date_a_v|dpt }}',data:{{ comp_chart.a|tojson }},backgroundColor:GREY},{label:'{{ date_b_v|dpt }}',data:{{ comp_chart.b|tojson }},backgroundColor:ORANGE}],{dec:{{ test.decimals }},unit:'{{ test.unit }}',zero:true});{% endif %}
+mkChart('hist','bar',{{ dist.labels|tojson }},[{label:'Atletas',data:{{ dist.counts|tojson }},backgroundColor:NAVY}],{dec:0,zero:true,xtitle:'{{ test.unit }}'});
+</script>{% endif %}{% endblock %}

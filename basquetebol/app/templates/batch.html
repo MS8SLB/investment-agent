@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Registo por equipa{% endblock %}
+{% block content %}
+<h1>Registo por equipa</h1><p class="lead">Introduza os resultados de vários atletas no mesmo teste e na mesma data — ideal para usar no pavilhão, no telemóvel.</p>
+<form method="get" class="filters card" style="padding:14px">
+ <div><label>Equipa</label><select name="team_id"><option value="">—</option>{% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if team_id==t.id|string }}>{{ t.name }}{% if t.club %} ({{ t.club }}){% endif %}</option>{% endfor %}</select></div>
+ <div><label>ou Escalão</label><select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id==c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+ <div><label>Teste</label><select name="test_id" required><option value="">—</option>{% for t in tests %}<option value="{{ t.id }}" {{ 'selected' if test_id==t.id|string }}>{{ t.numeral }}. {{ t.name.split('(')[0] }}</option>{% endfor %}</select></div>
+ <div><label>Data</label><input type="date" name="on" value="{{ on }}" max="{{ today().isoformat() }}"></div>
+ <div><button class="btn">Carregar atletas</button></div></form>
+{% if rows is not none %}{% if not rows %}<div class="card tint" style="margin-top:14px">Não há atletas nesta equipa/escalão.</div>{% else %}
+<form method="post" style="margin-top:14px"><input type="hidden" name="test_id" value="{{ test.id }}"><input type="hidden" name="team_id" value="{{ team_id }}"><input type="hidden" name="category_id" value="{{ category_id }}"><input type="hidden" name="on" value="{{ on }}">
+<h2 style="margin-top:0">{{ test.numeral }}. {{ test.name }} <span class="badge">{{ test.unit }} · {{ test.better_label }}</span></h2>
+<p class="muted">{{ test.attempts_rule }}{% if not test.attempts_confirmed %} <span class="badge warn">nº de tentativas a confirmar</span>{% endif %}</p>
+<div class="form" style="margin-bottom:12px"><div><label>Treinador / avaliador</label><input name="evaluator"></div></div>
+<div class="tw"><table><thead><tr><th>Atleta</th>{% for n in range(1,test.n_attempts+1) %}<th>Tent. {{ n }}</th>{% endfor %}<th>Observações</th></tr></thead><tbody>
+{% for r in rows %}<tr><td><b>{{ r.a.name }}</b><input type="hidden" name="aid_{{ r.a.id }}" value="1"></td>
+{% for n in range(1,test.n_attempts+1) %}<td><input inputmode="decimal" style="min-width:80px" name="a{{ r.a.id }}_{{ n }}" value="{{ r.existing[n]|num(test.decimals) if n in r.existing else '' }}"></td>{% endfor %}
+<td><input name="o{{ r.a.id }}" value="{{ r.notes }}"></td></tr>{% endfor %}</tbody></table></div>
+<div class="actions" style="margin-top:14px"><button class="btn">Guardar resultados</button></div></form>{% endif %}{% endif %}
+{% endblock %}
