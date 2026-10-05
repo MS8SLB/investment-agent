@@ -116,12 +116,12 @@ def test_ui_single_evaluation_and_comparison(ui):
     at, pid = ui
     ev.create_evaluation(pid, "2024-09-15", "Avaliação Inicial", INITIAL)
     at.run()
-    assert not at.exception and len(at.get("plotly_chart")) == 1
+    assert not at.exception and len(at.get("plotly_chart")) == 3  # roda + média + competência
     assert any("Só existe uma avaliação" in c.value for c in at.caption)
 
     ev.create_evaluation(pid, "2024-12-15", "1.º Período", CURRENT)
     at.run()
-    assert not at.exception and len(at.get("plotly_chart")) == 1
+    assert not at.exception and len(at.get("plotly_chart")) == 3
     m = next(m for m in at.metric if m.label == "Média global")
     assert m.value.startswith("3,44") and m.delta == "+1,00"
     assert any("Lançamento (+2)" in s.value for s in at.success)

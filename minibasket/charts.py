@@ -11,6 +11,7 @@ from typing import Mapping, Optional, Sequence
 
 import plotly.graph_objects as go
 
+from . import calc
 from . import competencies as comp
 
 # slot 1 / slot 2 da paleta categórica validada (claro, escuro)
@@ -67,3 +68,36 @@ def _rgba(hex_color: str, alpha: float) -> str:
     h = hex_color.lstrip("#")
     r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
     return f"rgba({r},{g},{b},{alpha})"
+
+
+def line_figure(points: Sequence[dict], scale_max: int = 5, series_name: str = "", levels: Mapping[int, str] | None = None,
+                dark: bool = False, height: int = 340, decimals: int = 2) -> go.Figure:
+    """Evolução ao longo do tempo (uma série). points: [{"date": ISO, "moment": str, "value": float|None}].
+
+    Eixo vertical de 0 ao máximo da escala. Etiquetas diretas só no primeiro e no último valor;
+    valores em falta (competência não avaliada) interrompem a linha, nunca viram 0.
+    """
+    color = COLORS["dark" if dark else "light"][0]
+    xs = [p["date"] for p in points]
+    ys = [p["value"] for p in points]
+    texts = [calc.fmt(v, decimals) if v is not None else "Não avaliada" for v in ys]
+    rated = [i for i, v in enumerate(ys) if v is not None]
+    label_idx = {rated[0], rated[-1]} if rated else set()
+    shown = [texts[i] if i in label_idx else "" for i in range(len(ys))]
+    level = [(levels or {}).get(round(v)) if v is not None and float(v).is_integer() else None for v in ys]
+    custom = [[p.get("moment", ""), t, lv or ""] for p, t, lv in zip(points, texts, level)]
+    fig = go.Figure(go.Scatter(
+        x=xs, y=ys, name=series_name, mode="lines+markers+text", connectgaps=False,
+        line=dict(color=color, width=2), marker=dict(color=color, size=8, line=dict(color="rgba(0,0,0,0)", width=0)),
+        text=shown, textposition="top center", textfont=dict(size=12),
+        customdata=custom,
+        hovertemplate="<b>%{x|%d/%m/%Y}</b> · %{customdata[0]}<br>" + (series_name + ": " if series_name else "")
+        + "%{customdata[1]}<extra>%{customdata[2]}</extra>"))
+    fig.update_layout(
+        xaxis=dict(type="date", tickvals=xs, ticktext=[f"{x[8:10]}/{x[5:7]}/{x[2:4]}" for x in xs],
+                   gridcolor="rgba(128,128,128,0.20)", tickfont=dict(size=11)),
+        yaxis=dict(range=[0, scale_max + 0.4], tickvals=list(range(scale_max + 1)), gridcolor="rgba(128,128,128,0.25)",
+                   zeroline=False),
+        showlegend=False, margin=dict(l=40, r=20, t=20, b=40), height=height,
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    return fig

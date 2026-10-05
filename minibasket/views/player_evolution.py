@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from minibasket import calc, charts, db, evaluations, evolution
+from minibasket import calc, charts, db, evaluations, evolution, teamstats
 from minibasket import competencies as comp
 from minibasket.views.common import fmt_date, is_dark, pick_player
 
@@ -67,6 +67,72 @@ def radar_section(history: list[dict]) -> None:
         st.info("Sem aumentos de classificação neste intervalo; é um bom momento para rever os objetivos de treino.")
 
 
+def average_section(history: list[dict]) -> None:
+    scale = db.active_scale()
+    pts = [{"date": p["date"], "moment": p["moment"], "value": p["average"]}
+           for p in evolution.evolution_series(history)]
+    st.caption("Média global de cada avaliação (calculada automaticamente).")
+    st.plotly_chart(charts.line_figure(pts, max(v for v, _ in scale["levels"]), "Média global", None, is_dark()))
+    if len(pts) == 1:
+        st.caption("Com a segunda avaliação passa a ser possível acompanhar a evolução.")
+
+
+def competency_section(history: list[dict]) -> None:
+    scale = db.active_scale()
+    levels, top = dict(scale["levels"]), max(v for v, _ in scale["levels"])
+    options = list(comp.KEYS) + ["all"]
+    key = st.selectbox("Competência", options, key="evo_comp",
+                       format_func=lambda k: "Todas as competências (resumo)" if k == "all" else comp.name_of(k))
+    if key != "all":
+        series = evolution.competency_series(history, key)
+        pts = [{"date": p["date"], "moment": p["moment"], "value": p["score"]} for p in series]
+        st.plotly_chart(charts.line_figure(pts, top, comp.name_of(key), levels, is_dark(), decimals=0))
+        rated = [p for p in series if p["score"] is not None]
+        if len(rated) >= 2:
+            st.write(f"**{comp.name_of(key)}:** de {rated[0]['score']} ({levels[rated[0]['score']]}) para "
+                     f"{rated[-1]['score']} ({levels[rated[-1]['score']]}).")
+        elif not rated:
+            st.caption("Esta competência ainda não foi avaliada.")
+        return
+    cols = st.columns(3)
+    for i, c in enumerate(comp.COMPETENCIES):
+        series = evolution.competency_series(history, c.key)
+        pts = [{"date": p["date"], "moment": p["moment"], "value": p["score"]} for p in series]
+        with cols[i % 3]:
+            st.markdown(f"**{c.name}**")
+            st.plotly_chart(charts.line_figure(pts, top, c.name, levels, is_dark(), height=230, decimals=0),
+                            key=f"mini_{c.key}")
+
+
+def team_section(history: list[dict]) -> None:
+    scale = db.active_scale()
+    levels, top = dict(scale["levels"]), max(v for v, _ in scale["levels"])
+    st.caption("Serve para identificar necessidades de desenvolvimento do jogador. Não é uma classificação "
+               "nem um ranking.")
+    by_id = {e["id"]: e for e in history}
+    ids = [e["id"] for e in history]
+    eid = st.selectbox("Avaliação do jogador", ids, index=len(ids) - 1, key="vs_eval",
+                       format_func=lambda i: _label(by_id[i]))
+    e = by_id[eid]
+    snap = teamstats.snapshot(e["team_id"], e["evaluation_date"])
+    if not teamstats.can_compare(snap):
+        st.info(f"A comparação com a equipa só aparece quando houver pelo menos {teamstats.MIN_TEAM_FOR_COMPARISON} "
+                f"jogadores avaliados (agora: {len(snap['evaluated'])}).")
+        return
+    stats = teamstats.competency_stats(snap)
+    rows = teamstats.compare_to_team(e["scores"], stats)
+    series = [{"name": "Jogador", "scores": e["scores"]},
+              {"name": "Média da equipa", "scores": {s["key"]: s["mean"] for s in stats}}]
+    left, right = st.columns([3, 2])
+    left.plotly_chart(charts.radar_figure(series, top, levels, is_dark()), key="vs_radar")
+    right.caption(f"Equipa {e['team']} ({e['category']}) em {fmt_date(snap['as_of'])}: "
+                  f"{len(snap['evaluated'])} jogadores avaliados.")
+    right.dataframe(pd.DataFrame([{
+        "Competência": comp.short_of(r["key"]), "Jogador": r["player"],
+        "Média equipa": calc.fmt(r["team_mean"], 1), "Diferença": calc.fmt(r["diff"], 1, signed=True)}
+        for r in rows]), hide_index=True)
+
+
 def history_section(pid: int, history: list[dict]) -> None:
     """Histórico cronológico: nenhuma avaliação é apagada nem substituída."""
     points = evolution.evolution_series(history)
@@ -122,7 +188,16 @@ def render() -> None:
     if not history:
         st.info("Este jogador ainda não tem avaliações. Registe a primeira na secção «Avaliar».")
         return
-    st.markdown("### Roda das Competências")
-    radar_section(history)
-    st.markdown("### Histórico e evolução")
-    history_section(p["id"], history)
+    t_wheel, t_avg, t_comp, t_team, t_hist = st.tabs(
+        ["Roda das Competências", "Evolução da média", "Evolução por competência", "Jogador vs. equipa",
+         "Histórico"])
+    with t_wheel:
+        radar_section(history)
+    with t_avg:
+        average_section(history)
+    with t_comp:
+        competency_section(history)
+    with t_team:
+        team_section(history)
+    with t_hist:
+        history_section(p["id"], history)
