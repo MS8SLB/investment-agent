@@ -1,0 +1,6 @@
+# Dependências mínimas da app de basquetebol (usadas pelo Streamlit Community Cloud
+# quando o ficheiro principal é basketball_eval/home.py).
+streamlit>=1.50.0
+plotly>=5.18.0
+pandas>=2.0.0
+psycopg2-binary>=2.9.9
