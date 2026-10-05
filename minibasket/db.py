@@ -173,3 +173,11 @@ def active_scale(path: str | None = None) -> dict:
         lv = conn.execute("SELECT value, label FROM scale_levels WHERE scale_id=? ORDER BY value",
                           (s["id"],)).fetchall()
     return {"id": s["id"], "name": s["name"], "levels": [(r["value"], r["label"]) for r in lv]}
+
+
+def scale_levels(scale_id: int, path: str | None = None) -> list[tuple[int, str]]:
+    """Níveis de uma escala concreta (a que foi usada numa avaliação), mesmo que entretanto tenha sido substituída."""
+    init_db(path)
+    with connect(path) as conn:
+        return [(r["value"], r["label"]) for r in conn.execute(
+            "SELECT value, label FROM scale_levels WHERE scale_id=? ORDER BY value", (scale_id,))]

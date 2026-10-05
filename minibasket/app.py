@@ -15,6 +15,7 @@ from minibasket.views import dashboard as dashboard_view
 from minibasket.views import evaluate as evaluate_view
 from minibasket.views import player_evolution as evolution_view
 from minibasket.views import players as players_view
+from minibasket.views import reports as reports_view
 from minibasket.views import team_evolution as team_evolution_view
 from minibasket.views import teams as teams_view
 
@@ -50,5 +51,7 @@ elif section == "Evolução da Equipa":
     team_evolution_view.render()
 elif section == "Jogadores":
     players_view.render()
+elif section == "Relatórios":
+    reports_view.render()
 else:
     st.info("Secção prevista para uma fase seguinte.")
