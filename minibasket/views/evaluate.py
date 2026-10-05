@@ -6,9 +6,9 @@ import streamlit as st
 
 from minibasket import calc
 from minibasket import competencies as comp
-from minibasket import charts, db, evaluations, service
+from minibasket import access, charts, db, service
 from minibasket.db import CATEGORIES, MOMENTS
-from minibasket.views.common import is_dark
+from minibasket.views.common import current_user, is_dark
 
 NOT_RATED = 0   # opção «—» (não avaliada)
 
@@ -24,14 +24,15 @@ def render() -> None:
                + " — escala pedagógica, sem normas nem percentis.")
 
     cat = st.radio("Escalão", CATEGORIES, horizontal=True, key="eval_cat")
-    players = service.search_players(category=cat)
+    user = current_user()
+    players = access.search_players(user, category=cat)
     if not players:
         st.info("Sem jogadores neste escalão. Crie-os na secção «Jogadores».")
         return
     by_id = {p["id"]: p for p in players}
     pid = st.selectbox("Jogador", list(by_id), format_func=lambda i: by_id[i]["name"], key="eval_player")
     p = by_id[pid]
-    history = evaluations.list_evaluations(pid)
+    history = access.list_evaluations(user, pid)
     last = history[-1] if history else None
 
     # Contexto pedagógico: o que ficou definido na avaliação anterior.
@@ -60,9 +61,8 @@ def render() -> None:
     ev_date = c3.date_input("Data da avaliação (pode ser personalizada)", key=f"dt_{ctx}",
                             value=date.fromisoformat(base["evaluation_date"]) if base else date.today(),
                             max_value=date.today(), format="DD/MM/YYYY")
-    coach_name = st.text_input("Treinador", key=f"coach_{ctx}",
-                               value=(base or last or {}).get("coach") or "",
-                               help="Nome do treinador que realizou a avaliação.")
+    st.text_input("Treinador (quem está a avaliar)", user["display_name"], disabled=True, key=f"coach_{ctx}",
+                  help="A avaliação fica registada em nome da conta com sessão iniciada.")
 
     st.markdown("### Competências")
     scores, notes = {}, {}
@@ -97,12 +97,11 @@ def render() -> None:
 
     if st.button("GUARDAR AVALIAÇÃO", type="primary", key=f"save_{ctx}"):
         try:
-            coach_id = evaluations.get_or_create_coach(coach_name) if coach_name.strip() else None
             if base:
-                evaluations.correct_evaluation(base["id"], ev_date, moment, scores, notes, coach_id, general, objectives,
+                access.correct_evaluation(user, base["id"], ev_date, moment, scores, notes, general, objectives,
                                                parent_message=parent_msg)
             else:
-                evaluations.create_evaluation(pid, ev_date, moment, scores, notes, coach_id, general, objectives,
+                access.create_evaluation(user, pid, ev_date, moment, scores, notes, general, objectives,
                                               parent_message=parent_msg)
             st.success(f"Avaliação guardada. Média global: {calc.fmt(avg)} / {max(levels)}.")
         except service.ValidationError as e:

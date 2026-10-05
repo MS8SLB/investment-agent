@@ -8,6 +8,9 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import calc, db, evaluations as ev, reports, service
 from minibasket import competencies as comp
@@ -196,7 +199,7 @@ def test_ui_reports(tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "ui.db"))
     club = service.create_club("C")
     t = service.create_team(club, "S10", "Sub-10", "2024/2025", is_demo=True)
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Relatórios").run()
     at.radio(key="rep_cat").set_value("Sub-10").run()
     at.radio(key="rep_t_cat").set_value("Sub-10").run()

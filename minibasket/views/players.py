@@ -4,8 +4,9 @@ from datetime import date
 
 import streamlit as st
 
-from minibasket import service
+from minibasket import access, service
 from minibasket.db import CATEGORIES
+from minibasket.views.common import current_user
 
 SEX_LABELS = {"": "—", "M": "Masculino", "F": "Feminino"}
 
@@ -34,7 +35,7 @@ def _create_form(teams) -> None:
             if st.form_submit_button("Criar jogador"):
                 try:
                     path = service.save_photo(photo.getvalue(), photo.name) if photo else None
-                    pid = service.create_player(name, team["id"], birth, sex, jersey, joined, notes, path)
+                    pid = access.create_player(current_user(), name, team["id"], birth, sex, jersey, joined, notes, path)
                     st.session_state["selected_player"] = pid
                     st.rerun()
                 except service.ValidationError as e:
@@ -42,7 +43,7 @@ def _create_form(teams) -> None:
 
 
 def _profile(pid: int, teams) -> None:
-    p = service.get_player(pid)
+    p = access.get_player(current_user(), pid)
     if not p:
         st.warning("Jogador inexistente.")
         return
@@ -75,7 +76,7 @@ def _profile(pid: int, teams) -> None:
             if st.form_submit_button("Guardar"):
                 try:
                     path = service.save_photo(photo.getvalue(), photo.name) if photo else None
-                    service.update_player(pid, name, birth, sex, notes, path, jersey)
+                    access.update_player(current_user(), pid, name, birth, sex, notes, path, jersey)
                     st.rerun()
                 except service.ValidationError as e:
                     st.error(str(e))
@@ -93,7 +94,7 @@ def _profile(pid: int, teams) -> None:
                 jersey = st.number_input("Nº da camisola", 0, 99, value=None, step=1)
                 if st.form_submit_button("Mudar"):
                     try:
-                        service.change_team(pid, team["id"], on, jersey)
+                        access.change_team(current_user(), pid, team["id"], on, jersey)
                         st.rerun()
                     except service.ValidationError as e:
                         st.error(str(e))
@@ -106,7 +107,8 @@ def _profile(pid: int, teams) -> None:
 
 
 def render() -> None:
-    teams = service.list_teams()
+    user = current_user()
+    teams = access.list_teams(user)
     _create_form(teams)
 
     c1, c2, c3 = st.columns([2, 1, 2])
@@ -115,7 +117,7 @@ def render() -> None:
     pool = [t for t in teams if cat == "Todos" or t["category"] == cat]
     team = c3.selectbox("Equipa", [None] + pool,
                         format_func=lambda t: "Todas" if t is None else f"{t['name']} ({t['category']}, {t['season']})")
-    players = service.search_players(text, None if cat == "Todos" else cat, team["id"] if team else None)
+    players = access.search_players(user, text, None if cat == "Todos" else cat, team["id"] if team else None)
 
     if not players:
         st.info("Nenhum jogador encontrado.")

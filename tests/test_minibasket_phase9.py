@@ -8,6 +8,9 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import db, evaluations as ev, reports, service
 from minibasket import competencies as comp
@@ -194,7 +197,7 @@ def test_ui_parent_tab_and_message_field(tmp_path, monkeypatch):
     ev.create_evaluation(pid, "2024-09-15", "Avaliação Inicial", flat(2))
     ev.create_evaluation(pid, "2024-12-15", "2.º Período", flat(3, footwork=2), general_notes="INTERNA",
                          parent_message="Muito empenho!")
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Relatórios").run()
     at.radio(key="rep_p_cat").set_value("Sub-10").run()
     assert not at.exception

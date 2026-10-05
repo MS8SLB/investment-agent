@@ -5,10 +5,9 @@ from fractions import Fraction
 import pandas as pd
 import streamlit as st
 
-from minibasket import calc, charts, db, service, teamstats
-from minibasket import competencies as comp
+from minibasket import access, calc, charts, db, teamstats
 from minibasket.db import CATEGORIES
-from minibasket.views.common import fmt_date, is_dark
+from minibasket.views.common import current_user, fmt_date, is_dark
 
 
 def _mean(xs):
@@ -18,15 +17,16 @@ def _mean(xs):
 def render() -> None:
     scale = db.active_scale()
     top = max(v for v, _ in scale["levels"])
-    all_teams = service.list_teams()
+    user = current_user()
+    all_teams = access.list_teams(user)
     if not all_teams:
-        st.info("Ainda não há equipas. Comece por criar um clube e as equipas na secção «Equipas».")
+        st.info("Ainda não há equipas associadas à sua conta. Crie-as na secção «Equipas» ou peça ao administrador para as atribuir.")
         _cycle()
         return
     seasons = sorted({t["season"] for t in all_teams}, reverse=True)
     season = st.selectbox("Época", seasons, key="dash_season")
     teams = [t for t in all_teams if t["season"] == season]
-    ov = {t["id"]: teamstats.overview(t["id"]) for t in teams}
+    ov = {t["id"]: access.team_overview(user, t["id"]) for t in teams}
 
     n_eval = sum(o["n_evaluations"] for o in ov.values())
     last = max((o["last_date"] for o in ov.values() if o["last_date"]), default=None)
@@ -64,7 +64,7 @@ def render() -> None:
     st.markdown("#### Competências e evolução")
     team = st.selectbox("Equipa", teams, key="dash_team",
                         format_func=lambda t: f"{t['name']} ({t['category']})")
-    line = teamstats.timeline(team["id"])
+    line = access.team_timeline(user, team["id"])
     if not line:
         st.info("Esta equipa ainda não tem avaliações.")
     else:

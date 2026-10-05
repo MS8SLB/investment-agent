@@ -7,6 +7,9 @@ from datetime import date, timedelta
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import calc
 from minibasket import competencies as comp
@@ -172,20 +175,19 @@ def test_ui_evaluation_flow(tmp_path, monkeypatch):
     team = service.create_team(club, "S8", "Sub-8", "2026/2027")
     pid = service.create_player("Maria", team, joined_on="2024-09-01")
 
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Avaliar").run()
     assert not at.exception
     ctx = f"{pid}_new"
     for k, v in EXAMPLE.items():
         at.radio(key=f"s_{k}_{ctx}").set_value(v)
-    at.text_input(key=f"coach_{ctx}").set_value("Ana")
     at.run()
     assert not at.exception
     assert any(m.label == "MÉDIA GLOBAL" and m.value.startswith("3,33") for m in at.metric)
     at.button(key=f"save_{ctx}").click().run()
     assert not at.exception and any("3,33" in s.value for s in at.success)
     saved = ev.list_evaluations(pid)
-    assert len(saved) == 1 and saved[0]["scores"] == EXAMPLE and saved[0]["coach"] == "Ana"
+    assert len(saved) == 1 and saved[0]["scores"] == EXAMPLE and saved[0]["coach"] == "Admin UI"        # o avaliador é a conta autenticada
 
     # incompleta: aviso visível e média só das avaliadas
     at.radio(key=f"s_shooting_{ctx}").set_value(0).run()

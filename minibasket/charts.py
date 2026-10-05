@@ -7,7 +7,7 @@ atual tem preenchimento. A escala do radar vai de 0 ao máximo da escala ativa.
 
 from __future__ import annotations
 
-from typing import Mapping, Optional, Sequence
+from typing import Mapping, Sequence
 
 import plotly.graph_objects as go
 

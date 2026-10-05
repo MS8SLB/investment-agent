@@ -89,7 +89,7 @@ def create_evaluation(player_id: int, evaluation_date, moment: str, scores: Mapp
         team = _team_at(c, player_id, on)
         if not team:
             raise ValidationError("O jogador não tem equipa; associe-o a uma equipa antes de avaliar.")
-        if coach_id and not c.execute("SELECT 1 FROM users WHERE id=? AND role='coach'", (coach_id,)).fetchone():
+        if coach_id and not c.execute("SELECT 1 FROM users WHERE id=? AND role IN ('coach','admin')", (coach_id,)).fetchone():
             raise ValidationError("Treinador inexistente.")
         if supersedes_id is not None:
             old = c.execute("SELECT player_id FROM evaluations WHERE id=?", (supersedes_id,)).fetchone()

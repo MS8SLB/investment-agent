@@ -14,7 +14,6 @@ from typing import Optional
 
 from . import calc
 from . import competencies as comp
-from . import evaluations as ev
 from .db import connect, init_db
 
 # Abaixo deste nº de jogadores avaliados não se compara um jogador com a equipa

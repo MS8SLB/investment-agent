@@ -3,8 +3,8 @@
 import pandas as pd
 import streamlit as st
 
-from minibasket import calc, charts, db, evaluations, reports
-from minibasket.views.common import fmt_date, is_dark, pick_player
+from minibasket import access, calc, charts, db
+from minibasket.views.common import current_user, fmt_date, is_dark, pick_player
 from minibasket.views.team_evolution import pick_team
 
 ARROW = {1: "↑", 0: "=", -1: "↓"}
@@ -173,7 +173,7 @@ def render() -> None:
     with t_ind:
         p = pick_player("rep")
         if p:
-            history = evaluations.list_evaluations(p["id"])
+            history = access.list_evaluations(current_user(), p["id"])
             if not history:
                 st.info("Este jogador ainda não tem avaliações.")
             else:
@@ -181,21 +181,21 @@ def render() -> None:
                 eid = st.selectbox("Avaliação", list(by_id)[::-1], key="rep_eval",
                                    format_func=lambda i: f"{fmt_date(by_id[i]['evaluation_date'])} · {by_id[i]['moment']}"
                                                           f" · média {calc.fmt(by_id[i]['average'])}")
-                render_individual(reports.individual_report(eid))
+                render_individual(access.individual_report(current_user(), eid))
     with t_team:
         team = pick_team("rep_t")
         if team:
-            render_team(reports.team_report(team["id"]))
+            render_team(access.team_report(current_user(), team["id"]))
     with t_parent:
         st.caption("Pré-visualização do que o encarregado de educação vê: só o próprio jogador, sem comparações com a "
                    "equipa e sem as notas internas do treinador.")
         p = pick_player("rep_p")
         if p:
-            history = evaluations.list_evaluations(p["id"])
+            history = access.list_evaluations(current_user(), p["id"])
             if not history:
                 st.info("Este jogador ainda não tem avaliações.")
             else:
                 by_id = {e["id"]: e for e in history}
                 eid = st.selectbox("Avaliação", list(by_id)[::-1], key="rep_p_eval",
                                    format_func=lambda i: f"{fmt_date(by_id[i]['evaluation_date'])} · {by_id[i]['moment']}")
-                render_parent(reports.parent_report(eid))
+                render_parent(access.parent_report(current_user(), eid))

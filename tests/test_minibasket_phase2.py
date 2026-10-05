@@ -7,6 +7,9 @@ from datetime import date, timedelta
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import db, service
 from minibasket.service import ValidationError
@@ -152,8 +155,7 @@ def test_save_photo(tmp_path, monkeypatch):
 def test_ui_flow(tmp_path, monkeypatch):
     from streamlit.testing.v1 import AppTest
     monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "ui.db"))
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py"))
-    at.run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Equipas").run()
     assert not at.exception
     at.text_input[0].set_value("Clube Teste")

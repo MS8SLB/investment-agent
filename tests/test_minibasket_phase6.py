@@ -6,6 +6,9 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import calc, charts, db, evaluations as ev, service, teamstats
 from minibasket import competencies as comp
@@ -144,7 +147,7 @@ def test_ui_charts_and_team_comparison(tmp_path, monkeypatch):
         ev.create_evaluation(pid, "2024-09-15", "Avaliação Inicial", sc(2, 3, 2, 3, 2, 2, 3, 2, 3))
         ev.create_evaluation(pid, "2024-12-15", "2.º Período", sc(4, 4, 3, 4, 2, 3, 4, 3, 4))
         ids.append(pid)
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Evolução do Jogador").run()
     at.radio(key="evo_cat").set_value("Sub-10").run()
     assert not at.exception
@@ -166,7 +169,7 @@ def test_ui_team_comparison_hidden_with_few_players(tmp_path, monkeypatch):
     team = service.create_team(club, "S10", "Sub-10", "2024/2025")
     pid = service.create_player("João", team, joined_on="2024-01-01")
     ev.create_evaluation(pid, "2024-09-15", "Avaliação Inicial", flat(3))
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Evolução do Jogador").run()
     at.radio(key="evo_cat").set_value("Sub-10").run()
     assert not at.exception and any("pelo menos 3" in i.value for i in at.info)

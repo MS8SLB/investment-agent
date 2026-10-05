@@ -6,6 +6,9 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import calc, charts
 from minibasket import competencies as comp
@@ -100,7 +103,7 @@ def ui(tmp_path, monkeypatch):
     club = service.create_club("C")
     team = service.create_team(club, "S10", "Sub-10", "2026/2027")
     pid = service.create_player("João", team, joined_on="2024-09-01")
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Evolução do Jogador").run()
     at.radio(key="evo_cat").set_value("Sub-10").run()
     return at, pid
@@ -137,6 +140,6 @@ def test_ui_evaluate_page_shows_live_radar(tmp_path, monkeypatch):
     club = service.create_club("C")
     team = service.create_team(club, "S8", "Sub-8", "2026/2027")
     service.create_player("Ana", team, joined_on="2024-09-01")
-    at = AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    at = logged_in_app()
     at.sidebar.radio[0].set_value("Avaliar").run()
     assert not at.exception and len(at.get("plotly_chart")) == 1

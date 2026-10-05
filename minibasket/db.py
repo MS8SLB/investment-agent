@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS users (
     club_id       INTEGER REFERENCES clubs(id),
     active        INTEGER NOT NULL DEFAULT 1,
     is_demo       INTEGER NOT NULL DEFAULT 0,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,   -- tentativas de início de sessão falhadas seguidas
+    locked_until  REAL,                           -- epoch; conta bloqueada até esta hora
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -156,6 +158,12 @@ def init_db(path: str | None = None) -> None:
     """Cria o esquema e semeia competências e escala por omissão (idempotente)."""
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        # migração: bloqueio por tentativas falhadas (Fase 10)
+        ucols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+        if "failed_attempts" not in ucols:
+            conn.execute("ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0")
+        if "locked_until" not in ucols:
+            conn.execute("ALTER TABLE users ADD COLUMN locked_until REAL")
         # migração: BDs criadas antes de existir a mensagem para os pais
         if "parent_message" not in {r["name"] for r in conn.execute("PRAGMA table_info(evaluations)")}:
             conn.execute("ALTER TABLE evaluations ADD COLUMN parent_message TEXT")

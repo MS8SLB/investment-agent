@@ -3,15 +3,15 @@
 import pandas as pd
 import streamlit as st
 
-from minibasket import calc, charts, db, service, teamstats
+from minibasket import access, calc, charts, db, teamstats
 from minibasket import competencies as comp
 from minibasket.db import CATEGORIES
-from minibasket.views.common import fmt_date, is_dark
+from minibasket.views.common import current_user, fmt_date, is_dark
 
 
 def pick_team(prefix: str):
     cat = st.radio("Escalão", CATEGORIES, horizontal=True, key=f"{prefix}_cat")
-    teams = service.list_teams(category=cat)
+    teams = access.list_teams(current_user(), category=cat)
     if not teams:
         st.info("Sem equipas neste escalão. Crie-as na secção «Equipas».")
         return None
@@ -37,7 +37,7 @@ def stats_section(team: dict, snap: dict) -> None:
 
 def evolution_section(team: dict, line: list[dict]) -> None:
     scale = db.active_scale()
-    levels, top = dict(scale["levels"]), max(v for v, _ in scale["levels"])
+    top = max(v for v, _ in scale["levels"])
     pts = [{"date": p["date"], "moment": f"{p['n_evaluated']} jogadores avaliados", "value": p["average"]} for p in line]
     st.caption("Média global da equipa em cada data de avaliação. Pode variar também porque mudam os jogadores "
                "avaliados; a comparação abaixo usa só jogadores avaliados nas duas ocasiões.")
@@ -74,7 +74,7 @@ def render() -> None:
     team = pick_team("tevo")
     if not team:
         return
-    line = teamstats.timeline(team["id"])
+    line = access.team_timeline(current_user(), team["id"])
     st.subheader(f"{team['name']} — {team['category']} · {team['club']} · {team['season']}"
                  + (" · Dados de teste" if team["is_demo"] else ""))
     if not line:

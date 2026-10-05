@@ -3,9 +3,9 @@
 import pandas as pd
 import streamlit as st
 
-from minibasket import calc, charts, db, evaluations, evolution, teamstats
+from minibasket import access, calc, charts, db, evolution, teamstats
 from minibasket import competencies as comp
-from minibasket.views.common import fmt_date, is_dark, pick_player
+from minibasket.views.common import current_user, fmt_date, is_dark, pick_player
 
 ARROW = {1: "↑", 0: "=", -1: "↓"}
 
@@ -114,7 +114,11 @@ def team_section(history: list[dict]) -> None:
     eid = st.selectbox("Avaliação do jogador", ids, index=len(ids) - 1, key="vs_eval",
                        format_func=lambda i: _label(by_id[i]))
     e = by_id[eid]
-    snap = teamstats.snapshot(e["team_id"], e["evaluation_date"])
+    try:
+        snap = access.team_snapshot(current_user(), e["team_id"], e["evaluation_date"])
+    except access.PermissionDenied:
+        st.info("Esta avaliação foi feita numa equipa que não acompanha; a comparação com a equipa não está disponível.")
+        return
     if not teamstats.can_compare(snap):
         st.info(f"A comparação com a equipa só aparece quando houver pelo menos {teamstats.MIN_TEAM_FOR_COMPARISON} "
                 f"jogadores avaliados (agora: {len(snap['evaluated'])}).")
@@ -170,7 +174,7 @@ def history_section(pid: int, history: list[dict]) -> None:
                 st.markdown(f"**Observações do treinador:** {e['general_notes']}")
             if e["next_objectives"]:
                 st.markdown(f"**Objetivos para o período seguinte:** {e['next_objectives']}")
-    versions = [e for e in evaluations.list_evaluations(pid, include_superseded=True) if e["superseded_by"]]
+    versions = [e for e in access.list_evaluations(current_user(), pid, include_superseded=True) if e["superseded_by"]]
     if versions:
         with st.expander(f"Versões anteriores corrigidas ({len(versions)})"):
             st.caption("Ficam guardadas para auditoria e não entram na evolução.")
@@ -183,7 +187,7 @@ def render() -> None:
     p = pick_player("evo")
     if not p:
         return
-    history = evaluations.list_evaluations(p["id"])
+    history = access.list_evaluations(current_user(), p["id"])
     st.subheader(f"{p['name']} — {p['category']} · {p['team']}")
     if not history:
         st.info("Este jogador ainda não tem avaliações. Registe a primeira na secção «Avaliar».")

@@ -6,6 +6,9 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(__file__))
+
+from ui_helper import logged_in_app  # noqa: E402
 
 from minibasket import calc, charts, db, evaluations as ev, service, teamstats
 from minibasket import competencies as comp
@@ -152,7 +155,7 @@ def test_bar_figure_empty_team():
 # ── UI ──────────────────────────────────────────────────────────────────────
 def app_at():
     from streamlit.testing.v1 import AppTest
-    return AppTest.from_file(os.path.join(os.path.dirname(__file__), "..", "minibasket", "app.py")).run(timeout=30)
+    return logged_in_app()
 
 
 def test_ui_dashboard_empty_and_populated(tmp_path, monkeypatch):
