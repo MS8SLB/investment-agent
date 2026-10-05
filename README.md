@@ -122,3 +122,24 @@ Based on my analysis, I've initiated a position in Apple (AAPL) at $228.50/share
 | `ANTHROPIC_API_KEY` | required | Your Anthropic API key |
 | `STARTING_CASH` | `100000` | Virtual starting balance |
 | `CLAUDE_MODEL` | `claude-opus-4-6` | Claude model to use |
+
+## Avaliação de Minibasquete (`basketball_eval/`)
+
+Módulo independente do agente de investimento, em Português de Portugal (Streamlit + SQLite, `data/basketball_eval.db`).
+
+```bash
+streamlit run basketball_eval/home.py     # navegação: Avaliação → Técnica Individual → Lançamento
+streamlit run basketball_eval/app.py      # (opcional) só o teste quantitativo de Movimentos Defensivos
+python -m pytest tests/test_qualitative_shooting.py tests/test_qualitative_ui.py tests/test_defensive_movement.py
+```
+
+**Avaliação qualitativa — Lançamento** (escala 1 Inicial · 2 Em desenvolvimento · 3 Adequado · 4 Bom · 5 Muito bom):
+5 dimensões (Preparação, Execução, Finalização, Consistência, Aplicação no jogo), critérios avaliáveis individualmente,
+média técnica automática, radar, evolução, comparação entre avaliações, pontos fortes/áreas de melhoria (derivados só das
+pontuações), perfil do jogador, histórico (apagar só com confirmação) e relatório individual (HTML imprimível).
+Sem rankings, percentis ou normas: é um instrumento de acompanhamento individual.
+
+Para acrescentar uma competência (Drible, Passe…): definir uma `Competency` em `basketball_eval/competencies.py` e
+uma página em `basketball_eval/ui/`, registada em `home.py`. A base de dados (`evaluations` + `evaluation_items`) e o
+cálculo são genéricos.
+
