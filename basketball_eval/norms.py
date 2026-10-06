@@ -76,6 +76,33 @@ def reference_position(time_s: float, age: int, sex: Optional[str] = None,
             "source": top["source"], "age": age}
 
 
+def percentile_score(time_s: float, age: int, sex: Optional[str] = None,
+                     db_path: str | None = None) -> Optional[dict]:
+    """Nota 0–100 por interpolação linear entre os limites da tabela (menor tempo = melhor).
+
+    É uma ESTIMATIVA: a tabela só dá os percentis 10…90. Fora desse intervalo o valor fica
+    em 90 (``bound='above'``, tempo mais rápido que o limite P90) ou 10 (``bound='below'``,
+    mais lento que o limite «<10»); nada é extrapolado. None se não houver norma.
+    """
+    init_db(db_path)
+    with connect(db_path) as c:
+        rows = c.execute(
+            """SELECT percentile, MIN(threshold) AS threshold FROM reference_norms
+               WHERE test_key=? AND age=? AND (sex IS NULL OR sex=?) GROUP BY percentile""",
+            (TEST_KEY, age, sex)).fetchall()
+    pts = sorted((r["threshold"], r["percentile"]) for r in rows)   # tempo crescente, percentil decrescente
+    if not pts:
+        return None
+    if time_s <= pts[0][0]:
+        return {"score": pts[0][1], "bound": "above", "age": age}
+    if time_s >= pts[-1][0]:
+        return {"score": pts[-1][1], "bound": "below" if time_s > pts[-1][0] else None, "age": age}
+    for (t0, p0), (t1, p1) in zip(pts, pts[1:]):
+        if t0 <= time_s <= t1:
+            frac = 0.0 if t1 == t0 else (time_s - t0) / (t1 - t0)
+            return {"score": p0 + frac * (p1 - p0), "bound": None, "age": age}
+
+
 def main() -> None:
     n = load_matulaitis_2019()
     print(f"{n} valores de referência carregados ({SOURCE}).")
