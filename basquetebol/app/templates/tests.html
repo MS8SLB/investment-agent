@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}Testes{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Baterias de testes</h1><p class="lead" style="margin:0">Protocolos do documento ENB. Pode acrescentar novos testes.</p></div>
+<div class="actions"><a class="btn" href="/testes/novo">+ Novo teste</a><a class="btn sec" href="/escaloes">Testes por escalão</a><a class="btn sec" href="/referencias">Tabelas de referência</a></div></div>
+<div class="tw"><table><thead><tr><th>Teste</th><th>Unidade</th><th>Sentido</th><th class="n">Tentativas</th><th>Origem</th><th></th></tr></thead><tbody>
+{% for t in tests %}<tr style="{{ 'opacity:.55' if not t.active }}"><td><a href="/testes/{{ t.id }}"><b>{{ t.numeral }}{{ '. ' if t.numeral }}{{ t.name }}</b></a><br><span class="muted">{{ t.capacity }}</span></td><td>{{ t.unit }}</td><td>{{ t.better_label }}</td>
+<td class="n">{{ t.n_attempts }}{% if not t.attempts_confirmed %} <span class="badge warn">a confirmar</span>{% endif %}</td><td>{% if t.is_enb %}<span class="badge">ENB</span> {{ t.source if t.source!='Documento ENB' else '' }}{% else %}<span class="badge warn">Personalizado</span>{% endif %}</td>
+<td><form method="post" action="/testes/{{ t.id }}/ativo"><button class="btn sm sec">{{ 'Desativar' if t.active else 'Ativar' }}</button></form></td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

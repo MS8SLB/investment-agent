@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% block title %}{{ a.name }}{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>{{ a.name }}</h1>
+<p class="lead" style="margin:0"><span class="badge">{{ a.category.name }}</span> {{ 'Masculino' if a.sex=='M' else 'Feminino' }} · {{ age }} anos (nasc. {{ a.birth_date|dpt }}) · {{ a.team.name if a.team else 'sem equipa' }}{% if a.club %} · {{ a.club }}{% endif %}</p></div>
+<div class="actions"><a class="btn" href="/avaliacoes/nova?athlete_id={{ a.id }}">+ Nova avaliação</a>
+<a class="btn sec" href="/relatorios/atleta/{{ a.id }}.pdf" target="_blank">Relatório PDF</a>
+<a class="btn sec" href="/atletas/{{ a.id }}/editar">Editar</a>
+<form method="post" action="/atletas/{{ a.id }}/apagar" onsubmit="return confirm('Eliminar o atleta e TODO o histórico de avaliações? Não pode ser desfeito.')"><button class="btn danger">Eliminar</button></form></div></div>
+{% if a.notes %}<div class="card" style="margin-bottom:14px">{{ a.notes }}</div>{% endif %}
+
+{% if not blocks %}<div class="card tint">Este atleta ainda não tem resultados. <a href="/avaliacoes/nova?athlete_id={{ a.id }}">Registar a primeira avaliação</a>.</div>{% endif %}
+{% for b in blocks %}{% set t = b.test %}
+<h2>{{ t.numeral }}. {{ t.name }} <span class="badge">{{ t.unit }} · {{ t.better_label }}</span></h2>
+<div class="grid g2" style="align-items:start">
+  <div class="card"><div class="chart sm"><canvas id="c{{ t.id }}"></canvas></div>
+   {% if b.history|length>1 %}<p style="margin:10px 0 0">Evolução total: <b class="{{ 'up' if b.total_imp else ('down' if b.total_imp is false) }}">{{ b.total|signed(t.decimals) }} {{ t.unit }}{{ ' (melhoria)' if b.total_imp else (' (agravamento)' if b.total_imp is false) }}</b></p>
+   {% else %}<p class="muted" style="margin:10px 0 0">Só uma avaliação: ainda não há evolução.</p>{% endif %}</div>
+  <div><div class="tw"><table><thead><tr><th>Data</th><th>Tentativas</th><th class="n">Melhor</th><th class="n">Δ</th>{% if b.has_ref %}<th>Classif.</th>{% endif %}</tr></thead><tbody>
+  {% for h in b.history|reverse %}<tr><td><a href="/avaliacoes/{{ h.r.evaluation_id }}">{{ h.r.evaluation.date|dpt }}</a></td>
+   <td>{% for x in h.r.attempts %}{{ x.value|num(t.decimals) }}{{ '; ' if not loop.last }}{% endfor %}</td><td class="n"><b>{{ h.r.best_value|num(t.decimals) }}</b></td>
+   <td class="n {{ 'up' if h.improved else ('down' if h.improved is false) }}">{{ h.delta|signed(t.decimals) if h.delta is not none else '—' }}</td>{% if b.has_ref %}<td>{{ h.cls or '—' }}</td>{% endif %}</tr>
+   {% if h.r.notes %}<tr><td></td><td colspan="4" class="muted">Obs.: {{ h.r.notes }}</td></tr>{% endif %}{% endfor %}</tbody></table></div>
+  {% if not b.has_ref %}<p class="muted" style="font-size:13.5px">Sem tabela de referência validada para este teste/escalão — resultados absolutos.</p>{% endif %}</div>
+</div>{% endfor %}
+
+<h2>Histórico de avaliações</h2>
+{% if evaluations %}<div class="tw"><table><thead><tr><th>Data</th><th>Escalão</th><th>Testes</th><th>Treinador</th><th></th></tr></thead><tbody>
+{% for e in evaluations %}<tr><td>{{ e.date|dpt }}</td><td>{{ e.category.name }}</td><td>{% for r in e.results %}{{ r.test.name.split('(')[0].strip() }}{{ ', ' if not loop.last }}{% endfor %}</td><td>{{ e.evaluator or '—' }}</td><td><a class="btn sm sec" href="/avaliacoes/{{ e.id }}">Abrir</a></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="muted">Sem avaliações.</p>{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+{% for b in blocks %}mkChart('c{{ b.test.id }}','line',{{ b.chart.labels|tojson }},[{label:'Melhor resultado',data:{{ b.chart.vals|tojson }},borderColor:ORANGE,backgroundColor:ORANGE,tension:.2,pointRadius:5}],{dec:{{ b.test.decimals }},unit:'{{ b.test.unit }}',ytitle:'{{ b.test.unit }}'});
+{% endfor %}</script>{% endblock %}

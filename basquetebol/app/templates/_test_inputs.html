@@ -1,0 +1,8 @@
+{% set ex = existing.get(t.id, {}) %}{% set at = ex.get('attempts', {}) %}
+<div class="body">
+ <p class="muted" style="margin:0 0 8px;font-size:14px">{{ t.attempts_rule }} · Unidade: <b>{{ t.unit }}</b> · {{ t.better_label }}{% if t.max_value %} · máx. {{ '%g'|format(t.max_value) }}{% endif %}</p>
+ {% if not t.attempts_confirmed %}<div class="warnbox">⚠ Número de tentativas <b>não especificado</b> no documento ENB — a confirmar.</div>{% endif %}
+ <div class="att">{% for n in range(1, t.n_attempts+1) %}{% set k = 't%d_a%d'|format(t.id,n) %}
+  <div><label>Tentativa {{ n }}</label><input inputmode="decimal" name="{{ k }}" autocomplete="off" value="{{ form.get(k,'') if form else (at[n]|num(t.decimals) if n in at else '') }}"></div>{% endfor %}</div>
+ <div style="margin-top:10px"><label>Observações</label><input name="t{{ t.id }}_obs" value="{{ form.get('t%d_obs'|format(t.id),'') if form else ex.get('notes','') }}"></div>
+</div>

@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Nova avaliação{% endblock %}
+{% block content %}
+<h1>Nova avaliação</h1><p class="lead">Escolha o atleta. Para registar uma equipa inteira num teste use o <a href="/lote">registo por equipa</a>.</p>
+{% if athletes %}<form method="get" class="card form"><div class="full"><label>Atleta</label>
+<select name="athlete_id" required><option value="">—</option>{% for a in athletes %}<option value="{{ a.id }}">{{ a.name }} · {{ a.category.name }}{% if a.team %} · {{ a.team.name }}{% endif %}</option>{% endfor %}</select></div>
+<div class="full"><button class="btn">Continuar</button></div></form>
+{% else %}<div class="card tint">Ainda não há atletas. <a href="/atletas/novo">Registar atleta</a>.</div>{% endif %}
+{% endblock %}

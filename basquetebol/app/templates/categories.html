@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Testes por escalão{% endblock %}
+{% block content %}
+<h1>Testes por escalão</h1><p class="lead">Marque os testes usados em cada escalão. O documento ENB refere os escalões Sub-10, Sub-12 e Sub-14; o Sub-8 não tem protocolo no documento.</p>
+<form method="post"><div class="tw"><table class="matrix"><thead><tr><th>Teste</th>{% for c in cats %}<th>{{ c.name }}{% if not c.has_enb_protocol %}<br><small>sem protocolo ENB</small>{% endif %}</th>{% endfor %}</tr></thead><tbody>
+{% for t in tests %}<tr><td>{{ t.numeral }}. {{ t.name.split('(')[0] }}</td>{% for c in cats %}<td><input type="checkbox" name="sel" value="{{ c.id }}:{{ t.id }}" {{ 'checked' if (c.id,t.id) in on }}><br><small class="muted">{{ 'ref.' if ref[(c.id,t.id)] else 'sem ref.' }}</small></td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+<p class="muted" style="font-size:13.5px">«sem ref.» = não há tabelas de referência validadas; os resultados são apresentados em valores absolutos.</p>
+<button class="btn">Guardar seleção</button></form>
+{% endblock %}

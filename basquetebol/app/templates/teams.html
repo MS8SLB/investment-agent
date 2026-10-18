@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Equipas{% endblock %}
+{% block content %}
+<h1>Equipas</h1><p class="lead">Crie as equipas para as associar aos atletas e filtrar análises.</p>
+<form method="post" class="card form" style="margin-bottom:18px">
+ <div><label>Nome da equipa *</label><input name="name" required placeholder="ex.: Sub-12 A"></div>
+ <div><label>Clube</label><input name="club"></div>
+ <div><label>Escalão</label><select name="category_id"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+ <div style="align-self:end"><button class="btn">Criar equipa</button></div></form>
+{% if teams %}<div class="tw"><table><thead><tr><th>Equipa</th><th>Clube</th><th>Escalão</th><th class="n">Atletas</th><th></th></tr></thead><tbody>
+{% for t in teams %}<tr><td><a href="/atletas?team_id={{ t.id }}"><b>{{ t.name }}</b></a></td><td>{{ t.club or '—' }}</td><td>{{ t.category.name if t.category else '—' }}</td><td class="n">{{ n.get(t.id,0) }}</td>
+<td><form method="post" action="/equipas/{{ t.id }}/apagar" onsubmit="return confirm('Eliminar a equipa? Os atletas ficam sem equipa.')"><button class="btn sm danger">Eliminar</button></form></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="card tint">Ainda não há equipas.</div>{% endif %}
+{% endblock %}

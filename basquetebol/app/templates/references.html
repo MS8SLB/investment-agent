@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}Tabelas de referência{% endblock %}
+{% block content %}
+<h1>Tabelas de referência</h1>
+<div class="warnbox">Nenhuma tabela de referência vem pré-carregada. A aplicação <b>não inventa</b> normas nem percentis. Quando tiver tabelas validadas, introduza-as aqui; só então os resultados serão classificados. O documento ENB inclui percentis do <i>T-Test</i> (12–20 anos), que não correspondem a nenhum dos 7 testes e por isso não foram carregados.</div>
+{% if tables %}<div class="tw" style="margin-bottom:18px"><table><thead><tr><th>Tabela</th><th>Teste</th><th>Escalão</th><th>Sexo</th><th>Fonte</th><th>Linhas</th><th></th></tr></thead><tbody>{% for t in tables %}<tr style="{{ 'opacity:.5' if not t.active }}"><td><b>{{ t.name }}</b></td><td>{{ t.test.name.split('(')[0] }}</td><td>{{ t.category.name if t.category else 'Todos' }}</td><td>{{ t.sex or 'Ambos' }}</td><td>{{ t.source }}</td><td>{% for r in t.rows %}{{ r.label }} [{{ r.min_value|num(2) if r.min_value is not none else '…' }} – {{ r.max_value|num(2) if r.max_value is not none else '…' }}]{{ '; ' if not loop.last }}{% endfor %}</td>
+<td class="actions"><form method="post" action="/referencias/{{ t.id }}/ativo"><button class="btn sm sec">{{ 'Desativar' if t.active else 'Ativar' }}</button></form><form method="post" action="/referencias/{{ t.id }}/apagar" onsubmit="return confirm('Eliminar?')"><button class="btn sm danger">Eliminar</button></form></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="card tint" style="margin-bottom:18px">Sem tabelas de referência: todos os resultados são apresentados em valores absolutos.</div>{% endif %}
+<h2>Adicionar tabela validada</h2>
+<form method="post" class="card form"><div><label>Nome *</label><input name="name" required></div><div><label>Fonte / validação *</label><input name="source" required></div>
+<div><label>Teste *</label><select name="test_id" required>{% for t in tests %}<option value="{{ t.id }}">{{ t.numeral }}. {{ t.name.split('(')[0] }}</option>{% endfor %}</select></div>
+<div><label>Escalão</label><select name="category_id"><option value="">Todos</option>{% for c in cats %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+<div><label>Sexo</label><select name="sex"><option value="">Ambos</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div>
+<div class="full"><label>Linhas (uma por linha: rótulo; mínimo; máximo) — intervalos inclusivos, deixe vazio para ilimitado</label><textarea name="rows" rows="5" placeholder="Percentil 50; 11,0; 12,0"></textarea></div>
+<div class="full"><button class="btn">Guardar tabela</button></div></form>
+{% endblock %}

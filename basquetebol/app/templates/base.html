@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Início{% endblock %} · Avaliação Quantitativa Técnica</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/chart.umd.js"></script>
+</head>
+<body>
+{% set p = request.url.path %}
+<header class="top"><div class="bar">
+  <a class="brand" href="/"><span class="mark">ENB</span><span>Avaliação Quantitativa Técnica<small>Basquetebol de Formação</small></span></a>
+  <input type="checkbox" id="nt"><label class="burger" for="nt" aria-label="Menu">☰</label>
+  <nav class="main">
+    <a href="/" class="{{ 'on' if p=='/' }}">Painel</a>
+    <a href="/atletas" class="{{ 'on' if p.startswith('/atletas') }}">Atletas</a>
+    <a href="/avaliacoes/nova" class="{{ 'on' if p.startswith('/avaliacoes/nova') }}">Nova avaliação</a>
+    <a href="/lote" class="{{ 'on' if p.startswith('/lote') }}">Registo por equipa</a>
+    <a href="/avaliacoes" class="{{ 'on' if p=='/avaliacoes' }}">Histórico</a>
+    <a href="/analise" class="{{ 'on' if p.startswith('/analise') }}">Análise</a>
+    <a href="/relatorios" class="{{ 'on' if p.startswith('/relatorios') }}">Relatórios</a>
+    <a href="/testes" class="{{ 'on' if p.startswith('/testes') or p.startswith('/escaloes') or p.startswith('/referencias') }}">Testes</a>
+  </nav>
+</div></header>
+<main>
+{% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<footer>Plataforma de Avaliação Quantitativa Técnica — Basquetebol de Formação · Autor e responsável metodológico: Mário Silva<br>
+Protocolos conforme o documento ENB «Avaliação Quantitativa». Sem tabelas de referência validadas, os resultados são apresentados em valores absolutos.</footer>
+<script>
+const NAVY='#0B1F3A',ORANGE='#E8600A',GREY='#7A8CA5';
+Chart.defaults.font.family='system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+function fmt(v,d){return v==null?'—':Number(v).toLocaleString('pt-PT',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function mkChart(id,type,labels,datasets,o){o=o||{};const d=o.dec??2;
+ const el=document.getElementById(id);if(!el)return;
+ new Chart(el,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:datasets.length>1},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.parsed.y,d)}${o.unit?' '+o.unit:''}`}}},
+  scales:{y:{beginAtZero:o.zero??false,title:{display:!!o.ytitle,text:o.ytitle||''},ticks:{precision:d==0?0:undefined,callback:v=>fmt(v,d>1?1:d)}},x:{title:{display:!!o.xtitle,text:o.xtitle||''}}}}});}
+</script>
+{% block scripts %}{% endblock %}
+</body></html>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Avaliação{% endblock %}
+{% block content %}
+<h1>{{ 'Editar avaliação' if ev else 'Nova avaliação' }}</h1>
+<p class="lead"><a href="/atletas/{{ athlete.id }}"><b>{{ athlete.name }}</b></a> · <span class="badge">{{ category.name }}</span></p>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+{% if category.has_enb_protocol==false and not main %}<div class="warnbox">O escalão <b>{{ category.name }}</b> não tem protocolo no documento ENB e ainda não tem testes selecionados. Pode escolher testes em «Outros testes» ou configurá-los em <a href="/escaloes">Testes por escalão</a>.</div>{% endif %}
+<form method="post" action="{{ '/avaliacoes/%d'|format(ev.id) if ev else '/avaliacoes/nova' }}">
+<input type="hidden" name="athlete_id" value="{{ athlete.id }}">
+<div class="card form" style="margin-bottom:16px">
+ <div><label>Data da avaliação *</label><input type="date" name="date" required max="{{ today().isoformat() }}" value="{{ form.get('date') if form else (ev.date.isoformat() if ev else today().isoformat()) }}"></div>
+ <div><label>Treinador / avaliador</label><input name="evaluator" value="{{ form.get('evaluator','') if form else (ev.evaluator if ev else '') }}"></div>
+ <div class="full"><label>Observações gerais</label><textarea name="notes" rows="2">{{ form.get('notes','') if form else (ev.notes if ev else '') }}</textarea></div></div>
+
+<h2>Testes do escalão</h2><p class="muted" style="margin-top:-6px">Preencha apenas os testes realizados. O melhor resultado é identificado automaticamente ({{ 'menor tempo / maior pontuação' }}).</p>
+{% for t in main %}<details class="tcard" {{ 'open' if loop.first or t.id in existing }}><summary>{{ t.numeral }}. {{ t.name }} <span class="badge">{{ t.unit }}</span></summary>{% include "_test_inputs.html" %}</details>{% endfor %}
+{% if not main %}<p class="muted">Sem testes selecionados para este escalão.</p>{% endif %}
+{% if others %}<h2>Outros testes</h2>{% for t in others %}<details class="tcard" {{ 'open' if t.id in existing }}><summary>{{ t.numeral }}. {{ t.name }} <span class="badge">{{ t.unit }}</span></summary>{% include "_test_inputs.html" %}</details>{% endfor %}{% endif %}
+<div class="actions" style="margin-top:16px"><button class="btn">Guardar avaliação</button><a class="btn sec" href="/atletas/{{ athlete.id }}">Cancelar</a></div></form>
+{% if ev %}<form method="post" action="/avaliacoes/{{ ev.id }}/apagar" style="margin-top:18px" onsubmit="return confirm('Eliminar esta avaliação e todas as tentativas?')"><button class="btn danger sm">Eliminar avaliação</button></form>{% endif %}
+{% endblock %}

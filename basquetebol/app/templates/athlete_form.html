@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block title %}{{ 'Editar atleta' if athlete else 'Novo atleta' }}{% endblock %}
+{% block content %}
+{% set f = form if form else ({'name':athlete.name,'birth_date':athlete.birth_date.isoformat(),'sex':athlete.sex,'club':athlete.club,'team_id':athlete.team_id|string if athlete.team_id else '','category_id':athlete.category_id|string,'notes':athlete.notes} if athlete else {}) %}
+<h1>{{ 'Editar atleta' if athlete else 'Novo atleta' }}</h1>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form method="post" class="card form">
+  <div class="full"><label>Nome *</label><input name="name" required value="{{ f.get('name','') }}"></div>
+  <div><label>Data de nascimento *</label><input type="date" name="birth_date" required max="{{ today().isoformat() }}" value="{{ f.get('birth_date','') }}"></div>
+  <div><label>Sexo *</label><select name="sex" required><option value="">—</option><option value="M" {{ 'selected' if f.get('sex')=='M' }}>Masculino</option><option value="F" {{ 'selected' if f.get('sex')=='F' }}>Feminino</option></select></div>
+  <div><label>Escalão *</label><select name="category_id" required><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if f.get('category_id')|string==c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div><label>Equipa</label><select name="team_id"><option value="">Sem equipa</option>{% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if f.get('team_id')|string==t.id|string }}>{{ t.name }}{% if t.club %} ({{ t.club }}){% endif %}</option>{% endfor %}</select></div>
+  <div class="full"><label>Clube</label><input name="club" list="clubs" value="{{ f.get('club','') }}" placeholder="Se vazio, usa o clube da equipa"><datalist id="clubs">{% for c in clubs %}<option value="{{ c }}">{% endfor %}</datalist></div>
+  <div class="full"><label>Notas</label><textarea name="notes" rows="3">{{ f.get('notes','') }}</textarea></div>
+  <div class="full actions"><button class="btn">Guardar</button><a class="btn sec" href="{{ '/atletas/%d'|format(athlete.id) if athlete else '/atletas' }}">Cancelar</a></div>
+</form>
+{% if not teams %}<p class="muted">Dica: crie primeiro as <a href="/equipas">equipas</a> para as poder associar aos atletas.</p>{% endif %}
+{% endblock %}
