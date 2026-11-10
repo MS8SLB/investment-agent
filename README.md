@@ -122,3 +122,23 @@ Based on my analysis, I've initiated a position in Apple (AAPL) at $228.50/share
 | `ANTHROPIC_API_KEY` | required | Your Anthropic API key |
 | `STARTING_CASH` | `100000` | Virtual starting balance |
 | `CLAUDE_MODEL` | `claude-opus-4-6` | Claude model to use |
+
+## Plataforma de Avaliação Física (estagiários) — `physical_eval/`
+
+Registo de dados físicos dos atletas (altura, peso, envergadura, salto horizontal, 20 m corrida, 20 m drible)
+com **percentis calculados automaticamente por idade/sexo**, a partir da ficha ENB
+(`Ficha_Avaliacao_Fisica_ENB_FORMULAS_REVISTAS.xlsx`; as mesmas regras das fórmulas da folha).
+
+```bash
+pip install -r requirements.txt
+streamlit run physical_eval/app.py
+```
+
+- **Registar avaliação**: o estagiário indica o seu nome (barra lateral), escolhe o atleta e introduz as medidas e as
+  tentativas (salto: 3, corrida/drible: 2; fica o melhor). Os percentis aparecem antes de guardar; é possível corrigir/apagar.
+- **Ficha do atleta**: histórico, percentis e gráfico de evolução. **Todos os registos**: tabela + exportação Excel/CSV.
+- Valores implausíveis (ex.: altura 1500 cm) são rejeitados; aceita vírgula ou ponto decimal.
+- Percentil vazio = sem referência para a idade/sexo (salto masculino só 13–15; drible só até 15; 12–15 provisório).
+- Opcional: `PHYSICAL_EVAL_PASSWORD` (palavra-passe partilhada) e `PHYSICAL_EVAL_DB` (caminho da base SQLite;
+  por omissão `data/physical_eval.db`, ignorada pelo git). Fazer cópias de segurança desse ficheiro.
+- Testes: `python -m pytest tests/test_physical_eval.py`
