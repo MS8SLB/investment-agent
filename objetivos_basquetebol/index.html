@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Objetivos Individuais · Basquetebol</title>
+<title>Objetivos Individuais do Jogador · Basquetebol</title>
 <style>
 :root{--off:#8fbfe8;--offd:#3b82c4;--def:#f2b83c;--defd:#c98a0a;--ink:#111;--bg:#eef0f3}
 *{box-sizing:border-box}
@@ -57,6 +57,11 @@ th:first-child,td:first-child{text-align:left}
 .tabs{display:flex;gap:8px;margin:16px 0 8px;flex-wrap:wrap}
 svg text{font-family:inherit}
 .note{font-size:12px;color:#555}
+.cycle{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px}
+.cycle button{border:0;border-radius:16px;padding:5px 11px;font:inherit;font-size:12px;font-weight:700;background:#e8ebf0;cursor:pointer}
+.cycle button:hover{background:#d4d9e2}.cycle span{align-self:center;color:#888}
+.sheet h3{margin:10px 0 4px;font-size:15px}.sheet ol{margin:0 0 0 20px;padding:0;font-size:14px}
+@media print{.side,.top button,.cycle,.pill,.rate,#history{display:none!important}.app{display:block;box-shadow:none;margin:0}body{background:#fff}}
 </style>
 </head>
 <body>
@@ -67,7 +72,7 @@ svg text{font-family:inherit}
   <div id="v-home" class="view on">
     <div class="top">
       <button class="pill" id="b-profile">⚙ Perfil</button>
-      <h1>OBJETIVOS<br>INDIVIDUAIS 🎯</h1>
+      <h1>OBJETIVOS INDIVIDUAIS<br>DO JOGADOR 🎯</h1>
       <button class="pill ghost" id="b-plan">Plano</button>
     </div>
     <div class="cols">
@@ -75,6 +80,7 @@ svg text{font-family:inherit}
       <div><div class="colh d">Defensivos 🛡️</div><div id="l-def"></div></div>
     </div>
     <div class="center"><button class="pill" id="b-eval">🔍 AVALIAÇÃO</button></div>
+    <div class="cycle" id="cycle"></div>
     <p class="note center">Toca num objetivo (+) para ver o que observar, como treinar e a tua evolução.</p>
   </div>
 
@@ -118,6 +124,7 @@ svg text{font-family:inherit}
   <!-- PLANO / RELATÓRIO -->
   <div id="v-plan" class="view">
     <div class="top"><button class="pill" data-go="home">⌂ Início</button><h1>Evolução e plano</h1></div>
+    <div class="card sheet"><h2>Plano de desenvolvimento individual</h2><div id="sheet"></div></div>
     <div class="card"><h2>Evolução por avaliação</h2><div id="chart"></div></div>
     <div class="card"><h2>Relatório individual</h2><div id="report"></div></div>
     <div class="card"><h2>Exercícios sugeridos</h2><div id="drills"></div></div>
@@ -204,8 +211,18 @@ function renderSide(){
 $("photo").onclick=e=>{ if(e.target.id!=="club") go("profile") };
 
 /* ---------- Início ---------- */
+const CYCLE=[["Avaliar","eval"],["Identificar necessidades","plan"],["Definir objetivos","profile"],
+ ["Individualizar o treino","plan"],["Monitorizar","plan"],["Reavaliar","eval"]];
+function renderCycle(){$("cycle").innerHTML=CYCLE.map(([t,v],i)=>(i?"<span>→</span>":"")+`<button onclick="go('${v}')">${i+1}. ${t}</button>`).join("")}
+function renderSheet(){
+ const o=objs(),le=lastEval(),pos={"1":"Base","2":"Extremo","4":"Poste"}[S.pos];
+ const list=k=>"<ol>"+o[k].map((ob,i)=>`<li>${ob.t}${le&&objAvg(le,k,i)?` <b>(${objAvg(le,k,i).toFixed(1)}/5)</b>`:""}</li>`).join("")+"</ol>";
+ $("sheet").innerHTML=`<p><b>${S.name}</b> · ${S.club} · ${S.cat} / ${pos}</p>
+  <h3>Objetivos ofensivos</h3>${list("off")}<h3>Objetivos defensivos</h3>${list("def")}
+  <h3>Avaliação individual</h3><table><tr><th>Indicador</th><th>Escala</th></tr>`+
+  IND.map(i=>`<tr><td>${i}</td><td>1–5</td></tr>`).join("")+"</table>"}
 function renderHome(){
- renderSide();const o=objs(),le=lastEval();
+ renderCycle();renderSide();const o=objs(),le=lastEval();
  [["off","l-off","o"],["def","l-def","d"]].forEach(([k,el,c])=>{
   $(el).innerHTML=o[k].map((ob,i)=>{
    const sc=objAvg(le,k,i);
@@ -265,7 +282,7 @@ $("e-save").onclick=()=>{
 
 /* ---------- Plano: gráfico, relatório, exercícios ---------- */
 function renderPlan(){
- const o=objs(),ev=S.evals;
+ renderSheet();const o=objs(),ev=S.evals;
  if(!ev.length){["chart","report","drills","history"].forEach(i=>$(i).innerHTML='<p class="note">Sem avaliações ainda. Faz a primeira em «Avaliação».</p>');return}
  // gráfico de linhas: média ofensiva e defensiva por avaliação
  const pts=k=>ev.map(e=>avg(o[k].map((_,i)=>objAvg(e,k,i)).filter(v=>v!=null)));

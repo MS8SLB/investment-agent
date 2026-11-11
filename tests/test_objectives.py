@@ -124,3 +124,10 @@ def test_ai_propose_filters_unknown_and_uses_fallbacks():
 def test_ai_failures_raise(client):
     with pytest.raises(RuntimeError):
         ai_coach.propose({"n_objetivos_a_propor": 4}, client)
+
+
+def test_plan_sheet_text():
+    t = ob.plan_sheet_text("Ana", "Sub-14", ["off_scan", "def_closeout"],
+                           {"def_closeout": {"execution": 4, "application": 2}})
+    assert "OBJETIVOS OFENSIVOS" in t and "OBJETIVOS DEFENSIVOS" in t
+    assert "[3.0/5]" in t and "Execução\t1–5" in t and "Reavaliar" in t

@@ -135,7 +135,7 @@ with tab_qual:
 
 # ── Objetivos individuais ───────────────────────────────────────────────────
 with tab_obj:
-    st.subheader("Objetivos individuais")
+    st.subheader("Objetivos individuais do jogador")
     st.caption("Os objetivos defensivos são sugeridos a partir da avaliação qualitativa e do teste de movimentos "
                "defensivos; os ofensivos seguem a biblioteca-modelo e a avaliação dos objetivos. "
                "É um apoio à decisão do treinador (a ligação critério → objetivo é uma proposta, não validada).")
@@ -159,6 +159,8 @@ with tab_obj:
                 label = o["text"] + (f"  — _{why}_" if why else "")
                 if st.checkbox(label, value=default, key=f"obj_{op['id']}_{o['key']}"):
                     chosen.append((o["key"], "sugerido" if o in sug[side] and o["need"] else "manual"))
+        st.caption("Ciclo: Avaliar → Identificar necessidades → Definir objetivos → Individualizar o treino → "
+                   "Monitorizar → Reavaliar")
         with st.expander("Proposta com IA (opcional)"):
             st.caption("Envia à API da Anthropic apenas o escalão e as classificações numéricas — "
                        "**nunca** nome, equipa, data de nascimento, foto ou notas. Requer ANTHROPIC_API_KEY.")
@@ -209,6 +211,11 @@ with tab_obj:
                     st.success(f"{n} objetivo(s) avaliado(s).")
                 except ValueError as e:
                     st.error(str(e))
+        if mine:
+            sheet = ob.plan_sheet_text(op["name"], op["category"], [m["objective_key"] for m in mine],
+                                       service.latest_objective_scores(op["id"]))
+            st.download_button("⬇ Ficha: plano de desenvolvimento individual", sheet,
+                               file_name=f"plano_{op['id']}.txt")
         oh = service.objective_history(op["id"])
         if oh:
             df = pd.DataFrame(oh)

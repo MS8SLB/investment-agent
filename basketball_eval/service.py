@@ -359,3 +359,9 @@ def ai_payload(player_id: int, limit: int = 4, db_path: str | None = None) -> di
 def ai_objective_proposal(player_id: int, limit: int = 4, client=None, db_path: str | None = None) -> dict:
     from . import ai_coach
     return ai_coach.propose(ai_payload(player_id, limit, db_path), client)
+
+
+def latest_objective_scores(player_id: int, db_path: str | None = None) -> dict[str, dict[str, int]]:
+    init_db(db_path)
+    with connect(db_path) as c:
+        return _latest_objective_scores(player_id, c)

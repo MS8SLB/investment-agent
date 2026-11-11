@@ -123,3 +123,23 @@ def suggest_objectives(side: str, qualitative: Optional[Mapping[str, int]] = Non
 
 def library_for(keys: Sequence[str]) -> list[dict]:
     return [{"key": k, **LIBRARY[k]} for k in keys if k in LIBRARY]
+
+
+def plan_sheet_text(player_name: str, category: str, selected: Sequence[str],
+                    last_scores: Optional[Mapping[str, Mapping[str, int]]] = None) -> str:
+    """Ficha «Plano de desenvolvimento individual» em texto (para descarregar/imprimir)."""
+    last_scores = last_scores or {}
+    lines = [f"PLANO DE DESENVOLVIMENTO INDIVIDUAL — {player_name} ({category})", ""]
+    for side in SIDES:
+        lines.append(f"OBJETIVOS {SIDE_LABEL[side].upper()}S")
+        keys = [k for k in selected if k in LIBRARY and LIBRARY[k]["side"] == side]
+        for n, k in enumerate(keys, 1):
+            sc = f" [{objective_average(last_scores[k]):.1f}/5]" if last_scores.get(k) else ""
+            lines.append(f"{n}. {LIBRARY[k]['text']}{sc}")
+            lines += [f"   · {d}" for d in LIBRARY[k]["drills"]]
+        lines.append("")
+    lines += ["AVALIAÇÃO INDIVIDUAL", "Indicador\tEscala"]
+    lines += [f"{INDICATOR_LABEL[i]}\t1–5" for i in INDICATORS]
+    lines += ["", "Ciclo: Avaliar → Identificar necessidades → Definir objetivos → "
+              "Individualizar o treino → Monitorizar → Reavaliar"]
+    return "\n".join(lines)
