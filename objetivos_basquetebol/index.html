@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Objetivos Individuais · Basquetebol</title>
+<style>
+:root{--off:#8fbfe8;--offd:#3b82c4;--def:#f2b83c;--defd:#c98a0a;--ink:#111;--bg:#eef0f3}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Nunito",system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.app{max-width:1080px;margin:16px auto;background:#fff;border-radius:18px;box-shadow:0 4px 18px #0002;overflow:hidden;display:grid;grid-template-columns:1fr 300px;min-height:640px}
+@media(max-width:820px){.app{grid-template-columns:1fr;margin:0;border-radius:0}.side{order:-1}}
+.main{padding:20px 26px}
+.pill{background:#111;color:#fff;border:0;border-radius:20px;padding:8px 18px;font:inherit;font-weight:700;cursor:pointer}
+.pill:hover{background:#333}
+.pill.ghost{background:#fff;color:#111;border:2px solid #111}
+.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+h1{margin:0 auto;text-align:center;font-size:28px;letter-spacing:.5px;line-height:1.1}
+h2{margin:0 0 10px;font-size:22px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:20px}
+@media(max-width:620px){.cols{grid-template-columns:1fr}}
+.colh{font-size:24px;font-weight:800;text-align:center;margin-bottom:10px}
+.colh.o{color:var(--offd)}.colh.d{color:var(--defd)}
+.obj{border-radius:40px;margin-bottom:14px;padding:8px 10px;cursor:pointer;transition:.15s}
+.obj.o{background:var(--off)}.obj.d{background:var(--def)}
+.obj .row{display:flex;align-items:center;gap:12px}
+.num{flex:none;width:44px;height:44px;border-radius:50%;background:#fff;display:grid;place-items:center;font-weight:800;font-size:24px}
+.txt{flex:1;font-weight:700;font-size:14px;line-height:1.25}
+.plus{flex:none;width:28px;height:28px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-size:20px;line-height:1}
+.score{font-size:12px;background:#fff9;border-radius:10px;padding:1px 7px;margin-left:6px}
+.det{display:none;background:#fff;border-radius:18px;margin:8px 4px 4px;padding:10px 14px;font-size:13px;cursor:default}
+.obj.open{border-radius:26px}.obj.open .det{display:block}
+.det b{display:block;margin-top:6px}
+.det ul{margin:3px 0 0 18px;padding:0}
+.bar{height:8px;background:#ddd;border-radius:4px;overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%}
+.center{text-align:center;margin-top:10px}
+.side{background:#c3c8d4;display:flex;flex-direction:column;position:relative}
+.photo{flex:1;min-height:340px;background:#c3c8d4 center/cover no-repeat;display:grid;place-items:center;cursor:pointer;position:relative}
+.photo span.ph{font-size:110px;opacity:.35}
+.club{position:absolute;top:12px;right:12px;min-width:54px;height:54px;padding:0 6px;border-radius:50%;background:#fff;border:3px solid #1d4ed8;display:grid;place-items:center;font-weight:800;font-size:11px;text-align:center;color:#1d4ed8}
+.name{background:#111;color:#8fd0ff;font-weight:800;font-size:24px;text-align:center;padding:14px 8px;text-transform:uppercase}
+.meta{background:#111;color:#fff;font-size:12px;text-align:center;padding:0 8px 12px}
+.view{display:none}.view.on{display:block}
+label{display:block;font-weight:700;font-size:13px;margin:10px 0 3px}
+input,select,textarea{width:100%;padding:8px 10px;border:1.5px solid #bbb;border-radius:10px;font:inherit}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 4px;text-align:center;border-bottom:1px solid #eee}
+th:first-child,td:first-child{text-align:left}
+.rate{display:flex;gap:3px;justify-content:center}
+.rate button{width:26px;height:26px;border-radius:50%;border:1.5px solid #999;background:#fff;cursor:pointer;font-weight:700;font-size:12px}
+.rate button.on{background:#111;color:#fff;border-color:#111}
+.card{border:1.5px solid #e1e4ea;border-radius:14px;padding:12px 14px;margin:12px 0}
+.tag{display:inline-block;border-radius:10px;padding:2px 9px;font-size:12px;font-weight:700;margin:2px}
+.tag.g{background:#d9f5df;color:#166534}.tag.r{background:#fde2e2;color:#991b1b}
+.tabs{display:flex;gap:8px;margin:16px 0 8px;flex-wrap:wrap}
+svg text{font-family:inherit}
+.note{font-size:12px;color:#555}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="main">
+
+  <!-- INÍCIO / OBJETIVOS -->
+  <div id="v-home" class="view on">
+    <div class="top">
+      <button class="pill" id="b-profile">⚙ Perfil</button>
+      <h1>OBJETIVOS<br>INDIVIDUAIS 🎯</h1>
+      <button class="pill ghost" id="b-plan">Plano</button>
+    </div>
+    <div class="cols">
+      <div><div class="colh o">Ofensivos 🏀</div><div id="l-off"></div></div>
+      <div><div class="colh d">Defensivos 🛡️</div><div id="l-def"></div></div>
+    </div>
+    <div class="center"><button class="pill" id="b-eval">🔍 AVALIAÇÃO</button></div>
+    <p class="note center">Toca num objetivo (+) para ver o que observar, como treinar e a tua evolução.</p>
+  </div>
+
+  <!-- PERFIL -->
+  <div id="v-profile" class="view">
+    <div class="top"><button class="pill" data-go="home">⌂ Início</button><h1>Perfil do atleta</h1></div>
+    <div class="grid2">
+      <div><label>Nome</label><input id="p-name"></div>
+      <div><label>Clube</label><input id="p-club" placeholder="Ex.: Benfica"></div>
+      <div><label>Escalão</label>
+        <select id="p-cat"><option>Sub-12</option><option selected>Sub-14</option><option>Sub-16</option><option>Sub-18</option><option>Seniores</option></select></div>
+      <div><label>Posição</label>
+        <select id="p-pos"><option value="1">Base (1)</option><option value="2">Extremo (2/3)</option><option value="4">Poste (4/5)</option></select></div>
+    </div>
+    <label>Fotografia</label><input type="file" id="p-photo" accept="image/*">
+    <label>Objetivos (edita o texto, um por linha: ofensivos primeiro)</label>
+    <div class="grid2">
+      <div><b class="note">Ofensivos</b><textarea id="p-off" rows="6"></textarea></div>
+      <div><b class="note">Defensivos</b><textarea id="p-def" rows="6"></textarea></div>
+    </div>
+    <p class="center"><button class="pill" id="p-save">Guardar</button>
+    <button class="pill ghost" id="p-reset">Repor objetivos-modelo do escalão</button></p>
+    <hr>
+    <p><button class="pill ghost" id="x-export">⬇ Exportar dados</button>
+       <button class="pill ghost" id="x-import">⬆ Importar dados</button>
+       <input type="file" id="x-file" accept=".json" style="display:none"></p>
+  </div>
+
+  <!-- AVALIAÇÃO -->
+  <div id="v-eval" class="view">
+    <div class="top"><button class="pill" data-go="home">⌂ Início</button><h1>Avaliação individual</h1></div>
+    <label>Data</label><input type="date" id="e-date" style="max-width:200px">
+    <label>Avaliador</label>
+    <select id="e-by" style="max-width:240px"><option>Treinador</option><option>Autoavaliação</option></select>
+    <div class="card"><table id="e-table"></table></div>
+    <label>Observações</label><textarea id="e-notes" rows="3"></textarea>
+    <p class="center"><button class="pill" id="e-save">Guardar avaliação</button></p>
+    <p class="note">Execução = qualidade técnica · Frequência = vezes que tenta no treino · Aplicação = uso em jogo · Evolução = melhoria desde a última avaliação (1 = nada, 5 = muito).</p>
+  </div>
+
+  <!-- PLANO / RELATÓRIO -->
+  <div id="v-plan" class="view">
+    <div class="top"><button class="pill" data-go="home">⌂ Início</button><h1>Evolução e plano</h1></div>
+    <div class="card"><h2>Evolução por avaliação</h2><div id="chart"></div></div>
+    <div class="card"><h2>Relatório individual</h2><div id="report"></div></div>
+    <div class="card"><h2>Exercícios sugeridos</h2><div id="drills"></div></div>
+    <p class="center"><button class="pill ghost" onclick="window.print()">🖨 Imprimir / PDF</button></p>
+    <div class="card"><h2>Histórico</h2><div id="history"></div></div>
+  </div>
+
+ </div>
+
+ <div class="side">
+  <div class="photo" id="photo" title="Clica para alterar a fotografia"><span class="ph">🏀</span>
+    <div class="club" id="club">CLUBE</div></div>
+  <div class="name" id="s-name">Atleta</div>
+  <div class="meta" id="s-meta"></div>
+ </div>
+</div>
+
+<script>
+/* ---------- Biblioteca de objetivos (modelo por escalão) ---------- */
+const IND=["Execução","Frequência no treino","Aplicação no jogo","Evolução"];
+const LIB={
+ off:[
+  {t:"Olhar antes de receber e identificar vantagens.",
+   obs:["Cabeça levantada antes da receção","Verifica defensor e ajuda antes de receber","Receção já orientada para o cesto"],
+   dr:["3x3 com regra: só pode receber após 'scan' (mostrar nº de dedos)","Rondo com 1 passe e leitura de ombros"]},
+  {t:"Melhorar a qualidade e velocidade da decisão após receção.",
+   obs:["Decide em ≤ 2 segundos (ameaça tripla)","Escolhe entre lançar, passar ou driblar","Poucos turnovers após receção"],
+   dr:["Jogo 3x2 / 2x1 com contagem de decisões corretas","Ameaça tripla: ler o defensor (reação de 1 toque)"]},
+  {t:"Atacar os gaps e criar vantagens através do drible.",
+   obs:["Ataca o espaço entre defensores","Muda de ritmo e direção","Drible com cabeça levantada"],
+   dr:["1x1 com gap obrigatório","Drible em slalom com leitura de cones-defensor","4x4 só com penetração + kick-out"]},
+  {t:"Melhorar a tomada de decisão no Pick and Roll.",
+   obs:["Lê a defesa do bloqueio (over/under/switch)","Usa o bloqueio com ombro colado","Escolhe: lançar, passar ao roll ou pop"],
+   dr:["2x2 Pick and Roll com defesa condicionada","3x3 só com ações de bloqueio direto"]}],
+ def:[
+  {t:"Manter posição defensiva e controlar o adversário direto.",
+   obs:["Postura baixa, mãos ativas","Posição bola-homem-cesto","Comunica na defesa"],
+   dr:["Shell drill 4x4","1x1 em meia-quadra com ênfase em deslizamento"]},
+  {t:"Melhorar o Close Out e a contenção do drible.",
+   obs:["Aproximação rápida e curta (passos picados)","Mão em contestação, sem saltar","Impede a primeira penetração"],
+   dr:["Close out + 1x1 de 3 segundos","Contenção de drible em corredor (zig-zag)"]},
+  {t:"Identificar ajudas defensivas e recuperar a posição.",
+   obs:["Vê bola e homem em simultâneo","Ajuda no momento certo e recupera","Rotação coletiva após ajuda"],
+   dr:["Shell com 'ajuda e recuperação'","3x3 com pontos extra para recuperações bem sucedidas"]},
+  {t:"Participar ativamente no ressalto defensivo.",
+   obs:["Bloqueia o adversário (box out) antes de ir à bola","Contacto e ressalto em duas mãos","Passe de saída rápido"],
+   dr:["Box out 1x1/2x2 até ao ressalto","4x4 com regra: ressalto defensivo = ponto"]}]
+};
+const MODEL={ // objetivos-modelo por posição (ajustam o texto da lista)
+ "1":{off:[0,1,2,3],def:[0,1,2,3]},
+ "2":{off:[0,1,2,3],def:[0,1,2,3]},
+ "4":{off:[0,1,2,3],def:[0,1,2,3]}
+};
+const POS_EXTRA={
+ "4":{off:["Fixar e finalizar perto do cesto com contacto.","Ler a defesa no bloqueio e rolar para o cesto.","Ocupar bem o espaço e criar linhas de passe.","Passe de saída e finalização no ressalto ofensivo."],
+      def:["Proteger o cesto e comunicar a defesa.","Close out em situações de troca (switch).","Ajuda defensiva e proteção de aro.","Box out e ressalto defensivo forte."]}
+};
+
+/* ---------- Estado ---------- */
+const KEY="objetivos_basquetebol_v1";
+let S=JSON.parse(localStorage.getItem(KEY)||"null")||{
+ name:"Atleta",club:"Clube",cat:"Sub-14",pos:"1",photo:"",
+ off:LIB.off.map(o=>o.t),def:LIB.def.map(o=>o.t),evals:[]};
+const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const $=id=>document.getElementById(id);
+const objs=()=>({off:S.off.map((t,i)=>({t,...(LIB.off[i]||{obs:[],dr:[]})})),
+                 def:S.def.map((t,i)=>({t,...(LIB.def[i]||{obs:[],dr:[]})}))});
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const lastEval=()=>S.evals.length?S.evals[S.evals.length-1]:null;
+const objAvg=(e,k,i)=>e?avg(Object.values(e.s[k+i]||{})):null;
+
+/* ---------- Navegação ---------- */
+function go(v){document.querySelectorAll(".view").forEach(x=>x.classList.remove("on"));$("v-"+v).classList.add("on");
+ if(v==="home")renderHome();if(v==="profile")fillProfile();if(v==="eval")renderEval();if(v==="plan")renderPlan();scrollTo(0,0)}
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+$("b-profile").onclick=()=>go("profile");$("b-eval").onclick=()=>go("eval");$("b-plan").onclick=()=>go("plan");
+
+/* ---------- Lateral ---------- */
+function renderSide(){
+ $("s-name").textContent=S.name;$("club").textContent=S.club.slice(0,12).toUpperCase();
+ $("s-meta").textContent=S.cat+" · "+({"1":"Base","2":"Extremo","4":"Poste"}[S.pos]);
+ const p=$("photo");p.style.backgroundImage=S.photo?`url(${S.photo})`:"";p.querySelector(".ph").style.display=S.photo?"none":"";
+}
+$("photo").onclick=e=>{ if(e.target.id!=="club") go("profile") };
+
+/* ---------- Início ---------- */
+function renderHome(){
+ renderSide();const o=objs(),le=lastEval();
+ [["off","l-off","o"],["def","l-def","d"]].forEach(([k,el,c])=>{
+  $(el).innerHTML=o[k].map((ob,i)=>{
+   const sc=objAvg(le,k,i);
+   const det=`<div class="det"><b>O que observar</b><ul>${ob.obs.map(x=>`<li>${x}</li>`).join("")}</ul>
+     <b>Como treinar</b><ul>${ob.dr.map(x=>`<li>${x}</li>`).join("")}</ul>
+     <b>Última avaliação: ${sc?sc.toFixed(1)+" / 5":"—"}</b>
+     <div class="bar"><i style="width:${sc?sc*20:0}%;background:${c==="o"?"var(--offd)":"var(--defd)"}"></i></div></div>`;
+   return `<div class="obj ${c}" onclick="this.classList.toggle('open')"><div class="row">
+     <div class="num">${i+1}</div><div class="txt">${ob.t}${sc?`<span class="score">${sc.toFixed(1)}</span>`:""}</div>
+     <div class="plus">${"+"}</div></div>${det}</div>`}).join("")});
+ document.querySelectorAll(".obj .det").forEach(d=>d.onclick=e=>e.stopPropagation());
+}
+
+/* ---------- Perfil ---------- */
+function fillProfile(){
+ $("p-name").value=S.name;$("p-club").value=S.club;$("p-cat").value=S.cat;$("p-pos").value=S.pos;
+ $("p-off").value=S.off.join("\n");$("p-def").value=S.def.join("\n");
+}
+$("p-save").onclick=()=>{
+ S.name=$("p-name").value||"Atleta";S.club=$("p-club").value||"Clube";S.cat=$("p-cat").value;S.pos=$("p-pos").value;
+ S.off=$("p-off").value.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,6);
+ S.def=$("p-def").value.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,6);
+ save();go("home")};
+$("p-reset").onclick=()=>{
+ const x=POS_EXTRA[$("p-pos").value];
+ $("p-off").value=(x?x.off:LIB.off.map(o=>o.t)).join("\n");
+ $("p-def").value=(x?x.def:LIB.def.map(o=>o.t)).join("\n")};
+$("p-photo").onchange=e=>{const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+  const c=document.createElement("canvas"),m=600,s=Math.min(1,m/Math.max(im.width,im.height));
+  c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+  S.photo=c.toDataURL("image/jpeg",.8);save();renderSide()};im.src=r.result};r.readAsDataURL(f)};
+$("x-export").onclick=()=>{const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));
+ a.download=`objetivos_${S.name.replace(/\W+/g,"_")}.json`;a.click()};
+$("x-import").onclick=()=>$("x-file").click();
+$("x-file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{S=JSON.parse(r.result);save();go("home")}catch{alert("Ficheiro inválido")}};r.readAsText(f)};
+
+/* ---------- Avaliação ---------- */
+let draft={};
+function renderEval(){
+ $("e-date").value=new Date().toISOString().slice(0,10);draft={};const o=objs();
+ let h=`<tr><th>Objetivo</th>${IND.map(i=>`<th>${i}</th>`).join("")}</tr>`;
+ [["off","🏀"],["def","🛡️"]].forEach(([k,ic])=>o[k].forEach((ob,i)=>{
+  h+=`<tr><td>${ic} ${i+1}. ${ob.t}</td>${IND.map((_,j)=>`<td><div class="rate" data-k="${k}${i}" data-j="${j}">`+
+   [1,2,3,4,5].map(n=>`<button data-n="${n}">${n}</button>`).join("")+`</div></td>`).join("")}</tr>`}));
+ $("e-table").innerHTML=h;
+ document.querySelectorAll(".rate button").forEach(b=>b.onclick=()=>{
+  const r=b.parentNode,key=r.dataset.k,j=r.dataset.j;(draft[key]=draft[key]||{})[j]=+b.dataset.n;
+  r.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))});
+}
+$("e-save").onclick=()=>{
+ if(!Object.keys(draft).length)return alert("Preenche pelo menos uma avaliação.");
+ S.evals.push({d:$("e-date").value,by:$("e-by").value,notes:$("e-notes").value,s:draft});
+ S.evals.sort((a,b)=>a.d.localeCompare(b.d));save();$("e-notes").value="";go("plan")};
+
+/* ---------- Plano: gráfico, relatório, exercícios ---------- */
+function renderPlan(){
+ const o=objs(),ev=S.evals;
+ if(!ev.length){["chart","report","drills","history"].forEach(i=>$(i).innerHTML='<p class="note">Sem avaliações ainda. Faz a primeira em «Avaliação».</p>');return}
+ // gráfico de linhas: média ofensiva e defensiva por avaliação
+ const pts=k=>ev.map(e=>avg(o[k].map((_,i)=>objAvg(e,k,i)).filter(v=>v!=null)));
+ const W=560,H=200,P=30,xs=i=>ev.length>1?P+i*(W-2*P)/(ev.length-1):W/2,ys=v=>H-P-(v-1)*(H-2*P)/4;
+ const line=(a,c)=>`<polyline fill="none" stroke="${c}" stroke-width="3" points="${a.map((v,i)=>v==null?"":xs(i)+","+ys(v)).join(" ")}"/>`+
+   a.map((v,i)=>v==null?"":`<circle cx="${xs(i)}" cy="${ys(v)}" r="5" fill="${c}"/><text x="${xs(i)}" y="${ys(v)-9}" font-size="11" text-anchor="middle">${v.toFixed(1)}</text>`).join("");
+ $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">`+
+  [1,2,3,4,5].map(n=>`<line x1="${P}" x2="${W-P}" y1="${ys(n)}" y2="${ys(n)}" stroke="#eee"/><text x="8" y="${ys(n)+4}" font-size="11">${n}</text>`).join("")+
+  ev.map((e,i)=>`<text x="${xs(i)}" y="${H-8}" font-size="10" text-anchor="middle">${e.d.slice(5)}</text>`).join("")+
+  line(pts("off"),"#3b82c4")+line(pts("def"),"#c98a0a")+`</svg>
+  <span class="tag" style="background:#dbeafe">● Ofensivos</span><span class="tag" style="background:#fef3c7">● Defensivos</span>`;
+ // relatório: último vs anterior
+ const last=ev[ev.length-1],prev=ev.length>1?ev[ev.length-2]:null;
+ const rows=[];
+ [["off","Ofensivo"],["def","Defensivo"]].forEach(([k,n])=>o[k].forEach((ob,i)=>{
+  const a=objAvg(last,k,i);if(a==null)return;const b=prev?objAvg(prev,k,i):null;
+  rows.push({k,i,n,t:ob.t,a,delta:b==null?null:a-b})}));
+ rows.sort((x,y)=>y.a-x.a);
+ const str=rows.filter(r=>r.a>=4),need=[...rows].reverse().filter(r=>r.a<3.5).slice(0,3);
+ const fmt=r=>`<span class="tag ${r.a>=4?"g":"r"}">${r.n} ${r.i+1}: ${r.a.toFixed(1)}${r.delta==null?"":(r.delta>=0?" ▲":" ▼")+Math.abs(r.delta).toFixed(1)}</span>`;
+ const gaps=rows.filter(r=>{const s=last.s[r.k+r.i]||{};return s[0]!=null&&s[2]!=null&&s[0]-s[2]>=1.5});
+ $("report").innerHTML=`<p><b>${S.name}</b> · ${S.cat} · avaliação de ${last.d} (${last.by})</p>
+  <p><b>Pontos fortes:</b> ${str.length?str.map(fmt).join(""):'<span class="note">ainda nenhum ≥ 4</span>'}</p>
+  <p><b>A trabalhar:</b> ${need.length?need.map(fmt).join(""):'<span class="note">sem lacunas evidentes</span>'}</p>
+  ${gaps.length?`<p><b>Atenção (treina bem, mas não aplica em jogo):</b> ${gaps.map(r=>r.n+" "+(r.i+1)).join(", ")}</p>`:""}
+  ${last.notes?`<p><b>Notas:</b> ${last.notes}</p>`:""}`;
+ // exercícios para os objetivos prioritários
+ const pri=(need.length?need:rows.slice(-2));
+ $("drills").innerHTML=pri.map(r=>{const ob=o[r.k][r.i];return `<p><b>${r.n} ${r.i+1} — ${ob.t}</b></p><ul>${(ob.dr||[]).map(x=>`<li>${x}</li>`).join("")||"<li>Define tarefas com o treinador.</li>"}</ul>`}).join("");
+ // histórico
+ $("history").innerHTML=`<table><tr><th>Data</th><th>Avaliador</th><th>Ofensivos</th><th>Defensivos</th><th></th></tr>`+
+  ev.map((e,ix)=>`<tr><td>${e.d}</td><td>${e.by}</td><td>${(pts("off")[ix]||0).toFixed(1)}</td><td>${(pts("def")[ix]||0).toFixed(1)}</td>
+   <td><button class="pill ghost" style="padding:2px 10px" onclick="delEval(${ix})">✕</button></td></tr>`).join("")+`</table>`;
+}
+function delEval(i){if(confirm("Apagar esta avaliação?")){S.evals.splice(i,1);save();renderPlan()}}
+
+renderHome();
+</script>
+</body>
+</html>
