@@ -15,14 +15,15 @@ import streamlit as st
 
 from basketball_eval import defensive_movement as dm
 from basketball_eval import norms, service
+from basketball_eval import objectives as ob
 from basketball_eval import qualitative as ql
 
 st.set_page_config(page_title="Movimentos Defensivos", layout="wide")
 st.title(dm.TEST_NAME_PT)
 st.caption(f"{dm.TEST_NAME_EN} — {dm.REFERENCE} · Unidade: segundos · **Menor tempo = melhor desempenho**")
 
-tab_eval, tab_qual, tab_player, tab_team, tab_players = st.tabs(
-    ["Avaliar", "Avaliação qualitativa", "Ficha individual", "Equipa", "Jogadores"])
+tab_eval, tab_qual, tab_obj, tab_player, tab_team, tab_players = st.tabs(
+    ["Avaliar", "Avaliação qualitativa", "Objetivos individuais", "Ficha individual", "Equipa", "Jogadores"])
 
 
 def _players(category=None):
@@ -131,6 +132,95 @@ with tab_qual:
             st.text(service.qualitative_report_text(qp["id"]))
             st.line_chart(pd.DataFrame({"Média": [r["average"] for r in qh]},
                                        index=[r["evaluation_date"] for r in qh]))
+
+# ── Objetivos individuais ───────────────────────────────────────────────────
+with tab_obj:
+    st.subheader("Objetivos individuais do jogador")
+    st.caption("Os objetivos defensivos são sugeridos a partir da avaliação qualitativa e do teste de movimentos "
+               "defensivos; os ofensivos seguem a biblioteca-modelo e a avaliação dos objetivos. "
+               "É um apoio à decisão do treinador (a ligação critério → objetivo é uma proposta, não validada).")
+    oplayers = _players()
+    if not oplayers:
+        st.info("Sem jogadores. Adicione-os no separador «Jogadores».")
+    else:
+        olab = {f"{p['name']} · {p['category']} (#{p['id']})": p for p in oplayers}
+        op = olab[st.selectbox("Jogador", list(olab), key="op")]
+        sug = service.objective_suggestions(op["id"])
+        active = {o["objective_key"] for o in service.get_objectives(op["id"])}
+        chosen = []
+        for side in ob.SIDES:
+            st.markdown(f"**{ob.SIDE_LABEL[side]}s**")
+            pool = [o for o in sug[side]] + [{"key": k, "text": v["text"], "need": None, "reasons": []}
+                                            for k, v in ob.LIBRARY.items()
+                                            if v["side"] == side and k not in {o["key"] for o in sug[side]}]
+            for o in pool:
+                default = (o["key"] in active) if active else (o in sug[side])
+                why = " · ".join(o["reasons"])
+                label = o["text"] + (f"  — _{why}_" if why else "")
+                if st.checkbox(label, value=default, key=f"obj_{op['id']}_{o['key']}"):
+                    chosen.append((o["key"], "sugerido" if o in sug[side] and o["need"] else "manual"))
+        st.caption("Ciclo: Avaliar → Identificar necessidades → Definir objetivos → Individualizar o treino → "
+                   "Monitorizar → Reavaliar")
+        with st.expander("Proposta com IA (opcional)"):
+            st.caption("Envia à API da Anthropic apenas o escalão e as classificações numéricas — "
+                       "**nunca** nome, equipa, data de nascimento, foto ou notas. Requer ANTHROPIC_API_KEY.")
+            st.json(service.ai_payload(op["id"]), expanded=False)
+            if st.button("Gerar proposta com IA", key=f"ai_{op['id']}"):
+                try:
+                    with st.spinner("A gerar proposta…"):
+                        st.session_state["ai_prop"] = (op["id"], service.ai_objective_proposal(op["id"]))
+                except Exception as e:  # sem chave, rede, recusa, resposta inválida
+                    st.session_state["ai_prop"] = None
+                    st.error(f"Não foi possível gerar a proposta: {e}")
+            prop = st.session_state.get("ai_prop")
+            if prop and prop[0] == op["id"]:
+                st.markdown(prop[1]["summary"])
+                for o in prop[1]["objectives"]:
+                    st.markdown(f"**{ob.SIDE_LABEL[o['side']]}: {o['text']}**  \n{o['reason']}")
+                    for d in o["drills"]:
+                        st.markdown(f"- {d}")
+                for cv in prop[1]["caveats"]:
+                    st.caption("⚠ " + cv)
+                if st.button("Aplicar estes objetivos", key=f"aiapply_{op['id']}"):
+                    service.set_objectives(op["id"], [(o["key"], "sugerido") for o in prop[1]["objectives"]])
+                    st.success("Objetivos aplicados (reveja a lista acima).")
+        if st.button("GUARDAR OBJETIVOS", type="primary"):
+            service.set_objectives(op["id"], chosen)
+            st.success("Objetivos guardados.")
+        mine = service.get_objectives(op["id"])
+        if mine:
+            st.divider()
+            st.markdown("**Avaliação dos objetivos** (1–5)")
+            o1, o2, o3 = st.columns(3)
+            o_date = o1.date_input("Data", date.today(), key="od")
+            o_coach = o2.text_input("Treinador", key="oc")
+            o_notes = o3.text_input("Notas", key="on")
+            scores = {}
+            for m in mine:
+                st.markdown(f"{ob.SIDE_LABEL[m['side']]}: {m['text']}")
+                cols = st.columns(4)
+                scores[m["objective_key"]] = {
+                    i: cols[n].radio(ob.INDICATOR_LABEL[i], [None, *ob.SCALE], horizontal=True,
+                                     key=f"os_{m['objective_key']}_{i}",
+                                     format_func=lambda v: "—" if v is None else str(v))
+                    for n, i in enumerate(ob.INDICATORS)}
+            if st.button("GUARDAR AVALIAÇÃO DOS OBJETIVOS"):
+                try:
+                    cid = service.get_or_create_coach(o_coach) if o_coach.strip() else None
+                    n = service.save_objective_evaluation(op["id"], o_date, scores, o_notes or None, cid)
+                    st.success(f"{n} objetivo(s) avaliado(s).")
+                except ValueError as e:
+                    st.error(str(e))
+        if mine:
+            sheet = ob.plan_sheet_text(op["name"], op["category"], [m["objective_key"] for m in mine],
+                                       service.latest_objective_scores(op["id"]))
+            st.download_button("⬇ Ficha: plano de desenvolvimento individual", sheet,
+                               file_name=f"plano_{op['id']}.txt")
+        oh = service.objective_history(op["id"])
+        if oh:
+            df = pd.DataFrame(oh)
+            df["Objetivo"] = df["objective_key"].map(lambda k: ob.LIBRARY[k]["text"])
+            st.line_chart(df.pivot_table(index="evaluation_date", columns="Objetivo", values="average"))
 
 # ── Ficha individual ────────────────────────────────────────────────────────
 with tab_player:

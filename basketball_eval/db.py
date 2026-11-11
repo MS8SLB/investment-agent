@@ -66,6 +66,33 @@ CREATE TABLE IF NOT EXISTS qualitative_evaluations (
 );
 CREATE INDEX IF NOT EXISTS idx_qe_player_date ON qualitative_evaluations(player_id, evaluation_date);
 
+CREATE TABLE IF NOT EXISTS player_objectives (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id     INTEGER NOT NULL REFERENCES players(id),
+    objective_key TEXT NOT NULL,
+    side          TEXT NOT NULL CHECK (side IN ('off','def')),
+    source        TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('sugerido','manual')),
+    active        INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (player_id, objective_key)
+);
+
+CREATE TABLE IF NOT EXISTS objective_evaluations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id       INTEGER NOT NULL REFERENCES players(id),
+    evaluation_date TEXT NOT NULL,           -- ISO yyyy-mm-dd
+    objective_key   TEXT NOT NULL,
+    execution       INTEGER CHECK (execution   IS NULL OR execution   BETWEEN 1 AND 5),
+    frequency       INTEGER CHECK (frequency   IS NULL OR frequency   BETWEEN 1 AND 5),
+    application     INTEGER CHECK (application IS NULL OR application BETWEEN 1 AND 5),
+    evolution       INTEGER CHECK (evolution   IS NULL OR evolution   BETWEEN 1 AND 5),
+    average         REAL NOT NULL,
+    notes           TEXT,
+    coach_id        INTEGER REFERENCES coaches(id),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_oe_player_date ON objective_evaluations(player_id, evaluation_date);
+
 -- Valores de referência (opcionais; vazia por omissão — nada é assumido).
 CREATE TABLE IF NOT EXISTS reference_norms (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
