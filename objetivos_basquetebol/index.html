@@ -104,9 +104,12 @@ svg text{font-family:inherit}
     <p class="center"><button class="pill" id="p-save">Guardar</button>
     <button class="pill ghost" id="p-reset">Repor objetivos-modelo do escalão</button></p>
     <hr>
-    <p><button class="pill ghost" id="x-export">⬇ Exportar dados</button>
-       <button class="pill ghost" id="x-import">⬆ Importar dados</button>
+    <p><button class="pill ghost" id="x-export">📋 Copiar dados</button>
+       <button class="pill ghost" id="x-import">⬆ Importar ficheiro</button>
        <input type="file" id="x-file" accept=".json" style="display:none"></p>
+    <label>Dados (copiar para guardar; colar e carregar em «Importar texto» para restaurar)</label>
+    <textarea id="x-text" rows="3" placeholder="Os dados aparecem aqui ao clicar em «Copiar dados»"></textarea>
+    <p><button class="pill ghost" id="x-paste">Importar texto colado</button></p>
   </div>
 
   <!-- AVALIAÇÃO -->
@@ -128,7 +131,6 @@ svg text{font-family:inherit}
     <div class="card"><h2>Evolução por avaliação</h2><div id="chart"></div></div>
     <div class="card"><h2>Relatório individual</h2><div id="report"></div></div>
     <div class="card"><h2>Exercícios sugeridos</h2><div id="drills"></div></div>
-    <p class="center"><button class="pill ghost" onclick="window.print()">🖨 Imprimir / PDF</button></p>
     <div class="card"><h2>Histórico</h2><div id="history"></div></div>
   </div>
 
@@ -185,10 +187,12 @@ const POS_EXTRA={
 
 /* ---------- Estado ---------- */
 const KEY="objetivos_basquetebol_v1";
-let S=JSON.parse(localStorage.getItem(KEY)||"null")||{
+const store={get(){try{return JSON.parse(localStorage.getItem(KEY)||"null")}catch{return null}},
+ set(v){try{localStorage.setItem(KEY,JSON.stringify(v))}catch{}}};
+let S=store.get()||{
  name:"Atleta",club:"Clube",cat:"Sub-14",pos:"1",photo:"",
  off:LIB.off.map(o=>o.t),def:LIB.def.map(o=>o.t),evals:[]};
-const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const save=()=>store.set(S);
 const $=id=>document.getElementById(id);
 const objs=()=>({off:S.off.map((t,i)=>({t,...(LIB.off[i]||{obs:[],dr:[]})})),
                  def:S.def.map((t,i)=>({t,...(LIB.def[i]||{obs:[],dr:[]})}))});
@@ -255,9 +259,9 @@ $("p-photo").onchange=e=>{const f=e.target.files[0];if(!f)return;
   const c=document.createElement("canvas"),m=600,s=Math.min(1,m/Math.max(im.width,im.height));
   c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
   S.photo=c.toDataURL("image/jpeg",.8);save();renderSide()};im.src=r.result};r.readAsDataURL(f)};
-$("x-export").onclick=()=>{const a=document.createElement("a");
- a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));
- a.download=`objetivos_${S.name.replace(/\W+/g,"_")}.json`;a.click()};
+$("x-export").onclick=async()=>{const t=JSON.stringify(S);$("x-text").value=t;
+ try{await navigator.clipboard.writeText(t)}catch{}};
+$("x-paste").onclick=()=>{try{S=JSON.parse($("x-text").value);save();go("home")}catch{$("x-text").placeholder="Texto inválido"}};
 $("x-import").onclick=()=>$("x-file").click();
 $("x-file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
  r.onload=()=>{try{S=JSON.parse(r.result);save();go("home")}catch{alert("Ficheiro inválido")}};r.readAsText(f)};
