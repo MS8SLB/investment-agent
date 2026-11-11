@@ -9,6 +9,7 @@ from typing import Optional, Sequence
 import json
 
 from . import defensive_movement as dm
+from . import objectives as ob
 from . import qualitative as ql
 from .db import connect, init_db
 
@@ -253,3 +254,86 @@ def qualitative_report_text(player_id: int, db_path: str | None = None) -> str:
         if h[-1][key]:
             text += f"\n\n{label}: {h[-1][key]}"
     return text
+
+
+# ── Objetivos individuais ───────────────────────────────────────────────────
+
+def _latest_objective_scores(player_id: int, c) -> dict[str, dict[str, int]]:
+    """Última avaliação de cada objetivo → {chave: {indicador: valor}}."""
+    out: dict[str, dict[str, int]] = {}
+    for r in c.execute("SELECT * FROM objective_evaluations WHERE player_id=? ORDER BY evaluation_date, id",
+                       (player_id,)):
+        out[r["objective_key"]] = {k: r[k] for k in ob.INDICATORS if r[k] is not None}
+    return out
+
+
+def objective_suggestions(player_id: int, limit: int = 4, db_path: str | None = None) -> dict[str, list[dict]]:
+    """Objetivos sugeridos {'off': [...], 'def': [...]} a partir dos dados do jogador."""
+    init_db(db_path)
+    qh = qualitative_history(player_id, db_path)
+    h = history(player_id, db_path)
+    change = h[-1]["change_percentage"] if h else None
+    with connect(db_path) as c:
+        last = _latest_objective_scores(player_id, c)
+    qual = qh[-1]["ratings"] if qh else None
+    return {s: ob.suggest_objectives(s, qual, change, last, limit) for s in ob.SIDES}
+
+
+def set_objectives(player_id: int, selections: Sequence[tuple[str, str]], db_path: str | None = None) -> None:
+    """Define os objetivos ativos do jogador: lista de (chave, origem 'sugerido'|'manual')."""
+    for key, src in selections:
+        if key not in ob.LIBRARY:
+            raise ValueError(f"Objetivo desconhecido: {key!r}")
+        if src not in ("sugerido", "manual"):
+            raise ValueError(f"Origem inválida: {src!r}")
+    init_db(db_path)
+    with connect(db_path) as c:
+        if c.execute("SELECT 1 FROM players WHERE id=?", (player_id,)).fetchone() is None:
+            raise ValueError(f"Jogador {player_id} não existe.")
+        c.execute("UPDATE player_objectives SET active=0 WHERE player_id=?", (player_id,))
+        for key, src in selections:
+            c.execute("""INSERT INTO player_objectives(player_id, objective_key, side, source, active)
+                         VALUES (?,?,?,?,1)
+                         ON CONFLICT(player_id, objective_key) DO UPDATE SET active=1, source=excluded.source""",
+                      (player_id, key, ob.LIBRARY[key]["side"], src))
+
+
+def get_objectives(player_id: int, db_path: str | None = None) -> list[dict]:
+    init_db(db_path)
+    with connect(db_path) as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM player_objectives WHERE player_id=? AND active=1 ORDER BY side DESC, id",
+            (player_id,))]
+    for r in rows:
+        r["text"] = ob.LIBRARY[r["objective_key"]]["text"]
+    return rows
+
+
+def save_objective_evaluation(player_id: int, evaluation_date, scores: dict[str, dict],
+                              notes: str | None = None, coach_id: int | None = None,
+                              db_path: str | None = None) -> int:
+    """Grava a avaliação (1–5 × 4 indicadores) de um ou mais objetivos. Devolve nº de linhas."""
+    init_db(db_path)
+    clean = {k: ob.validate_scores(v) for k, v in scores.items() if any(x is not None for x in v.values())}
+    if not clean:
+        raise ValueError("Preencha pelo menos um indicador de um objetivo.")
+    for k in clean:
+        if k not in ob.LIBRARY:
+            raise ValueError(f"Objetivo desconhecido: {k!r}")
+    with connect(db_path) as c:
+        if c.execute("SELECT 1 FROM players WHERE id=?", (player_id,)).fetchone() is None:
+            raise ValueError(f"Jogador {player_id} não existe.")
+        for k, s in clean.items():
+            c.execute("""INSERT INTO objective_evaluations
+                         (player_id, evaluation_date, objective_key, execution, frequency, application,
+                          evolution, average, notes, coach_id) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                      (player_id, _iso(evaluation_date), k, s.get("execution"), s.get("frequency"),
+                       s.get("application"), s.get("evolution"), ob.objective_average(s), notes, coach_id))
+    return len(clean)
+
+
+def objective_history(player_id: int, db_path: str | None = None) -> list[dict]:
+    init_db(db_path)
+    with connect(db_path) as c:
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM objective_evaluations WHERE player_id=? ORDER BY evaluation_date, id", (player_id,))]
