@@ -1,5 +1,6 @@
 """Testes dos objetivos individuais (basketball_eval)."""
 
+import json
 import os
 import sys
 
@@ -78,3 +79,48 @@ def test_service_roundtrip(db):
         service.set_objectives(pid, [("nao_existe", "manual")], db_path=db)
     with pytest.raises(ValueError):
         service.save_objective_evaluation(999, "2026-02-01", {"def_closeout": {"execution": 3}}, db_path=db)
+
+
+# ── IA (sem chamadas reais: cliente simulado) ───────────────────────────────
+
+from types import SimpleNamespace as NS
+
+from basketball_eval import ai_coach
+
+
+class FakeClient:
+    def __init__(self, text, stop="end_turn"):
+        self.calls, self._r = [], NS(stop_reason=stop, content=[NS(type="text", text=text)])
+        self.beta = NS(messages=NS(create=self._create))
+
+    def _create(self, **kw):
+        self.calls.append(kw)
+        return self._r
+
+
+def test_ai_payload_is_anonymised(db):
+    pid = service.add_player("Maria Segredo", "Sub-12", team="Clube Secreto", birth_date="2014-05-05", db_path=db)
+    service.save_qualitative(pid, "2026-01-10", {"drop_step": 2}, "nota com nome João", "outra nota", db_path=db)
+    blob = str(service.ai_payload(pid, db_path=db))
+    for secret in ("Maria", "Segredo", "Clube Secreto", "2014", "João", "nota"):
+        assert secret not in blob
+    assert "Sub-12" in blob
+
+
+def test_ai_propose_filters_unknown_and_uses_fallbacks():
+    raw = {"summary": "ok", "caveats": [], "objectives": [
+        {"key": "def_closeout", "reason": "r", "drills": ["a"]},
+        {"key": "inventado", "reason": "x", "drills": []},
+        {"key": "def_closeout", "reason": "dup", "drills": []}]}
+    fc = FakeClient(json.dumps(raw))
+    out = ai_coach.propose({"n_objetivos_a_propor": 4}, fc)
+    assert [o["key"] for o in out["objectives"]] == ["def_closeout"]
+    kw = fc.calls[0]
+    assert kw["model"] == "claude-opus-5-5" and kw["fallbacks"] == "default"
+
+
+@pytest.mark.parametrize("client", [FakeClient("", "refusal"), FakeClient("{", "end_turn"),
+                                    FakeClient("{}", "max_tokens")])
+def test_ai_failures_raise(client):
+    with pytest.raises(RuntimeError):
+        ai_coach.propose({"n_objetivos_a_propor": 4}, client)

@@ -337,3 +337,25 @@ def objective_history(player_id: int, db_path: str | None = None) -> list[dict]:
     with connect(db_path) as c:
         return [dict(r) for r in c.execute(
             "SELECT * FROM objective_evaluations WHERE player_id=? ORDER BY evaluation_date, id", (player_id,))]
+
+
+# ── Proposta de objetivos com IA ────────────────────────────────────────────
+
+def ai_payload(player_id: int, limit: int = 4, db_path: str | None = None) -> dict:
+    """Dados ANONIMIZADOS do jogador a enviar à IA (ver ai_coach)."""
+    from . import ai_coach
+    init_db(db_path)
+    qh = qualitative_history(player_id, db_path)
+    h = history(player_id, db_path)
+    with connect(db_path) as c:
+        p = c.execute("SELECT category FROM players WHERE id=?", (player_id,)).fetchone()
+        if p is None:
+            raise ValueError(f"Jogador {player_id} não existe.")
+        last = _latest_objective_scores(player_id, c)
+    return ai_coach.build_payload(p["category"], qh[-1]["ratings"] if qh else None,
+                                  h[-1]["change_percentage"] if h else None, last, limit)
+
+
+def ai_objective_proposal(player_id: int, limit: int = 4, client=None, db_path: str | None = None) -> dict:
+    from . import ai_coach
+    return ai_coach.propose(ai_payload(player_id, limit, db_path), client)

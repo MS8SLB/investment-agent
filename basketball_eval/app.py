@@ -159,6 +159,29 @@ with tab_obj:
                 label = o["text"] + (f"  — _{why}_" if why else "")
                 if st.checkbox(label, value=default, key=f"obj_{op['id']}_{o['key']}"):
                     chosen.append((o["key"], "sugerido" if o in sug[side] and o["need"] else "manual"))
+        with st.expander("Proposta com IA (opcional)"):
+            st.caption("Envia à API da Anthropic apenas o escalão e as classificações numéricas — "
+                       "**nunca** nome, equipa, data de nascimento, foto ou notas. Requer ANTHROPIC_API_KEY.")
+            st.json(service.ai_payload(op["id"]), expanded=False)
+            if st.button("Gerar proposta com IA", key=f"ai_{op['id']}"):
+                try:
+                    with st.spinner("A gerar proposta…"):
+                        st.session_state["ai_prop"] = (op["id"], service.ai_objective_proposal(op["id"]))
+                except Exception as e:  # sem chave, rede, recusa, resposta inválida
+                    st.session_state["ai_prop"] = None
+                    st.error(f"Não foi possível gerar a proposta: {e}")
+            prop = st.session_state.get("ai_prop")
+            if prop and prop[0] == op["id"]:
+                st.markdown(prop[1]["summary"])
+                for o in prop[1]["objectives"]:
+                    st.markdown(f"**{ob.SIDE_LABEL[o['side']]}: {o['text']}**  \n{o['reason']}")
+                    for d in o["drills"]:
+                        st.markdown(f"- {d}")
+                for cv in prop[1]["caveats"]:
+                    st.caption("⚠ " + cv)
+                if st.button("Aplicar estes objetivos", key=f"aiapply_{op['id']}"):
+                    service.set_objectives(op["id"], [(o["key"], "sugerido") for o in prop[1]["objectives"]])
+                    st.success("Objetivos aplicados (reveja a lista acima).")
         if st.button("GUARDAR OBJETIVOS", type="primary"):
             service.set_objectives(op["id"], chosen)
             st.success("Objetivos guardados.")
