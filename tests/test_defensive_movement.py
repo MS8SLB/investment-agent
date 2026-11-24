@@ -151,7 +151,7 @@ def test_db_rejects_bad_input(db):
     with pytest.raises(dm.InvalidTimeError):
         service.save_test(p, "2026-01-01", ["abc", None, None], db_path=db)
     with pytest.raises(ValueError):
-        service.add_player("X", "Sub-16", db_path=db)
+        service.add_player("X", "Sub-18", db_path=db)
     with pytest.raises(ValueError):
         service.save_test(999, "2026-01-01", ["12", None, None], db_path=db)
 

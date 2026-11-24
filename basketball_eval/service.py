@@ -9,6 +9,7 @@ from typing import Optional, Sequence
 import json
 
 from . import defensive_movement as dm
+from . import norms
 from . import qualitative as ql
 from .db import connect, init_db
 
@@ -184,6 +185,49 @@ def team_comparison(category: str, before: tuple, after: tuple, team: str | None
         team_snapshot(category, *before, team=team, db_path=db_path),
         team_snapshot(category, *after, team=team, db_path=db_path),
     )
+
+
+def team_evolution(category: str, team: str | None = None, db_path: str | None = None) -> list[dict]:
+    """Evolução coletiva: por data de avaliação, estatísticas do melhor tempo de cada jogador."""
+    _check_category(category)
+    init_db(db_path)
+    q = """SELECT t.evaluation_date AS d, t.player_id, MIN(t.best_time) AS bt
+           FROM defensive_movement_tests t JOIN players p ON p.id = t.player_id
+           WHERE t.valid=1 AND t.best_time IS NOT NULL AND t.category=?"""
+    args = [category]
+    if team:
+        q += " AND p.team=?"; args.append(team)
+    by_date: dict[str, list[float]] = {}
+    with connect(db_path) as c:
+        for r in c.execute(q + " GROUP BY t.evaluation_date, t.player_id ORDER BY t.evaluation_date", args):
+            by_date.setdefault(r["d"], []).append(r["bt"])
+    out = []
+    for d, xs in by_date.items():
+        g = dm.group_stats(xs)
+        out.append({"date": d, "n": g.n, "mean": g.mean, "median": g.median, "best": g.best, "worst": g.worst})
+    return out
+
+
+def team_sheet(category: str, date_from, date_to, team: str | None = None,
+               db_path: str | None = None) -> dict:
+    """Folha de equipa (Deslizamento Defensivo): linhas por jogador + média / mais rápido / mais lento."""
+    snap = team_snapshot(category, date_from, date_to, team=team, db_path=db_path)
+    rows = []
+    with connect(db_path) as c:
+        for pid, bt in snap.items():
+            p = c.execute("SELECT * FROM players WHERE id=?", (pid,)).fetchone()
+            d = c.execute("""SELECT evaluation_date FROM defensive_movement_tests
+                             WHERE player_id=? AND valid=1 AND best_time=? AND category=?
+                               AND evaluation_date BETWEEN ? AND ? ORDER BY evaluation_date DESC LIMIT 1""",
+                          (pid, bt, category, _iso(date_from), _iso(date_to))).fetchone()
+            age = norms.age_at(p["birth_date"], d["evaluation_date"]) if p["birth_date"] and d else None
+            ref = norms.percentile_score(bt, age, p["sex"], db_path) if age is not None else None
+            rows.append({"name": p["name"], "club": p["team"], "age": age, "best_time": bt,
+                         "percentile": None if ref is None else round(ref["score"]),
+                         "percentile_bound": None if ref is None else ref["bound"]})
+    rows.sort(key=lambda r: r["best_time"])
+    g = dm.group_stats([r["best_time"] for r in rows])
+    return {"rows": rows, "mean": g.mean, "fastest": g.best, "slowest": g.worst, "n": g.n}
 
 
 # ── Relatório do treinador ──────────────────────────────────────────────────

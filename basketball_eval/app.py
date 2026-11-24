@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from basketball_eval import defensive_movement as dm
-from basketball_eval import norms, service
+from basketball_eval import norms, reports, service
 from basketball_eval import qualitative as ql
 
 st.set_page_config(page_title="Movimentos Defensivos", layout="wide")
@@ -171,6 +171,15 @@ with tab_player:
                                text="↑ Mais alto no gráfico = menor tempo = melhor desempenho")
             st.plotly_chart(fig, width="stretch")
             st.text(service.coach_report_text(pl["id"]))
+            st.divider()
+            r1, r2 = st.columns(2)
+            for col, label, fn, fname in ((r1, "Relatório do treinador", reports.coach_report, "treinador"),
+                                          (r2, "Relatório para os pais", reports.parent_report, "pais")):
+                txt = fn(pl["id"])
+                col.download_button(f"{label} (HTML/PDF)", reports.to_html(label, txt),
+                                    file_name=f"{fname}_{pl['name']}.html", mime="text/html", key=f"dl_{fname}")
+                with col.expander(f"Ver {label.lower()}"):
+                    st.text(txt)
 
 # ── Equipa ──────────────────────────────────────────────────────────────────
 with tab_team:
@@ -188,6 +197,33 @@ with tab_team:
         st.write(f"Jogadores nos dois momentos: {cmp.paired_n} — melhoraram {cmp.paired_improved}, "
                  f"mantiveram {cmp.paired_unchanged}, pioraram {cmp.paired_worsened}. "
                  f"Variação média: {dm.fmt_seconds(cmp.paired_mean_change_seconds, True)} (negativo = melhoria).")
+
+    st.divider()
+    st.subheader("Folha de equipa — Deslizamento Defensivo")
+    sheet = service.team_sheet(cat, d2a, d2b)
+    if sheet["n"]:
+        df = pd.DataFrame([{"Nome": r["name"], "Clube": r["club"], "Idade": r["age"],
+                            "Tempo (s)": r["best_time"], "Percentil (0–100)": r["percentile"]}
+                           for r in sheet["rows"]])
+        st.dataframe(df, width="stretch", hide_index=True)
+        st.caption(f"Média {dm.fmt_seconds(sheet['mean'])} · Mais rápido {dm.fmt_seconds(sheet['fastest'])} · "
+                   f"Mais lento {dm.fmt_seconds(sheet['slowest'])}. Percentil estimado por interpolação da tabela "
+                   "de Matulaitis et al. (2019); 90 e 10 são limites da tabela (≥90 / ≤10).")
+        st.download_button("Descarregar folha (CSV)", df.to_csv(index=False), file_name=f"equipa_{cat}.csv")
+        rt = reports.team_report(cat, d2a, d2b)
+        st.download_button("Relatório de equipa (HTML/PDF)", reports.to_html("Relatório de equipa", rt),
+                           file_name=f"relatorio_equipa_{cat}.html", mime="text/html")
+    else:
+        st.info("Sem avaliações no «Momento 2».")
+    evo = service.team_evolution(cat)
+    if len(evo) > 1:
+        st.subheader("Evolução coletiva")
+        fig = go.Figure()
+        for key, name in (("mean", "Média"), ("median", "Mediana"), ("best", "Melhor")):
+            fig.add_scatter(x=[e["date"] for e in evo], y=[e[key] for e in evo], mode="lines+markers", name=name)
+        fig.update_yaxes(autorange="reversed", title="Tempo (s) — menor é melhor")
+        fig.update_xaxes(type="category", title="Data da avaliação")
+        st.plotly_chart(fig, width="stretch")
 
 # ── Jogadores ───────────────────────────────────────────────────────────────
 with tab_players:

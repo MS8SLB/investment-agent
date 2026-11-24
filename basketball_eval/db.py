@@ -1,6 +1,7 @@
 """Base de dados SQLite (basketball_eval). Ficheiro por omissão: data/basketball_eval.db."""
 
 import json
+import re
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS players (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT NOT NULL,
     sex        TEXT CHECK (sex IN ('M','F') OR sex IS NULL),
-    category   TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14')),
+    category   TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14','Sub-16')),
     team       TEXT,
     birth_date TEXT,                         -- ISO yyyy-mm-dd
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -29,7 +30,7 @@ CREATE TABLE IF NOT EXISTS defensive_movement_tests (
     id                 INTEGER PRIMARY KEY AUTOINCREMENT,
     player_id          INTEGER NOT NULL REFERENCES players(id),
     evaluation_date    TEXT NOT NULL,        -- ISO yyyy-mm-dd
-    category           TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14')),
+    category           TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14','Sub-16')),
     trial_1            REAL CHECK (trial_1 IS NULL OR trial_1 > 0),   -- segundos
     trial_2            REAL CHECK (trial_2 IS NULL OR trial_2 > 0),
     trial_3            REAL CHECK (trial_3 IS NULL OR trial_3 > 0),
@@ -55,7 +56,7 @@ CREATE TABLE IF NOT EXISTS qualitative_evaluations (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     player_id       INTEGER NOT NULL REFERENCES players(id),
     evaluation_date TEXT NOT NULL,           -- ISO yyyy-mm-dd
-    category        TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14')),
+    category        TEXT NOT NULL CHECK (category IN ('Sub-8','Sub-10','Sub-12','Sub-14','Sub-16')),
     ratings         TEXT NOT NULL,           -- JSON {criterio: 1..4}
     average         REAL NOT NULL,
     strengths_note  TEXT,
@@ -103,8 +104,32 @@ def connect(path: str | None = None):
         conn.close()
 
 
+_CATEGORY_TABLES = ("players", "defensive_movement_tests", "qualitative_evaluations")
+
+
+def _migrate_categories(conn) -> None:
+    """Bases criadas antes do Sub-16 têm um CHECK sem esse escalão; o SQLite não o altera,
+    por isso recria-se a tabela (procedimento oficial: nova tabela, copiar, apagar, renomear)."""
+    old = [(t, r["sql"]) for t in _CATEGORY_TABLES
+           if (r := conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (t,)).fetchone())
+           and "'Sub-16'" not in r["sql"]]
+    if not old:
+        return
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute("BEGIN")
+    for t, sql in old:
+        new_sql = re.sub(rf"CREATE TABLE (IF NOT EXISTS )?\"?{t}\"?", f"CREATE TABLE {t}__new", sql, count=1)
+        conn.execute(new_sql.replace("'Sub-14')", "'Sub-14','Sub-16')"))
+        conn.execute(f"INSERT INTO {t}__new SELECT * FROM {t}")
+        conn.execute(f"DROP TABLE {t}")
+        conn.execute(f"ALTER TABLE {t}__new RENAME TO {t}")
+    conn.execute("COMMIT")
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
 def init_db(path: str | None = None) -> None:
     with connect(path) as conn:
+        _migrate_categories(conn)
         conn.executescript(SCHEMA)
         # Semeia o protocolo; só substitui um já guardado se for de versão anterior.
         row = conn.execute("SELECT config FROM test_protocols WHERE test_key='defensive_movement'").fetchone()
