@@ -33,11 +33,22 @@ TABLE = {
 }
 
 
+# Valor publicado fora de ordem: aos 15 anos o P70 (7,54 s) é melhor que o P80 (7,70 s). Para o cálculo
+# usa-se o máximo acumulado (P70 = 7,70 s), igual à ficha Excel; o publicado fica em TABLE.
+def _monotone(values):
+    out, m = [], float("-inf")
+    for v in values:
+        m = max(m, v)
+        out.append(m)
+    return out
+
+
 def load_matulaitis_2019(db_path: str | None = None, replace: bool = True) -> int:
     """Insere a tabela em reference_norms (substitui a mesma fonte). Devolve nº de linhas."""
     init_db(db_path)
-    rows = [(TEST_KEY, SOURCE, None, age, None, pct, TABLE[pct][i], None)
-            for pct in PERCENTILES for i, age in enumerate(AGES)]
+    used = {i: _monotone([TABLE[pct][i] for pct in PERCENTILES]) for i in range(len(AGES))}
+    rows = [(TEST_KEY, SOURCE, None, age, None, pct, used[i][j], None)
+            for j, pct in enumerate(PERCENTILES) for i, age in enumerate(AGES)]
     with connect(db_path) as c:
         if replace:
             c.execute("DELETE FROM reference_norms WHERE test_key=? AND source=?", (TEST_KEY, SOURCE))

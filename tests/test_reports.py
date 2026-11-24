@@ -75,3 +75,17 @@ def test_sub16_and_migration_of_old_database(tmp_path):
     assert service.history(1, path)[0]["best_time"] == 9.5     # dados antigos preservados
     norms.load_matulaitis_2019(path)
     assert norms.percentile_score(7.9, 16, "F", path)["score"] == pytest.approx(40)   # 7,90 s = limite do P40, 16 anos
+
+
+def test_age15_p70_published_out_of_order_is_corrected(db):
+    # publicado: P80 = 7,70 e P70 = 7,54; usa-se P70 = 7,70 (igual à ficha Excel)
+    assert norms.TABLE[70][7] == 7.54
+    assert norms.percentile_score(7.70, 15, None, db)["score"] == pytest.approx(70)
+    s = norms.percentile_score(7.72, 15, None, db)["score"]
+    assert 60 < s < 70
+    from basketball_eval.db import connect
+    with connect(db) as c:
+        for age in range(8, 18):      # nenhuma idade fica com limites fora de ordem
+            vals = [r["threshold"] for r in c.execute(
+                "SELECT threshold FROM reference_norms WHERE age=? ORDER BY percentile DESC", (age,))]
+            assert vals == sorted(vals)
