@@ -23,7 +23,7 @@ TEST_NAME_EN = "Defensive Movement Test"
 REFERENCE = "Johnson & Nelson (1986)"
 UNIT = "s"
 LOWER_IS_BETTER = True
-CATEGORIES = ("Sub-8", "Sub-10", "Sub-12", "Sub-14")
+CATEGORIES = ("Sub-8", "Sub-10", "Sub-12", "Sub-14", "Sub-16")
 N_TRIALS = 3
 
 IMPROVED, UNCHANGED, WORSENED = "melhorou", "manteve", "piorou"

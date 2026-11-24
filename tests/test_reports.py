@@ -56,3 +56,22 @@ def test_reports(db):
     assert "PAIS" in pr and "10,00 s" in pr and "percentil" not in pr.lower()
     assert "Ana" in reports.team_report("Sub-10", date(2026, 6, 1), date(2026, 6, 30), db_path=db)
     assert "&lt;" in reports.to_html("t", "<b>")
+
+
+def test_sub16_and_migration_of_old_database(tmp_path):
+    import sqlite3
+    from basketball_eval import db as dbmod
+    path = str(tmp_path / "old.db")
+    old = dbmod.SCHEMA.replace(",'Sub-16'", "")          # esquema antigo, sem Sub-16
+    c = sqlite3.connect(path); c.executescript(old)
+    c.execute("INSERT INTO players(name, category) VALUES ('Velho','Sub-14')")
+    c.execute("INSERT INTO defensive_movement_tests(player_id, evaluation_date, category, trial_1, best_time, best_trial)"
+              " VALUES (1,'2026-01-01','Sub-14',9.5,9.5,1)")
+    c.commit(); c.close()
+    init_db(path)                                          # migra
+    pid = service.add_player("Nova", "Sub-16", "F", None, date(2010, 5, 1), path)
+    service.save_test(pid, date(2026, 6, 1), ["8.0", None, None], db_path=path)
+    assert [p["name"] for p in service.list_players("Sub-16", db_path=path)] == ["Nova"]
+    assert service.history(1, path)[0]["best_time"] == 9.5     # dados antigos preservados
+    norms.load_matulaitis_2019(path)
+    assert norms.percentile_score(7.9, 16, "F", path)["score"] == pytest.approx(40)   # 7,90 s = limite do P40, 16 anos
