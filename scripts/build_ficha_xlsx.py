@@ -6,6 +6,7 @@ As normas são lidas do bloco `const TESTS=[...]` da Plataforma de Avaliação Q
 """
 import re
 import sys
+from datetime import date
 
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
@@ -111,7 +112,7 @@ def make_register(ws, kind, example=None):
                  ("Lançamento (pontos)", 'IF($D{r}<=10,"Pontos Marcados","Lançamento 1 Minuto")', 9)]
         age_lo, age_hi = 8, 16
         heads = ["N.º", "Nome", "Clube", "Idade (anos)", "Drible (s)", "Percentil Drible", "Defesa (s)",
-                 "Percentil Defesa", "Lançamento (pontos)", "Percentil Lançamento", "Observações"]
+                 "Percentil Defesa", "Lançamento (pontos)", "Percentil Lançamento", "Data da avaliação", "Observações"]
         lower = [True, True, False]
         sub = ("Introduza idade (8–16) e o melhor resultado de cada teste. Os percentis calculam-se "
                "automaticamente por interpolação entre os valores de referência da folha Normas.")
@@ -124,19 +125,19 @@ def make_register(ws, kind, example=None):
         age_lo, age_hi = 13, 16
         heads = ["N.º", "Nome", "Clube", "Idade (anos)", "IV. Illinois com Drible (s)", "Percentil Illinois",
                  "V. Lançamento 1 Minuto (pts)", "Percentil Lançamento", "VI. Velocidade e Coordenação (s)",
-                 "Percentil Vel./Coord.", "VII. Lances Livres (em 30)", "Percentil Lances Livres", "Observações"]
+                 "Percentil Vel./Coord.", "VII. Lances Livres (em 30)", "Percentil Lances Livres", "Data da avaliação", "Observações"]
         lower = [True, False, True, False]
         sub = ("Introduza idade (13–16) e o melhor resultado de cada teste. Os percentis calculam-se "
                "automaticamente por interpolação entre os valores de referência da folha Normas.")
         ttl = "AVALIAÇÃO TÉCNICA — BATERIA IV A VII  (13 A 16 ANOS)"
     ncol = len(heads)
-    obs_col = ncol
+    obs_col, date_col = ncol, ncol - 1
     helper0 = ncol + 2                          # coluna A de ajudantes (oculta), deixa 1 em branco
     title(ws, ttl if not example else "EXEMPLO — " + ttl, sub if not example else
           "Dados fictícios só para demonstrar o preenchimento e o cálculo. Não usar como registo.", L(ncol))
     header(ws, 4, heads)
     ws.freeze_panes = "C5"
-    widths = [6, 24, 18, 11] + [14, 13] * len(tests) + [26]
+    widths = [6, 24, 18, 11] + [14, 13] * len(tests) + [15, 26]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[L(i)].width = w
     for r in range(FIRST, LAST + 1):
@@ -145,6 +146,8 @@ def make_register(ws, kind, example=None):
             cell = ws.cell(r, c)
             cell.border = BOX
             cell.alignment = Alignment(horizontal="left" if c in (2, 3, obs_col) else "center", vertical="center")
+            if c == date_col:
+                cell.number_format = "dd/mm/yyyy"
             cell.fill = PatternFill("solid", fgColor="FFFFFF" if r % 2 else GREY)
         for t, (label, test_expr, vcol) in enumerate(tests):
             vcl = L(vcol)
@@ -184,6 +187,9 @@ def make_register(ws, kind, example=None):
                         showErrorMessage=True, errorTitle="Idade fora do intervalo",
                         error=f"Introduza uma idade entre {age_lo} e {age_hi} anos.")
     ws.add_data_validation(dv); dv.add(f"D{FIRST}:D{LAST}")
+    dvd = DataValidation(type="date", operator="greaterThan", formula1="36526", showErrorMessage=True,
+                         errorTitle="Data inválida", error="Introduza uma data válida (dd/mm/aaaa).")
+    ws.add_data_validation(dvd); dvd.add(f"{L(date_col)}{FIRST}:{L(date_col)}{LAST}")
     dvn = DataValidation(type="decimal", operator="greaterThan", formula1="0", showErrorMessage=True,
                          errorTitle="Valor inválido", error="Introduza um número positivo.")
     ws.add_data_validation(dvn)
@@ -204,6 +210,7 @@ def make_register(ws, kind, example=None):
             r = FIRST + i
             for c, v in enumerate(row, 2):
                 ws.cell(r, c, v)
+            ws.cell(r, date_col, date(2026, 6, 15))
     return tests, helper0
 
 
@@ -247,11 +254,13 @@ def make_ficha(ws, tests, helper0):
     dv = DataValidation(type="whole", operator="between", formula1="1", formula2=str(N_ROWS), showErrorMessage=True)
     ws.add_data_validation(dv); dv.add("C3")
     rr = f"MATCH($C$3,Registo!$A${FIRST}:$A${LAST},0)"
-    info = [("Nome", "B"), ("Clube", "C"), ("Idade (anos)", "D")]
+    info = [("Nome", "B"), ("Clube", "C"), ("Idade (anos)", "D"), ("Data da avaliação", "K")]
     for i, (lab, col) in enumerate(info):
         ws.cell(4 + i, 2, lab).font = Font(bold=True)
         ws.cell(4 + i, 3, f'=IFERROR(IF(INDEX(Registo!${col}${FIRST}:${col}${LAST},{rr})="","",INDEX(Registo!${col}${FIRST}:${col}${LAST},{rr})),"")')
         ws.cell(4 + i, 3).alignment = Alignment(horizontal="left")
+        if col == "K":
+            ws.cell(4 + i, 3).number_format = "dd/mm/yyyy"
     header(ws, 8, ["", "Teste", "Resultado", "Percentil", "Melhor referência (P90)", "Mediana (P50)", "Limite P10 (<10)"])
     ws["A8"].fill = PatternFill(fill_type=None); ws["A8"].border = Border()
     spec = [("Drible (s)", 5, 0, True, helper0), ("Defesa (s)", 7, 1, True, helper0 + 2),
